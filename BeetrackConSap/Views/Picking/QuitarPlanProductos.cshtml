@@ -1,0 +1,495 @@
+﻿@{
+    ViewData["Title"] = "Productos del Plan";
+}
+<div class="container d-flex justify-content-center align-items-center min-vh-100">
+    <div class="card" style="width: 100%; max-width: 900px;">
+        <div class="card-body">
+            <h1 class="text-center mb-4">Productos asignados a <span id="plan-id" hidden></span><span id="nombrepickador" ></span></h1>
+
+            <div class="col-md-5">
+                <button class="btn btn-success" id="exportarBtn"><i class="bx bx-cloud-download"></i> Exportar documento</button>
+            </div>
+            <div class="mb-3 text-center">
+                <button id="btn-asignar" class="btn btn-primary" disabled>Reasignar</button>
+            </div>
+
+            <div class="row">
+                <div class="col-md-4">
+                    <label for="totalprod" class="form-label">Placa:</label>
+                    <input id="inputplaca" class="form-control" readonly />
+                </div>
+                <div class="col-md-4">
+                    <label for="totalprod" class="form-label">Capacidad:</label>
+                    <input id="inputcapacidad" class="form-control" readonly />
+                </div>
+                <div class="col-md-4">
+                    <label for="totalprod" class="form-label">Peso Venta:</label>
+                    <input id="inputpesoventa" class="form-control" readonly />
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-4">
+                    <label for="totalprod" class="form-label">Total Items:</label>
+                    <input id="inputotalprod" class="form-control" readonly />
+                </div>
+                <div class="col-md-4">
+                    <label for="totalprod" class="form-label">Total Liviano:</label>
+                    <input id="inputtotalliviano" class="form-control" readonly />
+                </div>
+                <div class="col-md-4">
+                    <label for="totalprod" class="form-label">Total Pesado:</label>
+                    <input id="inputtotalpesado" class="form-control" readonly />
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-4">
+                    <label for="searchInput" class="form-label">Buscar:</label>
+                    <input type="text" id="searchInput" class="form-control" />
+                </div>
+                <div class="col-md-4">
+                </div>
+                <div class="col-md-4">
+                </div>
+            </div>
+            <div class="table-responsive">
+                <table class="table text-center">
+                    <thead>
+                        <tr>
+                            <th></th>
+                            <th>#</th>
+                            <th>Codigo</th>
+                            <th>ID Producto</th>
+                            <th>Descripción</th>
+                            <th>Medida Base</th>
+                            <th>Total Cantidad</th>
+                            <th>Peso Total</th>
+                        </tr>
+                    </thead>
+                    <tbody id="productos-body">
+                        <tr>
+                            <td colspan="6">Cargando productos...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+
+    <div class="modal fade" id="modal-asignar" tabindex="-1" role="dialog" aria-labelledby="modalLabel" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalLabel">Asignar Pickeador</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="select-pickeador">Seleccionar Pickeador</label>
+                        <select id="select-pickeador" class="form-control">
+                            <option value="">Seleccione un pickeador</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" id="guardar-asignacion" class="btn btn-primary">Guardar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @section Scripts {
+        <script>
+            $(document).ready(() => {
+                const urlParams = new URLSearchParams(window.location.search);
+                const idPlan = urlParams.get('id');
+                const idPick = urlParams.get('idpick');
+                $('#plan-id').text(idPlan);
+                cargarProductos(idPlan, idPick);
+                cargarPersonal(idPlan);
+
+                $('#btn-asignar').click(() => {
+                    $('#modal-asignar').modal('show');
+                });
+                $('#guardar-asignacion').click(() => {
+                    const inputValue = $('#inputotalprod').val();
+                    console.log('Valor del input "inputotalprod":', inputValue);
+                    const selectedProductos = [];
+                    $('#productos-body input[type="checkbox"]:checked').each(function () {
+                        const productoId = String($(this).data('id'));
+                        const cantidad = $(this).closest('tr').find('td:nth-child(7)').text();
+                        selectedProductos.push({ id: productoId, cantidad: cantidad });
+                    });
+                    const numChecked = $('#productos-body input[type="checkbox"]:checked').length;
+                    console.log('Cantidad de productos seleccionados:', numChecked);
+                    if (selectedProductos.length > 0) {
+                        location.reload();
+                    }
+                    const pickeadorId = $('#select-pickeador').val();
+                    const idPlan = urlParams.get('id');
+
+                    if (selectedProductos.length > 0 && pickeadorId) {
+                        guardarProductosAsignados(selectedProductos, pickeadorId, idPlan, idPick);
+                    } else {
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'Atención',
+                            text: 'Por favor, seleccione al menos un producto y un pickeador.',
+                            confirmButtonText: 'Aceptar'
+                        });
+
+                    }
+                    if ((inputValue - numChecked) <= 0) {
+                        window.location.href = `/Home/ConsultasEnviadas`;
+                    }
+                });
+
+                $('#exportarBtn').click(() => {
+                    obtenerDataExportarPlan(idPlan, idPick);
+                });
+            });
+
+            const obtenerDataExportarPlan = async (idPlan, idPP) => {
+                try {
+                    const response = await fetch(`/Picking/ObtenerDataExportar?idpick=${idPP}&idplan=${idPlan}`);
+
+                    if (!response.ok) {
+                        throw new Error('Error al obtener los datos del servidor');
+                    }
+
+                    const data = await response.json();
+
+                    if (Array.isArray(data) && data.length > 0) {
+                        const dataPesadoCero = data.filter(item => item.pesado === 0);
+                        const dataPesadoUno = data.filter(item => item.pesado === 1);
+
+                        console.log("Datos con pesado 0:", dataPesadoCero);
+                        console.log("Datos con pesado 1:", dataPesadoUno);
+
+                        const { jsPDF } = window.jspdf;
+                        const doc = new jsPDF({
+                            margin: { top: 10, left: 10, bottom: 5, right: 10 }
+                        });
+
+
+                        const primerRegistro = data[0] || {};
+
+
+                        const nombre = primerRegistro.nombre || 'Nombre no disponible';
+                        const placa = primerRegistro.placa || 'Placa no disponible';
+                        const capacidad = primerRegistro.capacidad || 'Capacidad no disponible';
+                        const totalItems = primerRegistro.totalItems || 'Total no disponible';
+                        const pesoventa = primerRegistro.pesoVenta || 'Total no disponible';
+                        const jefe = primerRegistro.jefe || 'Jefe no disponible';
+
+                        const totalPeso = data.reduce((sum, item) => sum + parseFloat(item.pesoTotal || 0), 0).toFixed(2);
+
+
+                        doc.setFontSize(18);
+                        doc.text('Lista de Picking', 20, 20);
+
+                        doc.setFontSize(12);
+
+                        doc.text(`Nombre: ${nombre}`, 20, 30);
+                        doc.text(`Peso Venta: ${pesoventa}`, 90, 30);
+                        doc.text(`Placa: ${placa} Jefe: ${jefe}`, 20, 40);
+
+                        const pageWidth = doc.internal.pageSize.width;
+                        const totalItemsWidth = doc.getTextWidth(`Total Items: ${totalItems}`);
+                        const totalPesoWidth = doc.getTextWidth(`Total Peso: ${totalPeso} kg`);
+
+                        const rightX = pageWidth - Math.max(totalItemsWidth, totalPesoWidth) - 20;
+
+                        doc.text(`Total Items: ${totalItems}`, rightX, 30);
+                        doc.text(`Capacidad: ${capacidad}`, 90, 40);
+                        doc.text(`Total Peso: ${totalPeso} kg`, 148, 40);
+
+                        let y = 50;
+
+                        const tableColumn = ["Ubicacion", "Codigo", "Cod.Fabr", "Cant.", "Unidad", "Descripcion", "Marca", "Peso"];
+                        if (dataPesadoCero.length > 0) {
+                            doc.setFontSize(14);
+                            doc.text('Liviano', 90, y);
+                            y += 2;
+
+                            doc.setFontSize(8);
+                            const tableRows = [];
+
+                            dataPesadoCero.forEach(item => {
+                                const row = [
+                                    `${item.sL1Code}-${item.sL2Code}-${item.sL3Code}-${item.sL4Code}`,
+                                    item.idProducto,
+                                    item.codigoFabricante,
+                                    item.totalCantidad,
+                                    item.medidaBase,
+                                    item.descripcion,
+                                    item.fabricante,
+                                    item.pesoTotal
+                                ];
+                                tableRows.push(row);
+                            });
+
+                            doc.autoTable({
+                                head: [tableColumn],
+                                body: tableRows,
+                                startY: y,
+                                theme: 'grid',
+                                styles: {
+                                    fontSize: 8,
+                                    cellPadding: 0.5,
+                                    lineWidth: 0.3,
+                                    cellBorder: true,
+                                },
+                                headStyles: {
+                                    halign: 'center',
+                                    fontSize: 8,
+                                },
+                                tableWidth: 'auto',
+                                columnStyles: {
+                                    0: { cellWidth: 15 }, 1: { cellWidth: 15, halign: 'center' }, 2: { cellWidth: 15, halign: 'center' }, 3: { cellWidth: 10, halign: 'center' }, 4: { cellWidth: 15 }, 5: { cellWidth: 80 }, 6: { cellWidth: 26 }, 7: { cellWidth: 10 }
+                                },
+                            });
+
+                            y = doc.lastAutoTable.finalY + 5;
+                        }
+
+                        if (dataPesadoUno.length > 0) {
+                            doc.setFontSize(14);
+                            doc.text('Pesado', 90, y);
+                            y += 2;
+
+                            const tableRowsPesado = [];
+
+                            dataPesadoUno.forEach(item => {
+                                const row = [
+                                    `${item.sL1Code}-${item.sL2Code}-${item.sL3Code}-${item.sL4Code}`,
+                                    item.idProducto,
+                                    item.codigoFabricante,
+                                    item.totalCantidad,
+                                    item.medidaBase,
+                                    item.descripcion,
+                                    item.fabricante,
+                                    item.pesoTotal
+                                ];
+                                tableRowsPesado.push(row);
+                            });
+
+                            doc.autoTable({
+                                head: [tableColumn],
+                                body: tableRowsPesado,
+                                startY: y,
+                                theme: 'grid',
+                                styles: {
+                                    fontSize: 8,
+                                    cellPadding: 0.5,
+                                    lineWidth: 0.3,
+                                    cellBorder: true,
+                                },
+                                headStyles: {
+                                    halign: 'center',
+                                    fontSize: 8,
+                                },
+                                tableWidth: 'auto',
+                                columnStyles: {
+                                    0: { cellWidth: 15 }, 1: { cellWidth: 15, halign: 'center' }, 2: { cellWidth: 15, halign: 'center' }, 3: { cellWidth: 10, halign: 'center' }, 4: { cellWidth: 15 }, 5: { cellWidth: 80 }, 6: { cellWidth: 26 }, 7: { cellWidth: 10 }
+                                },
+                            });
+
+                            y = doc.lastAutoTable.finalY + 5;
+                        }
+
+                        doc.save('RESUMENPLANIFICACION.pdf');
+                    } else {
+                        console.error('No se recibieron datos válidos de la API');
+                    }
+
+                } catch (error) {
+                    console.error('Error al obtener los datos:', error);
+                    Swal.fire('Error', 'Hubo un problema al obtener los datos', 'error');
+                }
+            };
+
+            const cargarProductos = async (idPlan, idPick) => {
+                try {
+                    const response = await fetch(`/Picking/ObtenerProductoPlanPickeador?ID=${idPlan}&idpick=${idPick}`);
+                    const data = await response.json();
+
+                    const $productosBody = $('#productos-body');
+                    $productosBody.empty();
+
+                    const groupedProducts = data.reduce((acc, producto) => {
+                        const pesado = producto.pesado ? 'Pesado' : 'Liviano';
+                        if (!acc[pesado]) {
+                            acc[pesado] = {};
+                        }
+                        if (!acc[pesado][producto.sL1Code]) {
+                            acc[pesado][producto.sL1Code] = [];
+                        }
+                        acc[pesado][producto.sL1Code].push(producto);
+                        return acc;
+                    }, {});
+
+                    let totalPesoLiviano = 0;
+                    let totalPesoPesado = 0;
+
+                    let productCounter = 0;
+                    let placavista = null;
+                    let capacidadvista = null;
+                    let nombrevista = null;
+
+                    $('#searchInput').on('input', function () {
+                        const searchTerm = $(this).val().toLowerCase();
+                        filterTable(searchTerm);
+                    });
+
+                    const filterTable = (searchTerm) => {
+                        $productosBody.find('tr').each(function () {
+                            const rowText = $(this).text().toLowerCase();
+                            if (rowText.includes(searchTerm)) {
+                                $(this).show();
+                            } else {
+                                $(this).hide();
+                            }
+                        });
+                    };
+
+                    for (const [pesado, fabricantes] of Object.entries(groupedProducts)) {
+                        $productosBody.append(`
+                                                <tr class="table table-secondary">
+                                                    <td colspan="8"><strong>${pesado}</strong> <input type="checkbox" class="check-all" data-pesado="${pesado}"></td>
+                                                </tr>
+                                            `);
+
+                        for (const [sL1Code, productos] of Object.entries(fabricantes)) {
+                            $productosBody.append(`
+                                                    <tr>
+                                                        <td colspan="8"><strong>Sector ${sL1Code}</strong> <input type="checkbox" class="check-all-fabricante" data-pesado="${pesado}" data-fabricante="${sL1Code}"></td>
+                                                    </tr>
+                                                `);
+
+                            productos.forEach(producto => {
+                                productCounter++;
+                                if (placavista === null && capacidadvista === null) {
+                                    placavista = producto.placa;
+                                    capacidadvista = producto.capacidad;
+                                    nombrevista = producto.nombre;
+                                }
+                                $productosBody.append(`
+                                                        <tr>
+                                                            <td><input type="checkbox" data-id="${producto.idProducto}" class="producto-checkbox" data-pesado="${pesado}" data-fabricante="${sL1Code}"></td>
+                                                            <td>${productCounter}</td>
+                                                            <td>${producto.sL1Code}-${producto.sL2Code}-${producto.sL3Code}-${producto.sL4Code}</td>
+                                                            <td>${producto.idProducto}</td>
+                                                            <td>${producto.descripcion}</td>
+                                                            <td>${producto.medidaBase}</td>
+                                                            <td>${producto.totalCantidad}</td>
+                                                            <td>${producto.pesoTotal}</td>
+                                                        </tr>
+                                                    `);
+                                if (pesado === 'Pesado') {
+                                    totalPesoPesado += producto.pesoTotal;
+                                } else {
+                                    totalPesoLiviano += producto.pesoTotal;
+                                }
+                            });
+                        }
+                    }
+
+                    document.getElementById('inputotalprod').value = productCounter;
+                    document.getElementById('inputtotalliviano').value = totalPesoLiviano.toFixed(2);
+                    document.getElementById('inputtotalpesado').value = totalPesoPesado.toFixed(2);
+                    document.getElementById('inputpesoventa').value = (totalPesoPesado + totalPesoLiviano).toFixed(2);
+                    document.getElementById('inputplaca').value = placavista;
+                    document.getElementById('inputcapacidad').value = capacidadvista;
+                    document.getElementById('nombrepickador').value = nombrevista;
+                    $('#nombrepickador').text(nombrevista);
+
+                    $('.check-all').change(function () {
+                        const pesado = $(this).data('pesado');
+                        const isChecked = $(this).is(':checked');
+                        $productosBody.find(`.check-all-fabricante[data-pesado="${pesado}"]`).prop('checked', isChecked);
+                        $productosBody.find(`.producto-checkbox[data-pesado="${pesado}"]`).prop('checked', isChecked);
+                        const hasCheckedItems = $productosBody.find('.producto-checkbox:checked').length > 0;
+                        if (hasCheckedItems) {
+                            $('#btn-asignar').prop('disabled', false);
+                        } else {
+                            $('#btn-asignar').prop('disabled', true);
+                        }
+                    });
+
+                    $('.check-all-fabricante').change(function () {
+                        const fabricante = $(this).data('fabricante');
+                        const pesado = $(this).data('pesado');
+                        const isChecked = $(this).is(':checked');
+                        $productosBody.find(`.producto-checkbox[data-pesado="${pesado}"][data-fabricante="${fabricante}"]`).prop('checked', isChecked);
+                        const hasCheckedItems = $productosBody.find('.producto-checkbox:checked').length > 0;
+                        if (hasCheckedItems) {
+                            $('#btn-asignar').prop('disabled', false);
+                        } else {
+                            $('#btn-asignar').prop('disabled', true);
+                        }
+                    });
+
+                } catch (error) {
+                    console.error('Error al cargar los productos:', error);
+                    $('#productos-body').html('<tr><td colspan="4">Error al cargar los productos.</td></tr>');
+                }
+            };
+
+            const guardarProductosAsignados = async (productos, pickeadorId, idPlan, idPick) => {
+                if (pickeadorId === '0') {
+                    Swal.fire({
+                        title: 'Advertencia',
+                        text: 'Debe seleccionar un pickeador para continuar.',
+                        icon: 'warning',
+                        confirmButtonText: 'Aceptar'
+                    });
+                    return;
+                } else {
+
+                    try {
+                        const response = await fetch('/Picking/ActualizarProductosAsignados', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({ productos, pickeadorId, idPlan, idPick }),
+                        });
+
+                        const result = await response.json();
+
+                        if (result.success) {
+                            Swal.fire('Éxito', 'Productos asignados correctamente.', 'success');
+
+                            $('#modal-asignar').modal('hide');
+
+                            cargarProductos(idPlan, idPick);
+                        } else {
+                            Swal.fire('Error', 'Error al guardar la asignación.', 'error');
+                        }
+                    } catch (error) {
+                        console.error('Error al guardar los productos asignados:', error);
+                        Swal.fire('Error', 'Hubo un problema al guardar los productos asignados.', 'error');
+                    }
+                }
+            };
+
+            const cargarPersonal = async (idPlan) => {
+                try {
+                    const response = await fetch(`/Picking/CargarPersonalPickeo?id=${idPlan}`);
+                    const personal = await response.json();
+
+                    let selectpersonalOptions = `<option value="0">Elije un Pickeador</option>`;
+                    personal.forEach(tipo => {
+                        selectpersonalOptions += `<option value="${tipo.IDPP}">${tipo.Nombre}</option>`;
+                    });
+
+                    $("#select-pickeador").html('').append(selectpersonalOptions);
+                } catch (e) {
+                    console.error(e);
+                    Swal.fire('Error', 'Ocurrió un error al cargar el personal', 'info');
+                }
+            };
+        </script>
+    }

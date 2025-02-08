@@ -1,0 +1,1345 @@
+﻿@{
+    ViewData["Title"]="Lista";
+}
+@section Styles {
+    <link rel="stylesheet" href="~/css/datatables.min.css" />
+    <style>
+        .rojo { background-color: red !important; color: white }
+        .naranja { background-color: orange !important }
+        .amarillo { background-color: yellow !important }
+    </style>
+}
+<nav class="nav nav-tabs my-2">
+    <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tapContado">CONSULTA</button>
+    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tapSubida" hidden>SUBIR EXCEL</button>
+    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tapManifiesto" hidden>MANIFIESTOS</button>
+</nav>
+<div class="tab-content">
+    <div class="tab-pane fade show active" id="tapContado">
+        <div class="card border-0">
+            <div class="card-header border-bottom-0 p-0">
+                <nav class="nav nav-tabs">
+                    <button class="nav-link active" id="btnVentaSinC" data-bs-toggle="tab" data-bs-target="#nav-ventasinc">HISTORICO PLANNER</button>
+                    <button class="nav-link" id="btnVentaConC" data-bs-toggle="tab" data-bs-target="#nav-ventaconc">CONSULTA SAP DETALLADA</button>
+                    <button class="nav-link" id="btnProvincia" data-bs-toggle="tab" data-bs-target="#nav-provincia">CONSULTA SAP PROVINCIA</button>
+                    <button class="nav-link" id="btnResumido" data-bs-toggle="tab" data-bs-target="#nav-resumido">CONSULTA SAP RESUMIDA</button>
+                    <button class="nav-link" id="btnPorvendedor" data-bs-toggle="tab" data-bs-target="#nav-porvendedor">CONSULTA SAP POR VENDEDOR</button>
+
+                            <div class="container" id="divbuscarsap" name="divbuscarsap" style="display: none;">
+                                <div class="row" id="divbuscarprovincia" style="display: none;">
+                                    <div class="col-md-2">
+                                        <label>Fecha Programacion:</label>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <input type="date" class="form-control" name="fechapro" id="fechapro" />
+                                    </div>
+                                    <div class="col-md-2">
+                                        <a asp-action="ObtenerProgramaciones" class="btn btn-warning ms-auto" id="btnCargarPro">Cargar ...</a>
+                                    </div>
+                                    <div class="col-md-6" name="divprogra" id="divprogra" style="display: none;">
+                                        <select class="form-select" name="progra" id="progra" autocomplete="off" multiple>
+                                            <option> </option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="row" id="divcreacion">
+                                    <div class="col-md-2">
+                                        <label hidden>Fecha creacion:</label>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <input type="date" class="form-control" name="desde" id="desde" hidden/>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <input type="date" class="form-control" name="hasta" id="hasta" hidden/>
+                                    </div>
+                                    <div class="col-md-4" name="divbuscarterritorio" id="divbuscarterritorio">
+                                        <select class="form-select" name="territorio" id="territorio" autocomplete="off" multiple>
+                                            @foreach (var territorio in ViewBag.Territorios) {
+                                                <option value="@territorio.Value">@territorio.Text</option>
+                                            }
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="row" id="divvencimiento">
+                                    <div class="col-md-2">
+                                        <label>Fecha de Entrega:</label>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <input type="date" class="form-control" name="desdevenc" id="desdevenc" hidden/>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <input type="date" class="form-control" name="hastavenc" id="hastavenc" />
+                                    </div>
+                                    <div class="col-md-4" name="divbuscarzonarep" id="divbuscarzonarep">
+                                        <select class="form-select" name="zonarep" id="zonarep" autocomplete="off" multiple>
+                                            @foreach (var zonarep in ViewBag.Zonarep) {
+                                                <option value="@zonarep.Value">@zonarep.Value : @zonarep.Text</option>
+                                            }
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="p-4" id="divreparto">
+                                   <select name="selereparto[]" id="selereparto" autocomplete="off" multiple>
+                                       @foreach (var vendedor in ViewBag.Vendedores) {
+                                           <option value="@vendedor.Value">@vendedor.Text</option>
+                                       }
+                                   </select>
+                                </div>
+                                <div class="col-4">
+                                    <a id="registrarbeetrack" class="btn btn-primary ms-auto" hidden> ENVIAR A BEETRACK</a>
+                                    <a asp-action="VerRegistrado" class="btn btn-primary ms-auto" id="btnVentas">HISTORICO PLANNER</a>
+                                    <a asp-action="VerResumido" class="btn btn-primary ms-auto" id="btnBuscarResumido" hidden>BUSCAR RESUMIDO</a>
+                                    <a asp-action="VerVendedor" class="btn btn-primary ms-auto" id="btnVerificarinformacion" hidden>VERIFICAR INFORMACION</a>
+                                </div>
+                            </div>
+                </nav>
+            </div>
+            <div class="card-body">
+                <div class="tab-content" id="nav-tabContent">
+                    <div class="tab-pane fade show active" id="nav-ventasinc" role="tabpanel">
+
+                        <div class="table-responsive">
+                            <iframe src="https://app.femaco.com.pe/mantenimiento/Beetrack/EliminarPedidos.php" marginwidth="0" marginheight="0" name="ventana_iframe"
+                                    scrolling="si" border="0" frameborder="0" width="1500" height="1000">
+                            </iframe>
+                        </div>
+                        <div class="table-responsive" hidden>
+                            <table class="table table-bordered table-hover table-sm table-primary align-middle" id="tblVentaSinC">
+                                <thead>
+                                    <tr>
+                                        <th>N°</th>
+                                        <th>Codigo</th>
+                                        <th>Fecha</th>
+                                        <th>Ver</th>
+                                    </tr>
+                                </thead>
+                                <tbody style="cursor:pointer;font-size:12px;"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="tab-pane fade show" id="nav-ventaconc" role="tabpanel">
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-hover table-sm align-middle" id="tblVentaConC" name="table_reporte">
+                                <thead>
+                                    <tr>
+                                        <th>Fecha Entrega</th>
+                                        <th>N° Documento</th>
+                                        <th>Nombre Cliente</th>
+                                        <th>Direccion</th>
+                                        <th>Zona reparto</th>
+                                        <th>Vendedor</th>
+                                        <th>Telefono</th>
+                                        <th>Peso</th>
+                                        <th>Utilidad</th>
+                                        <th>Accion</th>
+                                        <th>Enviado</th>
+                                    </tr>
+                                </thead>
+                                <tbody style="cursor:pointer;font-size:12px;"></tbody>
+                                <tfoot>
+                                    <tr>
+                                        <th colspan="7">Total:</th>
+                                        <th id="sumatoriaPes"></th>
+                                        <th id="sumatoriaUti"></th>
+                                        <th></th>
+                                        <th></th>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="tab-pane fade show" id="nav-resumido" role="tabpanel">
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-hover table-sm table-primary align-middle" id="tblresumido">
+                                <thead>
+                                    <tr>
+                                        <th>N° Documento</th>
+                                        <th>Grupo</th>
+                                        <th>Doc Entry</th>
+                                        <th>Direccion</th>
+                                        <th>RUC</th>
+                                        <th>Nombre Cliente</th>
+                                        <th>Telefono</th>
+                                        <th>Zona reparto</th>
+                                        <th>Vendedor</th>
+                                        <th>Utilidad</th>
+                                        <th>Peso Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody style="cursor:pointer;font-size:12px;"></tbody>
+                                <tfoot>
+                                    <tr>
+                                        <th colspan="9">Total:</th>
+                                        <th id="sumatoriaPesos"></th>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="tab-pane fade show" id="nav-porvendedor" role="tabpanel">
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-hover table-sm table-primary align-middle" id="tblporvendedor">
+                                <thead>
+                                    <tr>
+                                        <th>Alerta</th>
+                                        <th>N° Documento</th>
+                                        <th>Nombre Grupo</th>
+                                        <th>Doc Entry</th>
+                                        <th>Direccion</th>
+                                        <th>RUC</th>
+                                        <th>Nombre Cliente</th>
+                                        <th>Telefono</th>
+                                        <th>Vendedor</th>
+                                        <th>Zona reparto</th>
+                                        <th>Territorio</th>
+                                        <th>Cantidad</th>
+                                        <th>Direccion</th>
+                                        <th>Fecha Creacion</th>
+                                        <th>Fecha Vencimiento</th>
+                                        <th>Item</th>
+                                        <th>Cantidad</th>
+                                        <th>Codigo Item</th>
+                                        <th>Costo Item</th>
+                                        <th>Peso</th>
+                                        <th>Latitud</th>
+                                        <th>Longitud</th>
+                                    </tr>
+                                </thead>
+                                <tbody style="cursor:pointer;font-size:12px;"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="tab-pane fade show" id="nav-provincia" role="tabpanel">
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-hover table-sm table-primary align-middle" id="tblprovincia">
+                                <thead>
+                                    <tr>
+                                        <th>N° Documento</th>
+                                        <th>Nombre Cliente</th>
+                                        <th>Direccion</th>
+                                        <th>Zona reparto</th>
+                                        <th>Vendedor</th>
+                                        <th>Item</th>
+                                        <th>Cantidad</th>
+                                        <th>Costo x Kilo</th>
+                                        <th>Peso</th>
+                                        <th>Costo Item</th>
+                                    </tr>
+                                </thead>
+                                <tbody style="cursor:pointer;font-size:12px;"></tbody>
+                                <tfoot>
+                                    <tr>
+                                        <th colspan="9">Total:</th>
+                                        <th id="sumatoriaPesos"></th>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="tab-pane fade" id="tapSubida">
+        <div class="row">
+            <div class="col-sm-12">
+
+                <div class="card">
+                    <div class="card-header"> Cargar Excel</div>
+                    <div class="card-body">
+
+                        <div class="row">
+                            <div class="col-sm-4">
+                                <input class="form-control-file" type="file" id="inputExcel" />
+                            </div>
+                            <div class="col-sm-4">
+                                <button class="btn btn-warning" onclick="mostrarDatos()">Mostrar Datos</button>
+                                <button class="btn btn-success" onclick="enviarDatos()" hidden>Enviar Datos a BD</button>
+                            </div>
+                        </div>
+
+                        <hr />
+                        <div class="row">
+                            <div class="col-sm-12">
+                                <div id="tablesContainer"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+    <div class="tab-pane fade" id="tapManifiesto">
+        <div class="card border-0">
+            <div class="card-header border-bottom-0 p-0">
+                <nav class="nav nav-tabs">
+                    <button class="nav-link active" id="btnManifiestoConC" data-bs-toggle="tab" data-bs-target="#nav-manifiestoconc">CON MANIFIESTO</button>
+                    <button class="nav-link" id="btnManifiestoSinC" data-bs-toggle="tab" data-bs-target="#nav-manifiestosinc">SIN MANIFIESTO</button>
+                    <a asp-action="VerConManifiesto" class="btn btn-primary ms-auto" id="btnManifiesto">CONSULTAR CON</a>
+                </nav>
+            </div>
+            <div class="card-body">
+                <div class="tab-content" id="nav-tabContent">
+                    <div class="tab-pane fade show active" id="nav-manifiestoconc" role="tabpanel">
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-hover table-sm table-primary align-middle" id="tblManifiestoConC">
+                                <thead>
+                                    <tr>
+                                        <th>N°</th>
+                                        <th>Codigo</th>
+                                        <th>Fecha</th>
+                                        <th>Ver</th>
+                                    </tr>
+                                </thead>
+                                <tbody style="cursor:pointer;font-size:12px;"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="tab-pane fade show" id="nav-manifiestosinc" role="tabpanel">
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-hover table-sm table-primary align-middle" id="tblManifiestoSinC">
+                                <thead>
+                                    <tr>
+                                        <th>N° Documento</th>
+                                        <th>Doc Entry</th>
+                                        <th>Direccion</th>
+                                        <th>RUC</th>
+                                        <th>Nombre Cliente</th>
+                                        <th>Telefono</th>
+                                        <th>Zona reparto</th>
+                                        <th>Vendedor</th>
+                                        <th>Peso</th>
+                                        <th>Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody style="cursor:pointer;font-size:12px;"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="modal fade" id="modalVerPlan" tabindex="-1" aria-labelledby="modalVerPlanLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalVerPlanLabel">Porfavor espere mientras se ASIGNA CODIGO SAP</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" hidden></button>
+            </div>
+            <div class="modal-body">
+                <p>Código: <span id="codigoPlan"></span></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" id="subirInfo" hidden>Confirmar</button>
+                <button type="button" class="btn btn-danger" data-bs-dismiss="modal" id="cerrarmodal" hidden>Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+@section Scripts {
+    <script src="~/js/datatables.min.js"></script>
+    <script>
+        let tablesin = $('#tblVentaSinC').DataTable({
+        });
+        let t;
+
+        function mostrarDatos() {
+            const input = document.getElementById("inputExcel")
+
+            const formData = new FormData()
+
+            formData.append("ArchivoExcel", input.files[0])
+
+            fetch("Home/MostrarDatos", {
+                method: "POST",
+                body: formData
+            })
+                .then((response) => { return response.json() })
+                .then((dataJson) => {
+                    const vehiculoData = {};
+                    const vehiculoDataConEstado = {};
+                    const tablesContainer = document.getElementById("tablesContainer");
+                    tablesContainer.innerHTML = '';
+
+
+
+                    dataJson?.forEach((item) => {
+                        if (!vehiculoData[item.vehiculo]) {
+                            vehiculoData[item.vehiculo] = [];
+                        }
+                        item.numeroManifiesto = calcularNumeroManifiesto(vehiculoData[item.vehiculo], item.cliente, item.direccion, item.vendedor);
+                        const index = vehiculoData[item.vehiculo].findIndex(element => element.numeroguia === item.numeroguia);
+                        if (index !== -1) {
+                            item.estado = 1;
+                        } else {
+                            item.estado = 0;
+                            vehiculoData[item.vehiculo].push(item);
+                        }
+                        if (!vehiculoDataConEstado[item.vehiculo]) {
+                            vehiculoDataConEstado[item.vehiculo] = {};
+                        }
+                        if (!vehiculoDataConEstado[item.vehiculo][item.numeroManifiesto]) {
+                            vehiculoDataConEstado[item.vehiculo][item.numeroManifiesto] = [];
+                        }
+                        vehiculoDataConEstado[item.vehiculo][item.numeroManifiesto].push(item);
+                    });
+                    for (const vehiculoman in vehiculoDataConEstado) {
+                        vehiculoDataConEstado[vehiculoman] = Object.values(vehiculoDataConEstado[vehiculoman]);
+                    }
+                    console.log(vehiculoData);
+                    console.log(JSON.stringify(vehiculoDataConEstado));
+                    console.log(vehiculoDataConEstado);
+
+                    const guardarConteoButton = document.createElement("button");
+                    guardarConteoButton.textContent = "Guardar Planificacion";
+                    guardarConteoButton.classList.add("btn", "btn-primary");
+                    guardarConteoButton.style.display = "inline-block";
+                    guardarConteoButton.style.marginRight = "20px";
+
+
+                    guardarConteoButton.addEventListener("click", function () {
+                        Swal.fire({
+                            title: '¿Estás seguro?',
+                            text: "¡Este cambio se guardará permanentemente!",
+                            icon: 'warning',
+                            showCancelButton: true,
+                            confirmButtonText: 'Sí, guardar',
+                            cancelButtonText: 'Cancelar',
+                            reverseButtons: true
+                        }).then((result) => {
+                            if (result.isConfirmed) {
+                                Swal.fire({
+                                    title: 'Guardando...',
+                                    text: 'Por favor, espera mientras procesamos la solicitud.',
+                                    allowOutsideClick: false,
+                                    didOpen: () => {
+                                        Swal.showLoading();
+                                    }
+                                });
+
+                                fetch('/Home/GuardarConteo', {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                    },
+                                    body: JSON.stringify(vehiculoDataConEstado)
+                                })
+                                    .then(response => {
+                                        if (!response.ok) {
+                                            throw new Error('Error en la red');
+                                        }
+                                        return response.json();
+                                    })
+                                    .then(json => {
+                                        console.log("JSON devuelto:", json);
+
+                                        Swal.fire({
+                                            icon: 'success',
+                                            title: '¡Guardado con éxito!',
+                                            text: 'El conteo se guardó correctamente.',
+                                            confirmButtonText: 'Aceptar'
+                                        }).then(() => {
+                                            guardarConteoButton.style.display = "none";
+                                        });
+                                    })
+                                    .catch(error => {
+                                        console.error("Error al guardar el conteo:", error);
+
+                                        Swal.fire({
+                                            icon: 'error',
+                                            title: 'Error',
+                                            text: 'Hubo un problema al guardar el conteo. Por favor, intenta nuevamente.',
+                                            confirmButtonText: 'Aceptar'
+                                        });
+                                    });
+                            }
+                        });
+                    });
+
+                    const buttonContainer = document.createElement('div');
+                    buttonContainer.style.textAlign = 'center'; 
+                    buttonContainer.appendChild(guardarConteoButton);
+                    tablesContainer.appendChild(buttonContainer);
+
+
+                    const manifestNumbers = [...new Set(dataJson.map(item => item.numeroManifiesto))];
+                    manifestNumbers.sort((a, b) => a - b);
+
+                    for (const vehiculo in vehiculoData) {
+
+                        const vehiculoHeader = document.createElement("h4");
+                        vehiculoHeader.textContent = `Número de placa: ${vehiculo}`;
+                        const capacidadDiv = document.createElement("div");
+                        capacidadDiv.classList.add("alert", "alert-warning");
+                        capacidadDiv.textContent = `Capacidad: ${vehiculoData[vehiculo][0].capacidad}`;
+                        capacidadDiv.style.display = "inline-block";
+                        capacidadDiv.style.marginRight = "20px";
+
+                        const validarListaButton = document.createElement("button");
+                        validarListaButton.textContent = "Validar Lista";
+                        validarListaButton.classList.add("btn", "btn-primary");
+                        validarListaButton.style.display = "inline-block";
+                        validarListaButton.style.marginRight = "20px";
+
+                        validarListaButton.addEventListener("click", function () {
+                            var numerosGuia = Array.from(document.querySelectorAll(`[data-numeroguia]`))
+                                .map(element => element.dataset.numeroguia);
+                            numerosGuia = numerosGuia.filter((item) => item !== 'null')
+
+                            fetch('/Home/validarLista', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify({ numerosGuia: numerosGuia })
+                            })
+                                .then(response => {
+                                    return response.json().then(json => {
+                                        console.log("JSON devuelto:", json);
+                                        return json;
+                                    });
+                                })
+                                .then(resultado => {
+                                    resultado.forEach((valor, indice) => {
+                                        const numeroGuia = numerosGuia[indice];
+                                        const button = document.querySelector(`[data-numeroguia="${numeroGuia}"] button`);
+                                        if (valor !== 0) {
+                                            button.textContent = "EN LISTA DE PICK";
+                                            button.classList.remove("btn-warning");
+                                            button.classList.add("btn-success");
+                                        } else {
+                                            button.textContent = "SIN LISTA DE PICK";
+                                            button.classList.remove("btn-success");
+                                            button.classList.add("btn-danger");
+                                        }
+                                    });
+                                })
+                                .catch(error => {
+                                    console.error('Error al llamar al controlador Home/validarLista:', error);
+                                });
+                        });
+
+                        const subircampo = document.createElement("button");
+                        subircampo.textContent = "Asignar SAP codigo";
+                        subircampo.classList.add("btn", "btn-success");
+                        subircampo.style.display = "inline-block";
+                        subircampo.style.marginRight = "20px";
+
+
+
+                        subircampo.addEventListener("click", function () {
+                            var elementos = Array.from(document.querySelectorAll('[data-numeroguia], [data-idsap], [data-mani], [data-vehiculo]'));
+                            
+                            elementos = elementos.filter(element => {
+                                return element.dataset.vehiculo === vehiculo;
+                            });
+
+                            var dataToSend = elementos.map(element => {
+                                let numeroguia = element.dataset.numeroguia || null;
+                                let idsap = element.dataset.idsap || null;
+                                let mani = element.dataset.mani || null;
+                                let vehiculo = element.dataset.vehiculo || null;
+
+                                let data = {};
+
+                                if (numeroguia !== null && numeroguia !== 'null') {
+                                    data.numeroguia = numeroguia;
+                                }
+                                if (idsap !== null && idsap !== 'null') {
+                                    data.idsap = idsap;
+                                }
+                                if (mani !== null && mani !== 'null') {
+                                    data.mani = mani;
+                                }
+                                if (vehiculo !== null && vehiculo !== 'null') {
+                                    data.vehiculo = vehiculo;
+                                }
+
+                                return data;
+                            });
+
+                            var modal = new bootstrap.Modal(document.getElementById('modalVerPlan'), {
+                                backdrop: 'static', 
+                                keyboard: false 
+                            });
+                            var modalBody = document.querySelector('#modalVerPlan .modal-body');
+                            modalBody.innerHTML = '';
+                            document.getElementById('cerrarmodal').setAttribute('hidden', 'true');
+                            modal.show();
+
+                            fetch('/Home/NumeroBeetrack', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify(dataToSend) 
+                            })
+                                .then(response => {
+                                    return response.json().then(json => {
+                                        console.log("JSON devuelto:", json);
+                                        if (json && json.length > 0) {
+                                            var modalBody = document.querySelector('#modalVerPlan .modal-body');
+                                            modalBody.innerHTML = ''; 
+                                            json.forEach(item => {
+                                                var paragraph = document.createElement('p');
+                                                paragraph.textContent = `Número de guía: ${item.numeroguia}, Mensaje de error: ${item.errorMessage}`;
+                                                modalBody.appendChild(paragraph);
+                                            });
+                                            document.getElementById('cerrarmodal').removeAttribute('hidden');
+                                        } else {
+                                            modal.hide();
+                                        }
+                                        return json;
+                                    });
+                                })
+                                .catch(error => {
+                                    console.error('Error al llamar al controlador Home/validarLista:', error);
+                                    modal.hide();
+                                })
+                                .finally(() => {
+                                });
+                        });
+
+
+
+                        const utilizado = vehiculoData[vehiculo][0].utilizado * vehiculoData[vehiculo][0].capacidad;
+                        const utilizadoDiv = document.createElement("div");
+                        utilizadoDiv.classList.add("alert");
+                        if (utilizado < vehiculoData[vehiculo][0].capacidad * 0.4) {
+                            utilizadoDiv.classList.add("alert-success");
+                        } else if (utilizado >= vehiculoData[vehiculo][0].capacidad * 0.4 && utilizado < vehiculoData[vehiculo][0].capacidad * 0.8) {
+                            utilizadoDiv.classList.add("alert-success");
+                        } else if (utilizado >= vehiculoData[vehiculo][0].capacidad * 0.8) {
+                            utilizadoDiv.classList.add("alert-danger");
+                        }
+                        utilizadoDiv.textContent = `Utilizado: ${utilizado}`;
+                        utilizadoDiv.style.display = "inline-block";
+                        utilizadoDiv.style.marginRight = "20px";
+                        utilizadoDiv.style.fontWeight = "bold";
+
+
+                        tablesContainer.appendChild(vehiculoHeader);
+                        tablesContainer.appendChild(capacidadDiv);
+                        tablesContainer.appendChild(utilizadoDiv);
+                        tablesContainer.appendChild(validarListaButton);
+                        tablesContainer.appendChild(subircampo);
+
+                        const cantidadNumerosManifiesto = manifestNumbers.length;
+                        const numerosAntesDelUltimo = manifestNumbers.slice(0, manifestNumbers.length - 1);
+                        manifestNumbers.forEach(manifestNumber => {
+                            const vehiculoTable = document.createElement("table");
+                            vehiculoTable.classList.add("table", "table-striped");
+                            vehiculoTable.innerHTML = `
+                            <thead>
+                                <tr>
+                                    <th>Número Guía</th>
+                                    <th>Cliente</th>
+                                    <th>Dirección</th>
+                                    <th>ID Sap</th>
+                                    <th>Vendedor</th>
+                                    <th>Número Manifiesto</th>
+                                    <th>Validacion</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${vehiculoData[vehiculo].filter(item => item.numeroManifiesto === manifestNumber).map(item => `
+                                    <tr data-numeroguia="${item.numeroguia}" data-idsap="${item.idsap}"  data-mani="${item.numeroManifiesto}" data-vehiculo="${item.vehiculo}">
+                                        <td>${item.numeroguia}</td>
+                                        <td>${item.cliente}</td>
+                                        <td>${item.direccion}</td>
+                                        <td>${item.idsap}</td>
+                                        <td>${item.vendedor}</td>
+                                        <td>${item.numeroManifiesto}</td>
+                                        <td><button class="btn btn-warning" id="btnvalida" name="btnvalida">!</button></td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                            `;
+                            tablesContainer.appendChild(vehiculoTable);
+                        });
+                    }
+                })
+        }
+
+
+        function calcularNumeroManifiesto(data, cliente, direccion, vendedor) {
+            let count = 1;
+            for (let i = 0; i < data.length; i++) {
+                if (data[i].cliente === cliente && (direccion !== data[i].direccion || vendedor !== data[i].vendedor)) {
+                    data[i].numeroManifiesto = count++;
+                    break;
+                }
+            }
+            return count;
+        }
+        let tomSelectInstance = null;
+        btnCargarPro.onclick = e => {
+            e.preventDefault();
+            loadBtn(e.target);
+
+            fetch(e.target.href + '?fechaprog=' + document.getElementById('fechapro').value)
+                .then(async (r) => r.ok ? r.json() : Promise.reject(await r.text() || r.statusText))
+                .then(d => {
+                    console.log("test", d)
+                    console.log(e.target.href)
+
+                    const select = document.getElementById('progra');
+                    select.innerHTML = '';
+
+                    d.forEach(item => {
+                        const option = document.createElement('option');
+                        option.value = item.zonasrep;
+                        option.textContent = `${item.idpro} - ${item.placa}`;
+                        select.appendChild(option);
+                    });
+
+                    if (tomSelectInstance) {
+                        tomSelectInstance.clearOptions();
+                        d.forEach(item => {
+                            tomSelectInstance.addOption({
+                                value: item.zonasrep,
+                                text: `${item.idpro} - ${item.placa}`
+                            });
+                        });
+                        tomSelectInstance.refreshOptions();
+                    } else {
+                        document.getElementById('divprogra').style.display = 'block';
+                        tomSelectInstance = new TomSelect('#progra', {
+                            plugins: {
+                                'checkbox_options': {
+                                    'checkedClassNames': ['ts-checked'],
+                                    'uncheckedClassNames': ['ts-unchecked'],
+                                }
+                            },
+                            options: d.map(item => ({
+                                value: item.zonasrep,
+                                text: `${item.idpro} - ${item.placa} - ${item.zonasrep}`
+                            }))
+                        });
+                    }
+
+                    console.log("Opciones agregadas al select.");
+                }).finally(loadBtn);
+        }
+
+        btnVentas.onclick=e => {
+            e.preventDefault();
+            loadBtn(e.target);
+            var selectElementzonarep = document.getElementById("zonarep");
+            var selectedOptionszonarep = Array.from(selectElementzonarep.selectedOptions).map(option => `'${option.value}'`);
+
+            var selectElementzonrpt = document.getElementById("progra");
+            var selectedOptionszonrpt = Array.from(selectElementzonrpt.selectedOptions).map(option => `${option.value}`);
+
+            var selectElementterritorio = document.getElementById("territorio");
+            var selectedOptionsterritorio = Array.from(selectElementterritorio.selectedOptions).map(option => `'${option.value}'`);
+            var selectElement = document.getElementById("selereparto"); 
+            var selectedOptions = Array.from(selectElement.selectedOptions).map(option => `'${option.value}'`);
+            console.log(selectedOptions.join(','));
+
+            fetch(e.target.href + '?desde=' + document.getElementById('desde').value + '&hasta=' + document.getElementById('hasta').value + '&desdevenc=' + document.getElementById('desdevenc').value + '&hastavenc=' + document.getElementById('hastavenc').value + '&terri=' + selectedOptionsterritorio.join(',') + '&rpt=' + selectedOptions.join(',') + '&znrpt=' + selectedOptionszonarep.join(',') + '&zonarep=' + selectedOptionszonrpt.join(','))
+            .then(async (r) => r.ok ? r.json() : Promise.reject(await r.text() || r.statusText))
+                .then(d => {
+                    console.log("test", d)
+                    console.log(e.target.href)
+                    
+                    let hastavenc = document.getElementById('hastavenc').value;
+                    let fecha = new Date(hastavenc + " ");
+                    let formattedHastavenc = ('0' + fecha.getDate()).slice(-2) + '/' + ('0' + (fecha.getMonth() + 1)).slice(-2) + '/' + fecha.getFullYear();
+
+                    console.log(hastavenc);
+                    console.log(fecha);
+                    console.log(formattedHastavenc);
+
+                    let esConsolidado = e.target.href.endsWith('ConConsolidado')
+                    let sumatoriaPeso = d.reduce((tota, item) => tota + parseFloat(item.capacidaduno), 0);
+                    let sumatoriaUtis = d.reduce((tota, item) => tota + parseFloat(item.utilidad), 0);
+                    document.getElementById('sumatoriaPes').textContent = sumatoriaPeso.toFixed(2);
+                    document.getElementById('sumatoriaUti').textContent = sumatoriaUtis.toFixed(2);
+
+                    tbl='#tblVentaConC';
+                    columnas = 
+                        [
+                            { data: 'fechamaxentrega' },
+                            { data: 'ndocumento' },
+                            { data: 'nombrecontacto' },
+                            { data: 'direccion' },
+                            { data: 'name' },
+                            { data: 'vendedor' },
+                            { data: 'telefono' },
+                            { data: 'pesototal' },
+                            { data: 'utilidadtotal' },
+                            {
+                                data: null,
+                                defaultContent: '<button class="btn-sap">SAP</button>',
+                                orderable: false
+                            },
+                            {
+                                data: 'existe',
+                                render: function (data, type, row) {
+                                    if (data) {
+                                        return '<td class="table table-warning">Enviado</td>';
+                                    } else {
+                                        return '<td class="table table-success">Sin Enviar</td>';
+                                    }
+                                }
+                            }
+                        ]
+                    let seenDocuments = [];
+                    if ($.fn.dataTable.isDataTable(tbl)) {
+                        $(tbl).DataTable().clear().destroy();
+                    }
+
+                    new DataTable(tbl,{
+                        autoWidth: false,buttons: ['copy',{extend: 'excel',footer: true},'pdf'],
+                        columns: columnas,
+                        data: d,destroy: false,dom: 'Bfrti',paging: false,rowId: 'pkid',order: [],
+                        createdRow: function (row, data, dataIndex) {
+                            let fechamaxentrega = data.fechamaxentrega;
+                            let ndocumento = data.ndocumento; 
+                            let entry = data.entry; 
+                            let exist = data.existe;
+
+                            if (seenDocuments.includes(ndocumento)) {
+                                $(row).hide(); 
+                            } else {
+                                seenDocuments.push(ndocumento); 
+                            }
+
+                            if (fechamaxentrega !== formattedHastavenc) {
+                                if (exist) {
+                                    $(row).css('background-color', '#FFE6A9');
+                                }else{
+                                    $(row).css('background-color', '#BC7C7C');
+                                }
+                            } else {
+                                if (exist) {
+                                    $(row).css('background-color', '#FFE6A9');
+                                } else {
+                                    $(row).css('background-color', '#A5B68D');
+                                }
+                            }
+                            $(row).find('.btn-sap').on('click', function () {
+                                openSAPModal(entry); 
+                            });
+                        }
+                    });
+                    let allMatch = d.every(item => item.fechamaxentrega === formattedHastavenc);
+                    let button = document.getElementById('registrarbeetrack');
+                    if (allMatch) {
+                        button.hidden = false;
+                    } else {
+                        button.hidden = true;
+                    }
+                }).finally(loadBtn);
+        }
+
+        function openSAPModal(entry) {
+            Swal.fire({
+                title: 'Actualizar Fecha de Entrega',
+                html: `<input type="date" id="newFechaEntrega" class="swal2-input" />`,
+                preConfirm: () => {
+                    const newDate = document.getElementById('newFechaEntrega').value;
+                    if (!newDate) {
+                        Swal.showValidationMessage('Por favor, seleccione una fecha');
+                    }
+                    return newDate;
+                },
+                confirmButtonText: 'Confirmar',
+                cancelButtonText: 'Cancelar',
+                showCancelButton: true,
+                focusConfirm: false,
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    const newFechaEntrega = result.value;
+
+                    Swal.fire({
+                        title: '¿Está seguro?',
+                        text: `¿Desea actualizar la fecha de entrega?`,
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonText: 'Sí, actualizar',
+                        cancelButtonText: 'No, cancelar'
+                    }).then((confirmResult) => {
+                        if (confirmResult.isConfirmed) {
+                            Swal.fire({
+                                title: 'Cargando...',
+                                text: 'Actualizando fecha de entrega...',
+                                didOpen: () => {
+                                    Swal.showLoading();
+                                },
+                                allowOutsideClick: false,
+                                showConfirmButton: false
+                            });
+
+                            actualizarEntregaSAP(entry, newFechaEntrega).then(() => {
+                                Swal.fire('Actualizado', 'La fecha de entrega ha sido actualizada correctamente', 'success');
+                            }).catch((error) => {
+                                Swal.fire('Error', 'Hubo un problema al actualizar la fecha de entrega', 'error');
+                            });
+                        } else {
+                            Swal.fire('Cancelado', 'La actualización ha sido cancelada', 'info');
+                        }
+                    });
+                }
+            });
+        }
+
+
+        function actualizarEntregaSAP(entry, newFechaEntrega) {
+            fetch(`/Home/ActualizarEntregaSAP?ndocumento=${entry}&nuevaFecha=${newFechaEntrega}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        Swal.fire('Éxito', 'Fecha de entrega actualizada correctamente', 'success');
+                    } else {
+                        Swal.fire('Error', 'No se pudo actualizar la fecha de entrega', 'error');
+                    }
+                })
+                .catch(error => {
+                    Swal.fire('Error', 'Hubo un problema al procesar la solicitud', 'error');
+                });
+        }
+
+        registrarbeetrack.onclick = e => {
+            e.preventDefault();
+            loadBtn(e.target);
+
+            Swal.fire({
+                title: '¿Estás seguro?',
+                text: "Esta acción enviará los datos al servidor. ¿Quieres continuar?",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Sí, continuar',
+                cancelButtonText: 'No, cancelar',
+                reverseButtons: true
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    Swal.fire({
+                        title: 'Enviando...',
+                        text: 'Estamos procesando tu solicitud.',
+                        allowOutsideClick: false,
+                        didOpen: () => {
+                            Swal.showLoading();
+                        }
+                    });
+
+                    var selectElementzonarep = document.getElementById("zonarep");
+                    var selectedOptionszonarep = Array.from(selectElementzonarep.selectedOptions).map(option => `'${option.value}'`);
+                    var selectElementterritorio = document.getElementById("territorio");
+                    var selectedOptionsterritorio = Array.from(selectElementterritorio.selectedOptions).map(option => `'${option.value}'`);
+                    var selectElement = document.getElementById("selereparto");
+                    var selectedOptions = Array.from(selectElement.selectedOptions).map(option => `'${option.value}'`);
+
+                    fetch(e.target.href + '?desde=' + document.getElementById('desde').value +
+                        '&hasta=' + document.getElementById('hasta').value +
+                        '&desdevenc=' + document.getElementById('desdevenc').value +
+                        '&hastavenc=' + document.getElementById('hastavenc').value +
+                        '&terri=' + selectedOptionsterritorio.join(',') +
+                        '&rpt=' + selectedOptions.join(',') +
+                        '&znrpt=' + selectedOptionszonarep.join(','))
+                        .then(async (r) => r.ok ? r.json() : Promise.reject(await r.text() || r.statusText))
+                        .then(d => {
+                            console.log("test", d);
+                            var dataa = [];
+                            dataa.push({
+                                "query": "envioapi",
+                                "detalles": d,
+                            })
+                            var jsonn = JSON.stringify(dataa);
+                            fetch("https://app.femaco.com.pe/mantenimiento/Beetrack/SubidaBeetrack.php", {
+                                mode: 'no-cors',
+                                method: 'post',
+                                body: jsonn,
+                                headers: { 'Content-Type': 'application/json' }
+                            }).then(function (resp) {
+                                if (resp.ok) {
+                                    return resp.json();
+                                } else {
+                                    console.log('Ocurrio algún error');
+                                }
+                            }).then(function (json) {
+                                console.log('El resultado es:');
+                                console.log(json);
+                                Swal.close();
+                                Swal.fire('¡Éxito!', 'Los datos fueron enviados correctamente.', 'success');
+                            });
+                        }).catch(err => {
+                            console.log('Error:', err);
+                            Swal.close();
+                            Swal.fire('Error', 'Hubo un problema al enviar los datos. Intenta nuevamente.', 'error');
+                        }).finally(() => {
+                            loadBtn();
+                        });
+                } else {
+                    Swal.close();
+                }
+            });
+        }
+
+        btnBuscarResumido.onclick = e => {
+            e.preventDefault();
+            loadBtn(e.target);
+            var selectElementzonarep = document.getElementById("zonarep");
+            var selectedOptionszonarep = Array.from(selectElementzonarep.selectedOptions).map(option => `'${option.value}'`);
+            
+            var selectElementzonrpt = document.getElementById("progra");
+            var selectedOptionszonrpt = Array.from(selectElementzonrpt.selectedOptions).map(option => `${option.value}`);
+
+            var selectElementzonarep = document.getElementById("zonarep");
+            var selectedOptionszonarep = Array.from(selectElementzonarep.selectedOptions).map(option => `'${option.value}'`);
+            var selectElementterritorio = document.getElementById("territorio");
+            var selectedOptionsterritorio = Array.from(selectElementterritorio.selectedOptions).map(option => `'${option.value}'`);
+            var selectElement = document.getElementById("selereparto");
+            var selectedOptions = Array.from(selectElement.selectedOptions).map(option => `'${option.value}'`);
+            fetch(e.target.href + '?desde=' + document.getElementById('desde').value + '&hasta=' + document.getElementById('hasta').value + '&desdevenc=' + document.getElementById('desdevenc').value + '&hastavenc=' + document.getElementById('hastavenc').value + '&terri=' + selectedOptionsterritorio.join(',') + '&rpt=' + selectedOptions.join(',') + '&znrpt=' + selectedOptionszonarep.join(',') + '&zonarep=' + selectedOptionszonrpt.join(','))
+            .then(async (r) => r.ok ? r.json() : Promise.reject(await r.text() || r.statusText))
+                .then(d => {
+                    console.log(window.location.origin + e.target.getAttribute('href')); // Imprime el href completo después del fetch
+                    console.log("test", d)
+
+                    let esConsolidado = e.target.href.endsWith('ConConsolidado')
+                    let hoy = new Date();
+                    let seen = {};
+
+                    let filteredData = d.filter(item => {
+                        if (!seen[item.ndocumento]) {
+                            seen[item.ndocumento] = true;
+                            return true;
+                        }
+                        return false;
+                    });
+                    console.log("test", filteredData)
+
+                    let sumatoriaPesos = 0;
+                    filteredData.forEach(item => {
+                        sumatoriaPesos += parseFloat(item.pesototal);
+                    });
+
+                    document.getElementById('sumatoriaPesos').textContent = sumatoriaPesos.toFixed(2);
+
+                    columnas =
+                        [
+                            { data: 'ndocumento' },
+                            { data: 'nombregrupo' },
+                            { data: 'entry' },
+                            { data: 'direccion' },
+                            { data: 'identificadorcontacto' },
+                            { data: 'nombrecontacto' },
+                            { data: 'telefono' },
+                            { data: 'name' },
+                            { data: 'vendedor' },
+                            { data: 'utilidad' },
+                            { data: 'pesototal' }
+                        ]
+                    tbl = '#tblresumido';
+                    new DataTable(tbl, {
+                        autoWidth: false, buttons: ['copy', { extend: 'excel', footer: true }, 'pdf'],
+                        columns: columnas,
+                        data: filteredData, destroy: true, dom: 'Bfrti', paging: false, rowId: 'pkid', order: [],
+                        columnDefs: [{ targets: '_all', className: 'dt-center' }]
+                    });
+                }).finally(loadBtn);
+        }
+        btnVerificarinformacion.onclick = e => {
+            e.preventDefault();
+            loadBtn(e.target);
+            var selectElementzonarep = document.getElementById("zonarep");
+            var selectedOptionszonarep = Array.from(selectElementzonarep.selectedOptions).map(option => `'${option.value}'`);
+
+            var selectElementzonrpt = document.getElementById("progra");
+            var selectedOptionszonrpt = Array.from(selectElementzonrpt.selectedOptions).map(option => `${option.value}`);
+
+            var selectElement = document.getElementById("selereparto");
+            var selectedOptions = Array.from(selectElement.selectedOptions).map(option => `'${option.value}'`);
+            var url = e.target.href + '?desde=' + document.getElementById('desde').value + '&hasta=' + document.getElementById('hasta').value + '&desdevenc=' + document.getElementById('desdevenc').value + '&hastavenc=' + document.getElementById('hastavenc').value + '&terri=' + document.getElementById('territorio').value + '&rpt=' + selectedOptions.join(',') + '&znrpt=' + selectedOptionszonarep.join(',') + '&zonarep=' + selectedOptionszonrpt.join(',');
+            console.log("URL de la solicitud fetch:", url);
+
+                fetch(url)
+                .then(async (r) => r.ok ? r.json() : Promise.reject(await r.text() || r.statusText))
+                .then(d => {
+                    console.log("test", d)
+
+                    let esConsolidado = e.target.href.endsWith('ConConsolidado')
+                    let hoy = new Date();
+
+                    let ndocumentoMap = {};
+
+                    d.forEach(item => {
+                        if (ndocumentoMap[item.ndocumento]) {
+                            item.estado = "hidden";
+                        } else {
+                            item.estado = "";
+                            ndocumentoMap[item.ndocumento] = true;
+                        }
+                    });
+                    console.log(d)
+
+                    columnas =
+                        [
+                            {
+                                data: 'alerta',
+                                render: function (data, type, row) {
+                                    if (data === '1') {
+                                        return '<span style="background-color: red;">Alerta</span>';
+                                    } else {
+                                        return '<span style="background-color: green;">Sin Alerta</span>';
+                                    }
+                                }
+                            },
+                            { data: 'ndocumento' },
+                            { data: 'nombregrupo' },
+                            { data: 'entry' },
+                            { data: 'direccion' },
+                            { data: 'identificadorcontacto' },
+                            { data: 'nombrecontacto' },
+                            { data: 'telefono' },
+                            { data: 'vendedor' },
+                            { data: 'name' },
+                            { data: 'terri' },
+                            { data: 'openqty' },
+                            { data: 'address' },
+                            { data: 'docdate' },
+                            { data: 'shipdate' },
+                            { data: 'nombreitem' },
+                            { data: 'cantidad' },
+                            { data: 'codigoitem' },
+                            { data: 'costoitem' },
+                            { data: 'peso' },
+                            { data: 'latitud' },
+                            { data: 'longitud' }
+                        ]
+                    tbl = '#tblporvendedor';
+                    new DataTable(tbl, {
+                        autoWidth: false, buttons: ['copy', { extend: 'excel', footer: true }, 'pdf'],
+                        columns: columnas,
+                        createdRow: function (row, data) {
+                            let estado = data.estado;
+                            row.style.display = estado === 'hidden' ? 'none' : '';
+                        },
+                        data: d, destroy: true, dom: 'Bfrti', paging: false, rowId: 'pkid', order: [], 
+                        select: {
+                            style: 'os',
+                            items: 'cell'
+                        }
+                    });
+
+                }).finally(loadBtn);
+        }
+        btnManifiesto.onclick = e => {
+            e.preventDefault();
+            loadBtn(e.target);
+            fetch(e.target.href)
+                .then(async (r) => r.ok ? r.json() : Promise.reject(await r.text() || r.statusText))
+                .then(d => {
+                    console.log("test", d)
+
+                    let esManifiesto = e.target.href.endsWith('ConManifiesto')
+                    let hoy = new Date();
+
+                    tbl = '#tblManifiesto' + (esManifiesto ? 'SinC' : 'ConC');
+                    columnas = esManifiesto ?
+                        [
+                            { data: 'nummanifiesto' },
+                            { data: 'estadomanifiesto' },
+                            { data: 'placa' },
+                            { data: 'conductor' },
+                            { data: 'factura' },
+                            { data: 'numerofactura' },
+                            { data: 'numerosolicitud' },
+                            { data: 'fecha' },
+                            { data: 'total' },
+                            { data: 'estadosolicitud' }
+                        ] : [
+                            { data: 'nummanifiesto' },
+                            { data: 'estadomanifiesto' },
+                            { data: 'placa' },
+                            { data: 'conductor' },
+                            { data: 'factura' },
+                            { data: 'numerofactura' },
+                            { data: 'numerosolicitud' },
+                            { data: 'fecha' },
+                            { data: 'total' },
+                            { data: 'estadosolicitud' }
+                        ];
+                    new DataTable(tbl, {
+                        autoWidth: false, buttons: ['copy', { extend: 'excel', footer: true }, 'pdf'],
+                        columns: columnas,
+                        createdRow: (r, d) => r.classList.toggle('table-danger',
+                            esManifiesto ? ((hoy - new Date(d.fechaC)) / 86400000) > 4 : new Date(d.fecha).getFullYear() <= 2020),
+                        data: d, destroy: true, dom: 'Bfrti', paging: false, rowId: 'pkid', order: []
+                    });
+                }).finally(loadBtn);
+        }
+        document.addEventListener('click', function (event) {
+            if (event.target.id === 'verplan') {
+                var codigo = event.target.value;
+                var modalBody = document.querySelector('#modalVerPlan .modal-body');
+                modalBody.innerHTML = 'Código: ' + codigo;
+                var subirInfoButton = document.getElementById('subirInfo');
+                subirInfoButton.dataset.codigo = codigo;
+                var modal = new bootstrap.Modal(document.getElementById('modalVerPlan'));
+                modal.show();
+            }
+            if (event.target.id === 'subirInfo') {
+                var codigo = '847777';
+                console.log('Código a subir:', codigo);
+                fetch('/Home/SubirInfo', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ codigo: codigo })
+                })
+                    .then(response => {
+                        if (response.ok) {
+                            return response.json();
+                        }
+                        throw new Error('Error al procesar la solicitud.');
+                    })
+                    .then(data => {
+                        console.log('Respuesta del servidor:', data);
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                    });
+            }
+        });
+        document.querySelectorAll('#tapContado button[data-bs-toggle="tab"]').forEach(t => {
+            t.addEventListener('show.bs.tab',event => {
+                btnVentas.text=event.target.id=='btnVentaSinC'? 'CONSULTA REGISTRADOS':'CARGAR PEDIDOS SAP';
+                btnVentas.href = event.target.id == 'btnVentaSinC' ? '/Home/VerRegistrado' : '/Home/VentaConConsolidado';
+                registrarbeetrack.href = event.target.id == 'btnVentaSinC' ? '/Home/VerRegistrado' : '/Home/VentaConConsolidado';
+                btnBuscarResumido.hidden = event.target.id != 'btnResumido';
+                btnVentas.hidden = event.target.id == 'btnResumido';
+                btnVentas.hidden = event.target.id == 'btnPorvendedor';
+                fetch(btnVentas.href + '?desde=' + document.getElementById('desde').value + '&hasta=' + document.getElementById('hasta').value).then(response => response.text())
+                btnVerificarinformacion.hidden = event.target.id != 'btnPorvendedor';
+                if (event.target.id === 'btnVentaConC') {
+                    document.getElementById('registrarbeetrack').removeAttribute('hidden');
+                } else {
+                    document.getElementById('registrarbeetrack').setAttribute('hidden', 'true');
+                }
+                if (event.target.id === 'btnVentaConC' || event.target.id === 'btnVentaSinC') {
+                    document.getElementById('btnVentas').removeAttribute('hidden');
+                } else {
+                    document.getElementById('btnVentas').setAttribute('hidden', 'true');
+                }
+            })
+        })
+        document.getElementById('btnBuscarResumido').addEventListener('click', function () {
+            document.getElementById('nav-ventaconc').classList.remove('show', 'active');
+            document.getElementById('nav-resumido').classList.add('show', 'active');
+            document.querySelectorAll('#tapContado button.nav-link').forEach(link => {
+                link.classList.remove('active');
+            });
+            this.classList.add('active');
+        });
+        document.querySelectorAll('#tapManifiesto button[data-bs-toggle="tab"]').forEach(t => {
+            t.addEventListener('show.bs.tab', event => {
+                btnManifiesto.text = event.target.id == 'btnManifiestoConC' ? 'CONSULTAR CON' : 'CONSULTAR SIN';
+                btnManifiesto.href = event.target.id == 'btnManifiestoConC' ? '/Home/VerConManifiesto' : '/Home/VerSinManifiesto';
+                fetch(btnManifiesto.href).then(response => response.text())
+            })
+        })
+        document.getElementById('btnPorvendedor').addEventListener('click', function () {
+            document.getElementById('divbuscarsap').style.display = '';
+            document.getElementById('divbuscarprovincia').style.display = 'none';
+            document.getElementById('divbuscarterritorio').style.display = 'none';
+            document.getElementById('divcreacion').style.display = '';
+            document.getElementById('divvencimiento').style.display = '';
+            document.getElementById('divreparto').style.display = '';
+            document.getElementById('tblporvendedor').style.display = '';
+            document.getElementById('tblVentaSinC').style.display = 'none';
+            document.getElementById('tblVentaConC').style.display = 'none';
+            document.getElementById('tblresumido').style.display = 'none';
+        });
+
+        document.getElementById('btnVentaSinC').addEventListener('click', function () {
+            document.getElementById('divbuscarsap').style.display = 'none';
+            document.getElementById('divbuscarprovincia').style.display = 'none';
+            document.getElementById('divbuscarterritorio').style.display = '';
+            document.getElementById('divcreacion').style.display = '';
+            document.getElementById('divvencimiento').style.display = '';
+            document.getElementById('divreparto').style.display = '';
+            document.getElementById('tblporvendedor').style.display = 'none';
+            document.getElementById('tblVentaSinC').style.display = '';
+            document.getElementById('tblVentaConC').style.display = 'none';
+            document.getElementById('tblresumido').style.display = 'none';
+        });
+
+        document.getElementById('btnVentaConC').addEventListener('click', function () {
+            document.getElementById('divbuscarsap').style.display = '';
+            document.getElementById('divbuscarprovincia').style.display = 'none';
+            document.getElementById('divbuscarterritorio').style.display = '';
+            document.getElementById('divcreacion').style.display = '';
+            document.getElementById('divvencimiento').style.display = '';
+            document.getElementById('divreparto').style.display = '';
+            document.getElementById('tblporvendedor').style.display = 'none';
+            document.getElementById('tblVentaSinC').style.display = 'none';
+            document.getElementById('tblVentaConC').style.display = '';
+            document.getElementById('tblresumido').style.display = 'none';
+        });
+
+        document.getElementById('btnResumido').addEventListener('click', function () {
+            document.getElementById('divbuscarsap').style.display = '';
+            document.getElementById('divbuscarprovincia').style.display = 'none';
+            document.getElementById('divbuscarterritorio').style.display = '';
+            document.getElementById('divcreacion').style.display = '';
+            document.getElementById('divvencimiento').style.display = '';
+            document.getElementById('divreparto').style.display = '';
+            document.getElementById('tblporvendedor').style.display = 'none';
+            document.getElementById('tblVentaSinC').style.display = 'none';
+            document.getElementById('tblVentaConC').style.display = 'none';
+            document.getElementById('tblresumido').style.display = '';
+        });
+        document.getElementById('btnProvincia').addEventListener('click', function () {
+            document.getElementById('divbuscarsap').style.display = '';
+            document.getElementById('divbuscarprovincia').style.display = '';
+            document.getElementById('divbuscarterritorio').style.display = 'none';
+            document.getElementById('divcreacion').style.display = 'none';
+            document.getElementById('divvencimiento').style.display = 'none';
+            document.getElementById('divreparto').style.display = 'none';
+            document.getElementById('tblporvendedor').style.display = 'none';
+            document.getElementById('tblVentaSinC').style.display = 'none';
+            document.getElementById('tblVentaConC').style.display = 'none';
+            document.getElementById('tblresumido').style.display = 'none';
+        });
+
+        document.getElementById('fechapro').valueAsDate = new Date();
+        document.getElementById('desde').valueAsDate = new Date();
+        document.getElementById('hasta').valueAsDate = new Date();
+        var fechaActual = new Date();
+        fechaActual.setDate(fechaActual.getDate() + 1);
+        document.getElementById('desdevenc').valueAsDate = fechaActual;
+        document.getElementById('hastavenc').valueAsDate = fechaActual;
+
+        new TomSelect('#selereparto', {
+            plugins: {
+                'checkbox_options': {
+                    'checkedClassNames': ['ts-checked'],
+                    'uncheckedClassNames': ['ts-unchecked'],
+                }
+            },
+        });
+        new TomSelect('#territorio', {
+            plugins: {
+                'checkbox_options': {
+                    'checkedClassNames': ['ts-checked'],
+                    'uncheckedClassNames': ['ts-unchecked'],
+                }
+            },
+        });
+        new TomSelect('#zonarep', {
+            plugins: {
+                'checkbox_options': {
+                    'checkedClassNames': ['ts-checked'],
+                    'uncheckedClassNames': ['ts-unchecked'],
+                }
+            },
+        });
+    </script>
+}

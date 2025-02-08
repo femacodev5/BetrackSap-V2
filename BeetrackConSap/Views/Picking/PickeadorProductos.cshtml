@@ -1,0 +1,1620 @@
+﻿<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,200..1000;1,200..1000&display=swap" rel="stylesheet">
+<style>
+    * {
+        font-family: "Nunito", serif;
+    }
+
+    .btn {
+        border-radius: 50px;
+    }
+
+    .text-dark {
+        --bs-text-opacity: 1;
+        color: rgb(0 0 0) !important;
+    }
+</style>
+<div class="container">
+    <h1>Productos a Contar <span id="plan-id"></span></h1>
+    <div class="card border-0">
+        <div class="card-body">
+            <div class="row justify-content-center mb-3">
+                
+                <div class="col-md-5">
+                    <div class="row">
+                        <div class="col-6">
+                            <b for="PesoTotal" class="form-label">
+                                Peso Total:
+                                <input class="form-control" id="pesototalunidad" readonly />
+                            </b>
+                        </div>
+                        <div class="col-6">
+                            <b for="ItemsTotal" class="form-label">
+                                Items Total:
+                                <input class="form-control" id="inputcontadoritems" readonly />
+                            </b>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-5">
+                    <br />
+                    <button class="btn btn-success" id="guardartodoBtn"><i class="bx bx-send"></i> Marcar Todo</button>
+                    <button class="btn btn-danger" id="finalizarBtn">Finalizar</button>
+                </div>
+            </div>
+            <div class="form-group" style="max-width: 600px; margin-left: auto; margin-right: auto;">
+                <input type="text" class="form-control" id="searchInput" placeholder="Buscar productos..." />
+            </div>
+            <div class="row justify-content-center mb-3">
+                    <label for="sectorSelect" class="fw-bold">Sector</label>
+                    <select class="form-control" id="sectorSelect">
+                        <option value="0">Seleccione un sector</option>
+                    </select>
+                    <label for="posicionSelect" class="fw-bold">Posición</label>
+                    <select class="form-control" id="posicionSelect">
+                        <option value="0">Seleccione una posición</option>
+                    </select>
+            </div>
+            <div id="productos-body" style="max-width: 600px !important; margin-left: auto; margin-right: auto;" class="text-center">
+                <div class="m-2 p-2" style="border: 5px solid #C4E1F6; border-radius: 10px;">
+                    <span class="fw-bold text-dark fs-5">Cargando productos...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="paqueteriasModal" tabindex="-1" role="dialog" aria-labelledby="paqueteriasModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title" id="paqueteriasdescripcion"></h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-8">
+                        <span class="p-0 text-secondary" id="paqueteriascodigo"></span><br />
+                        <span class="p-0 text-secondary" id="paqueteriascodfab"></span><br />
+                        @* <span id="paqueteriasubica"></span><br /> *@
+                        <span class="p-0 text-secondary" id="paqueteriasstock"></span><br />
+                        <span class="p-0 text-secondary">Cantidad Pedida: </span><span id="paqueteriaspickear"></span>
+                    </div>
+                    <div class="col-4 text-end">
+                        <button type="button" id="actualizarBtn" class="btn btn-success" style="display:none;">Actualizar</button>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table class="table" style="text-align:center">
+                        <thead>
+                            <tr>
+                                <th colspan="4"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="paqueterias-body" style="vertical-align: middle;">
+                            <tr>
+                                <td colspan="3">Cargando paqueterías...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" id="guardarBtn" class="btn btn-primary">Guardar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="ubicacionesModal" tabindex="-1" aria-labelledby="ubicacionesModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="ubicacionesModalLabel">Ubicaciones del Producto</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <table class="table table-striped" id="ubicacionesTable">
+                    <thead>
+                        <tr>
+                            <th>Ubicacion</th>
+                            <th>Stock</th>
+                            <th>Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ubicacionesContent">
+                        <tr><td colspan="6" class="text-center">Cargando ubicaciones...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+@section Scripts {
+    <script>
+        $(document).ready(() => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const idPlan = urlParams.get('id');
+            const idPP = urlParams.get('idpp');
+
+            $('#plan-id').text(idPlan);
+            cargarProductosPickeador(idPlan, idPP);
+            cargarFiltros(idPlan, idPP);
+            filtrarProductos();
+            $('#finalizarBtn').click(() => {
+                Swal.fire({
+                    title: '¿Estás seguro?',
+                    text: "¿Quieres finalizar el conteo?",
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#3085d6',
+                    cancelButtonColor: '#d33',
+                    confirmButtonText: 'Sí, finalizar!',
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        finalizarConteoPlaca(idPlan, idPP);
+                    }
+                });
+            });
+
+            $('#searchInput').on('input', function () {
+                const searchTerm = $(this).val().toLowerCase();
+                console.log(searchTerm);
+                filtrarProductosinput(searchTerm);
+            });
+
+            $('#exportarBtn').click(() => {
+               obtenerDataExportar(idPlan, idPP);
+            });
+
+            $('#guardartodoBtn').click(() => {
+                Swal.fire({
+                    title: '¿Estás seguro de marcar todo?',
+                    text: "¿Quieres marcar todo?",
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#3085d6',
+                    cancelButtonColor: '#d33',
+                    confirmButtonText: 'Sí, marcar!'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        GuardarTodo(idPP, idPlan);
+                    }
+                });
+            });
+        });
+
+        const cargarProductosPickeador = async (idPlan, idPP) => {
+            try {
+                const response = await fetch(`/Picking/ObtenerProductosContador?idContador=${idPP}&idPlan=${idPlan}`);
+
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+
+                const data = await response.json();
+                const $productosBody = $('#productos-body');
+                $productosBody.empty();
+
+                if (!Array.isArray(data) || data.length === 0) {
+                    $productosBody.append('<div class="m-2 p-2" style="border: 5px solid #C4E1F6; border-radius: 10px;">No hay productos disponibles.</div>');
+                    return;
+                }
+                let resultadoFinal = 1;
+                let pesototal = 0;
+                let contadoritems = 0;
+
+                let productosrestantes = 0;
+
+                data.forEach((prod) => {
+                    contadoritems++;
+                    resultadoFinal *= prod.iniciado;
+                    const estado = prod.iniciado === '0' ? 'dark' : (prod.cantidadContada === 0 ? 'danger' : (prod.cantidad === prod.cantidadContada ? 'success' : 'warning'));
+                    const hiddendiv = prod.finalizado === 1 ? 'hidden' : '';
+                    const cantidadmostrar = prod.cantidadContada === 0 ? prod.cantidad : prod.cantidadContada;
+                    const hiddencon = prod.cantidadContada === 0 ? '' : 'hidden';
+                    const hiddenconfirmar = prod.stockGuardado - prod.cantidad >= 0 ? '': 'hidden';
+                    pesototal += prod.pesoUnidad * prod.cantidad;
+
+                    if (estado === 'dark') {
+                        productosrestantes++;
+                    }
+
+                    $productosBody.append(`
+                                <div class="m-2 p-2 product-card" data-sector="${prod.sL1Code}" data-posicion="${prod.sL2Code}" style="border: 5px solid #C4E1F6; border-radius: 10px;" ${hiddendiv}>
+                                    <span class="fw-bold text-dark fs-5">${prod.descripcion}</span>
+                                    <input type="hidden" class="idpProducto" value="${prod.idpProducto}" />
+                                    <div class="d-flex justify-content-between">
+                                        <div class="p-0 d-block">
+                                                    <span class="p-0 text-dark">Código: ${prod.idProducto}</span><br />
+
+                                                    <span class="p-0 text-dark">Fabricante: ${prod.codigoFabricante}</span><br />
+                                                    <span class="p-0 text-dark">Stock: ${prod.stockGuardado}</span><br />
+                                                    <span class="p-0 text-dark">Peso: ${(prod.pesoUnidad * prod.cantidad).toFixed(2)}</span><br />
+                                            <span class="p-0 text-${prod.stockGuardado - prod.cantidad >= 0 ? 'success' : 'danger'}">Cantidad a Pickear: ${prod.cantidad}</span><br />
+                                                    <span class="p-0 text-dark">Cantidad Pendiente: ${prod.cantidad - prod.cantidadContada}</span><br />
+                                                    <span class="p-0 text-dark">
+                                                        <span class="text-dark fw-bold fs-7">Sector ${prod.sL1Code}: </span>&nbsp${prod.sL2Code}-${prod.sL3Code}-${prod.sL4Code}
+                                            </span>
+                                        </div>
+                                        <div class="p-0 d-block">
+                                            <button type="button" class="btn btn-${estado} mt-4 paqueterias-btn" data-ubica="${prod.sL1Code + "-" + prod.sL2Code + "-" + prod.sL3Code + "-" + prod.sL4Code}" data-id="${prod.idProducto}" data-abs="${prod.absEntry}" data-bincode="${prod.ubicacion}" data-descri="${prod.descripcion}" data-medid="${prod.medidaBase}" data-codigo="${prod.idProducto}" data-codfab="${prod.codigoFabricante}" data-cantidad="${prod.cantidad}">${cantidadmostrar} ${prod.medidaBase}</button><br>
+                                            <br><button style="display:none" class="btn btn-secondary confirmarpick-btn" data-ubica="${prod.sL1Code + "-" + prod.sL2Code + "-" + prod.sL3Code + "-" + prod.sL4Code}" data-id="${prod.idProducto}" data-abs="${prod.absEntry}" data-bincode="${prod.ubicacion}" data-descri="${prod.descripcion}" data-codigo="${prod.idProducto}" data-codfab="${prod.codigoFabricante}" data-cantidad="${prod.cantidad}" ${hiddencon} ${hiddenconfirmar}><i class="bx bx-circle"></i></button>
+                                        </div>
+                                    </div>
+                                </div>
+                            `);
+                });
+
+                document.getElementById('pesototalunidad').value = pesototal.toFixed(3);
+                document.getElementById('inputcontadoritems').value = contadoritems;
+                if (resultadoFinal === 0) {
+                    $('#finalizarBtn').attr('hidden', true);
+                } else {
+                    $('#finalizarBtn').removeAttr('hidden');
+                    $('#guardartodoBtn').attr('hidden', true);
+                }
+                $('.paqueterias-btn').click(function () {
+                    const idProducto = $(this).data('id');
+                    const descripcion = $(this).data('descri');
+                    const codigo = $(this).data('codigo');
+                    const abs = $(this).data('abs');
+                    const unidadMedida = $(this).data('medid');
+                    const codfab = $(this).data('codfab');
+                    const ubica = $(this).data('ubica');
+                    const idpProducto = $(this).closest('.m-2').find('.idpProducto').val();
+                    const cantidadAPickear = $(this).data('cantidad');
+                    const ubicacion = $(this).data('bincode');
+                    cargarPaqueteriasProducto(idProducto, idpProducto, cantidadAPickear, descripcion, codigo, codfab, ubica, idPlan, abs, ubicacion, idPP, unidadMedida);
+                });
+                $('.confirmarpick-btn').click(function () {
+                    const idProducto = $(this).data('id');
+                    const descripcion = $(this).data('descri');
+                    const codigo = $(this).data('codigo');
+                    const abs = $(this).data('abs');
+                    const codfab = $(this).data('codfab');
+                    const ubica = $(this).data('ubica');
+                    const idpProducto = $(this).closest('.m-2').find('.idpProducto').val();
+                    const cantidadAPickear = $(this).data('cantidad');
+                    const ubicacion = $(this).data('bincode');
+                    confirmarPick(idProducto, idpProducto, cantidadAPickear, descripcion, codigo, codfab, ubica, idPlan, abs, ubicacion, idPP);
+                });
+
+
+                filtrarProductos();
+
+            } catch (error) {
+                console.error('Error al cargar los productos:', error);
+                Swal.fire('Error', 'Error al cargar los productos.', 'error');
+            }
+        };
+
+        const filtrarProductosinput = (searchTerm) => {
+            console.log("LLEGO " + searchTerm);
+            const productos = $('.product-card');
+            productos.each(function () {
+                const descripcion = $(this).find('.fw-bold').text().toLowerCase();
+                const codigo = $(this).find('.text-secondary').first().text().toLowerCase();
+                const sector = $(this).find('.text-dark').text().toLowerCase();
+
+                if (descripcion.includes(searchTerm) || codigo.includes(searchTerm) || sector.includes(searchTerm)) {
+                    $(this).show();
+                    console.log("se econtro coincidencia");
+                } else {
+                    $(this).hide();
+                    console.log("no hya nada");
+                }
+            });
+        };
+
+        const GuardarTodo = async (idPP, idPlan) => {
+            try {
+                Swal.fire({
+                    title: 'Enviando...',
+                    text: 'Estamos procesando tu solicitud.',
+                    allowOutsideClick: false,
+                    didOpen: () => {
+                        Swal.showLoading();
+                    }
+                });
+                const response = await fetch(`/Picking/GuardarTodoPicking?id=${idPP}&plan=${idPlan}`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                });
+
+                Swal.close();
+
+                if (response.ok) {
+                    const data = await response.json();
+                    Swal.fire({
+                        icon: 'success',
+                        title: '¡Operación Exitosa!',
+                        text: 'Los detalles de picking se han guardado correctamente.',
+                        confirmButtonText: 'Aceptar',
+
+                    }).then(() => {
+                        location.reload();
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: 'Hubo un problema al procesar los datos.',
+                        confirmButtonText: 'Aceptar'
+                    });
+                }
+            } catch (error) {
+                Swal.close();
+                console.error(error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'Hubo un error al realizar la solicitud.',
+                    confirmButtonText: 'Aceptar'
+                });
+            }
+        };
+
+
+        const obtenerDataExportar = async (idPlan, idPP) => {
+            try {
+                const response = await fetch(`/Picking/ObtenerDataExportar?idpick=${idPP}&idplan=${idPlan}`);
+
+                if (!response.ok) {
+                    throw new Error('Error al obtener los datos del servidor');
+                }
+
+                const data = await response.json();
+
+                if (Array.isArray(data) && data.length > 0) {
+                    const dataPesadoCero = data.filter(item => item.pesado === 0);
+                    const dataPesadoUno = data.filter(item => item.pesado === 1);
+
+                    console.log("Datos con pesado 0:", dataPesadoCero);
+                    console.log("Datos con pesado 1:", dataPesadoUno);
+
+                    const { jsPDF } = window.jspdf;
+                    const doc = new jsPDF({
+                        margin: { top: 10, left: 10, bottom: 5, right: 10 }
+                    });
+
+
+                    const primerRegistro = data[0] || {};
+
+
+                    const nombre = primerRegistro.nombre || 'Nombre no disponible';
+                    const placa = primerRegistro.placa || 'Placa no disponible';
+                    const capacidad = primerRegistro.capacidad || 'Capacidad no disponible';
+                    const totalItems = primerRegistro.totalItems || 'Total no disponible';
+                    const pesoventa = primerRegistro.pesoVenta || 'Total no disponible';
+                    const jefe = primerRegistro.jefe || 'Jefe no disponible';
+
+                    const totalPeso = data.reduce((sum, item) => sum + parseFloat(item.pesoTotal || 0), 0).toFixed(2);
+
+
+                    doc.setFontSize(18);
+                    doc.text('Lista de Picking', 20, 20);
+
+                    doc.setFontSize(12);
+
+                    doc.text(`Nombre: ${nombre}`, 20, 30);
+                    doc.text(`Peso Venta: ${pesoventa}`, 90, 30);
+                    doc.text(`Placa: ${placa} Jefe: ${jefe}`, 20, 40);
+
+                    const pageWidth = doc.internal.pageSize.width;
+                    const totalItemsWidth = doc.getTextWidth(`Total Items: ${totalItems}`);
+                    const totalPesoWidth = doc.getTextWidth(`Total Peso: ${totalPeso} kg`);
+
+                    const rightX = pageWidth - Math.max(totalItemsWidth, totalPesoWidth) - 20;
+
+                    doc.text(`Total Items: ${totalItems}`, rightX, 30);
+                    doc.text(`Capacidad: ${capacidad}`, 90, 40);
+                    doc.text(`Total Peso: ${totalPeso} kg`, 148, 40);
+
+                    let y = 50;
+
+                    doc.setFontSize(14);
+                    doc.text('Liviano', 20, y);
+                    y += 2;
+
+                    doc.setFontSize(8);
+                    const tableColumn = ["Ubicacion", "Codigo", "Cod.Fabr", "Cant.", "Unidad", "Descripcion", "Marca", "Peso"];
+                    const tableRows = [];
+
+                    dataPesadoCero.forEach(item => {
+                        const row = [
+                            `${item.sL1Code}-${item.sL2Code}-${item.sL3Code}-${item.sL4Code}`,
+                            item.idProducto,
+                            item.codigoFabricante,
+                            item.totalCantidad,
+                            item.medidaBase,
+                            item.descripcion,
+                            item.fabricante,
+                            item.pesoTotal
+                        ];
+                        tableRows.push(row);
+                    });
+
+                    doc.autoTable(tableColumn, tableRows, {
+                        startY: y,
+                        theme: 'grid',
+                        styles: {
+                            fontSize: 8,
+                            cellPadding: 0.5,
+                            lineWidth: 0.3,
+                            cellBorder: true,
+                        },
+                        headStyles: {
+                            halign: 'center',
+                            fontSize: 8,
+                        },
+                        tableWidth: 'auto',
+                        columnStyles: {
+                            0: { cellWidth: 15 }, 1: { cellWidth: 15, halign: 'center' }, 2: { cellWidth: 15, halign: 'center' }, 3: { cellWidth: 10, halign: 'center' }, 4: { cellWidth: 15 }, 5: { cellWidth: 80 }, 6: { cellWidth: 26 }, 7: { cellWidth: 10 }
+                        },
+                    });
+
+                    y = doc.lastAutoTable.finalY + 5;
+
+                    doc.setFontSize(14);
+                    doc.text('Pesado', 20, y);
+                    y += 2;
+
+                    const tableRowsPesado = [];
+
+                    dataPesadoUno.forEach(item => {
+                        const row = [
+                            `${item.sL1Code}-${item.sL2Code}-${item.sL3Code}-${item.sL4Code}`,
+                            item.idProducto,
+                            item.codigoFabricante,
+                            item.totalCantidad,
+                            item.medidaBase,
+                            item.descripcion,
+                            item.fabricante,
+                            item.pesoTotal
+                        ];
+                        tableRowsPesado.push(row);
+                    });
+
+                    doc.autoTable(tableColumn, tableRowsPesado, {
+                        startY: y,
+                        theme: 'grid',
+                        styles: {
+                            fontSize: 8,
+                            cellPadding: 0.5,
+                            lineWidth: 0.3,
+                            cellBorder: true,
+                        },
+                        headStyles: {
+                            halign: 'center',
+                            fontSize: 8,
+                        },
+                        tableWidth: 'auto',
+                        columnStyles: {
+                            0: { cellWidth: 15 }, 1: { cellWidth: 15, halign: 'center' }, 2: { cellWidth: 15, halign: 'center' }, 3: { cellWidth: 10, halign: 'center' }, 4: { cellWidth: 15 }, 5: { cellWidth: 80 }, 6: { cellWidth: 26 }, 7: { cellWidth: 10 }
+                        },
+                    });
+
+                    doc.save('RESUMENPLANIFICACION.pdf');
+                } else {
+                    console.error('No se recibieron datos válidos de la API');
+                }
+
+            } catch (error) {
+                console.error('Error al obtener los datos:', error);
+                Swal.fire('Error', 'Hubo un problema al obtener los datos', 'error');
+            }
+        };
+
+        const filtrarProductos = () => {
+            const sectorSeleccionado = String($('#sectorSelect').val());
+            const posicionSeleccionada = String($('#posicionSelect').val()); 
+            let i = 0;
+            $('.product-card').each(function () {
+                i++;
+                const sector = String($(this).data('sector')); 
+                const posicion = String($(this).data('posicion'));
+
+                const mostrarProducto =
+                    (sectorSeleccionado === '0' || sectorSeleccionado === sector) &&
+                    (posicionSeleccionada === '0' || posicionSeleccionada === posicion);
+
+                if (mostrarProducto) {
+                    $(this).show();
+                } else {
+                    $(this).hide();
+                }
+            });
+        };
+
+        $('#sectorSelect, #posicionSelect').change(() => {
+            filtrarProductos();
+        });
+
+
+        const cargarPaqueteriasProducto = async (idProducto, idpProducto, cantidadAPickear, descripcion, codigo, codfab, ubica, idPlan, abs, ubicacion, idPP, unidadMedida) => {
+            try {
+                const response = await fetch(`/Picking/ObtenerPaqueteriasProducto?idProducto=${idProducto}&idp=${idpProducto}&Plan=${idPlan}&abs=${abs}`);
+                const { paqueterias, hayRegistros, stockActual } = await response.json();
+                let factores = [];
+                let factoresTodos = [];
+                let primerFactor = null;
+                let primerBase = null;
+                let total = 0;
+                const $paqueteriasBody = $('#paqueterias-body');
+                const estadoubis = stockActual >= cantidadAPickear ? 'info' : 'danger';
+                $paqueteriasBody.empty();
+
+                if (hayRegistros) {
+                    $('#guardarBtn').hide();
+                    $('#actualizarBtn').show();
+
+                    const paqueteriasPorAbsEntry = paqueterias.reduce((acc, paq) => {
+                        if (!acc[paq.absEntry]) {
+                            acc[paq.absEntry] = [];
+                        }
+                        acc[paq.absEntry].push(paq);
+                        return acc;
+                    }, {});
+
+                    for (const [absEntry, paqueteriasDeAbs] of Object.entries(paqueteriasPorAbsEntry)) {
+                        let ubiAbs = paqueteriasDeAbs[0].ubiAbs;
+
+                        let partes = ubiAbs.slice(-7);
+                        let partess = ubiAbs.slice(-5);
+                        let partessec = partes[0];
+
+                        $paqueteriasBody.append(`
+                                    <tr data-abscode="${absEntry}">
+                                        <td colspan="2"><span class="text-dark fw-bold fs-7">Sector ${partessec}:</span>${partess}</td>
+                                        <td colspan="3" style="color:${cantidadAPickear > paqueteriasDeAbs[0].stockGuardado ? 'red' : 'green'}">Stock Ubi:  ${paqueteriasDeAbs[0].stockGuardado}</td>
+                                    </tr>
+                                `);
+
+                        paqueteriasDeAbs.forEach((paq, index) => {
+                            const factor = paq.factor;
+                            const disabled = factor > cantidadAPickear ? '' : (paq.cantidadBase > factor ? '' : '');
+                            const cantidad = paq.cantidad || '';
+                            const hiddentr = factor > cantidadAPickear ? 'hidden' : '';
+                            $('#paqueteriasstock').html(`Stock Total: ${paq.stock} <button id="ubicacionesBtn" class="btn btn-${estadoubis} btn-sm ms-2" style="border-radius: 5px important;"><i class="bx bx-search"></i></button>`);
+   
+                            $paqueteriasBody.append(`
+                                        <tr ${hiddentr}>
+                                            <td>${paq.idMedida}</td>
+                                            <td>${paq.base / paq.factor}</td>
+                                            <td>
+                                                <input type="number" class="form-control cantidad-input" data-id="${paq.idMedida}" data-factor="${factor}" data-abs="${paq.absEntry}" data-pick="${cantidadAPickear}" value="${cantidad}" data-stock="${stockActual}" min="0" max="${Math.floor(stockActual / paq.factor)}" ${disabled}/>
+                                            </td>
+                                            <td class="resultado-cell">${cantidad * factor}</td>
+                                        </tr>
+                                    `);
+                            factoresTodos.push(factor);
+                            if (paq.base !== 0) {
+                                factores.push(factor);
+                            }
+                            if (paq.base !== 0 && primerFactor === null) {
+                                primerFactor = factor;
+                                primerBase = paq.base / paq.factor;
+                            }
+                            total += cantidad * paq.factor;
+                        });
+                    }
+
+                } else {
+                    $('#guardarBtn').show();
+                    $('#actualizarBtn').hide();
+                    paqueterias.forEach((paq, index) => {
+                            const factor = paq.factor;
+                            const disabled = factor > cantidadAPickear ? '' : '';
+                            const cantidad = paq.cantidad || (paq.base / paq.factor);
+                            const hiddentr = factor > cantidadAPickear ? 'hidden' : '';
+                            $('#paqueteriasstock').html(`Stock Total: ${paq.stock} <button id="ubicacionesBtn" class="btn btn-${estadoubis} btn-sm ms-2"><i class="bx bx-search"></i></button>`);
+
+                            $paqueteriasBody.append(`
+                                                <tr ${hiddentr}>
+                                                    <td>${paq.idMedida}</td>
+                                                    <td>${paq.base / paq.factor}</td>
+                                                    <td>
+                                                        <input type="number" class="form-control cantidad-input" data-ubiabs="${ubicacion}" data-id="${paq.idMedida}" data-factor="${factor}" data-abs="${abs}" data-pick="${cantidadAPickear}" value="${cantidad}" data-stock="${stockActual}" min="0" max="${Math.floor(stockActual / paq.factor)}" ${disabled}/>
+                                                    </td>
+                                                    <td class="resultado-cell">${cantidad * factor}</td>
+                                                </tr>
+                                            `);
+
+                            factoresTodos.push(factor);
+
+
+                            if (paq.base !== 0) {
+                                factores.push(factor);
+                            }
+                            if (paq.base !== 0 && primerFactor === null) {
+                                primerFactor = factor;
+                                primerBase = paq.base / paq.factor;
+                            }
+                            total += cantidad * paq.factor;
+
+                          
+                       
+                        
+
+                    });
+                    let ubiAbs = ubicacion;
+
+                    let partes = ubiAbs.slice(-7);
+                    let partess = ubiAbs.slice(-5);
+                    let partessec = partes[0];
+
+                    $paqueteriasBody.prepend(`
+                                    <tr data-abscode="${abs}">
+                                        <td colspan="2"><span class="text-dark fw-bold fs-7">Sector ${partessec}:</span>${partess}</td>
+                                        <td colspan="3" style="color:${cantidadAPickear > stockActual ? 'red' : 'green'}">Stock:  ${stockActual}</td>
+                                    </tr>
+                                `);
+                }
+
+                $('#totalaContar').text(`${cantidadAPickear}`);
+                $('#totalCantidadPickada').text(`${total}`);
+                $('#diferencan').text(`${cantidadAPickear - total}`);
+                if (total === cantidadAPickear){
+                    $('#motivoDiv').remove();
+                }
+                $('#paqueterias-body').on('input', '.cantidad-input', function () {
+                    total = 0;
+                    let cantidadMaximaAlcanzada = false;
+                    let cantidadMaximaAlcanzadaGlobal = false;
+                    let canpick = 0;
+                    cantidadAPickear = $('#paqueteriaspickear').text();
+
+                    let groupedByAbs = {};
+
+                    $('#paqueterias-body .cantidad-input').each(function () {
+                        const absEntry = $(this).data('abs');
+
+                        if (!groupedByAbs[absEntry]) {
+                            groupedByAbs[absEntry] = {
+                                total: 0,
+                                stock: $(this).data('stock'),
+                                inputs: []
+                            };
+                        }
+
+                        groupedByAbs[absEntry].inputs.push($(this));
+                    });
+
+                    for (let absEntry in groupedByAbs) {
+                        let group = groupedByAbs[absEntry];
+                        let groupTotal = 0;
+
+                        group.inputs.forEach(function (input) {
+                            const cantidad = parseInt(input.val()) || 0;
+                            const factor = parseInt(input.data('factor')) || 1;
+                            groupTotal += cantidad * factor;
+
+                            const resultadoCell = input.closest('tr').find('.resultado-cell');
+                            resultadoCell.text(cantidad * factor);
+
+                            const stock = group.stock;
+                            if (groupTotal > stock) {
+                                cantidadMaximaAlcanzada = true;
+
+                                if (input === $(this)) {
+                                    input.val(0);
+                                    const resultadoCell = input.closest('tr').find('.resultado-cell');
+                                    resultadoCell.text(0);
+                                }
+                            }
+                        });
+
+                        if (groupTotal > group.stock) {
+                            cantidadMaximaAlcanzada = true;
+                        }
+
+                        total += groupTotal;
+                    }
+
+                    if (total > cantidadAPickear) {
+                        cantidadMaximaAlcanzadaGlobal = true;
+                    }
+
+                    if (cantidadMaximaAlcanzada) {
+                        Swal.fire('Error', 'No puede ingresar más de la cantidad disponible para este almacén.', 'error');
+                        $('#paqueterias-body .cantidad-input').each(function () {
+                            if (hayRegistros) {
+                                if (cantidadMaximaAlcanzada) {
+                                    $('#actualizarBtn').hide();
+                                    $('#guardarBtn').hide();
+                                }
+                            } else {
+                                if (cantidadMaximaAlcanzada) {
+                                    $('#guardarBtn').hide();
+                                    $('#actualizarBtn').hide();
+                                }
+                            }
+                        });
+                    } else if (cantidadMaximaAlcanzadaGlobal) {
+                        Swal.fire('Error', `No puede ingresar más de ${cantidadAPickear} unidades en total.`, 'error');
+                        $('#paqueterias-body .cantidad-input').each(function () {
+                            if (hayRegistros) {
+                                $('#actualizarBtn').hide();
+                                $('#guardarBtn').hide();
+                            } else {
+                                $('#guardarBtn').hide();
+                                $('#actualizarBtn').hide();
+                            }
+                        });
+                    } else {
+                        if (hayRegistros) {
+                            $('#actualizarBtn').show();
+                            $('#guardarBtn').hide();
+                        } else {
+                            $('#guardarBtn').show();
+                            $('#actualizarBtn').hide();
+                        }
+                    }
+
+                    $('#totalCantidadPickada').text(`${total}`);
+                    $('#diferencan').text(`${cantidadAPickear - total}`);
+
+                    if (total < cantidadAPickear) {
+                        if ($('#motivoDiv').length === 0) {
+                            $('#paqueteriasModal .modal-body').append(`
+                                <div class="row mt-3" id="motivoDiv" style="background-color: #ffc018;padding: 5px;">
+                                            <div class="col-6" style="align-content: space-evenly;>
+                                        <label for="selectmotivo"><strong>Motivo:</strong></label>
+                                    </div>
+                                    <div class="col-6">
+                                        <select id="selectmotivo" class="form-control">
+                                            <option value="0">Elija una opción</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            `);
+                            cargarMotivos();
+                        }
+                    } else {
+                        $('#motivoDiv').remove();
+                    }
+
+
+                });
+
+                let remaining = cantidadAPickear;
+                let cargaSugeridaHTML = "<strong>Carga Sugerida:</strong><br>";
+                    
+                factoresTodos.sort((a, b) => b - a).forEach(factor => {
+                    console.log("---------------->", factor);
+                    if (remaining >= factor) {
+                        let paquetes = Math.floor(remaining / factor);
+                        remaining = remaining % factor;
+                        if (factor === 1) {
+                            cargaSugeridaHTML += `UND: ${paquetes}<br>`;
+                        } else {
+                            cargaSugeridaHTML += `PQT${factor}: ${paquetes}<br>`;
+                        }
+                    }
+                });
+
+                $('#cargaSugerida').html(cargaSugeridaHTML);
+
+                $('#paqueteriasdescripcion').text(`${descripcion}`);
+                $('#paqueteriascodigo').text(`Codigo: ${codigo}`);
+                $('#paqueteriascodfab').text(`Fabricante: ${codfab}`);
+                $('#paqueteriaspickear').text(`${cantidadAPickear}`);
+                //$('#paqueteriasubica').html(`Stock Ubicacion: ${stockActual}`);
+                $('#ubicacionesBtn').on('click', function () {
+                    abrirModalUbicaciones(codigo, idpProducto, idPlan, cantidadAPickear);
+                });
+
+                let nuevocantidadAPickear = $('#paqueteriaspickear').text();
+                if ($('#calculos').length === 0) {
+                    console.log("----------->",nuevocantidadAPickear);
+                    console.log("------------->",total);
+
+                    $('#paqueteriasModal .modal-body').append(`
+                                <div class="row mt-3">
+                                    <div class="col-6">
+                                        <div id="cargaSugerida">
+                                            <strong>Carga Sugerida:</strong>
+                                        </div>
+                                    </div>
+                                    <div class="col-6 text-end">
+                                        <div id="calculos">
+                                            <p><strong>Total A Pickear:</strong> <span id="totalaContar">${nuevocantidadAPickear}</span></p>
+                                            <p><strong>Total Pickados:</strong> <span id="totalCantidadPickada">${total}</span></p>
+                                            <p><strong>Pendiente:</strong> <span id="diferencan">${cantidadAPickear - total}</span></p>
+                                        </div>
+                                    </div>
+                                </div>
+                            `);
+                }
+
+               
+                $('#guardarBtn').off('click').on('click', () => {
+                    let cantidadRestante = total;
+
+                    for (let factor of factores.sort((a, b) => b - a)) {
+                        if (primerFactor === 1) {
+                            if (factor > primerFactor) {
+                                cantidadRestante = cantidadRestante % factor;
+                            }
+                        } else {
+                            if (factor >= primerFactor) {
+                                cantidadRestante = cantidadRestante % factor;
+                            }
+
+                        }
+                        console.log(`Restante después de módulo ${factor}: ${cantidadRestante}`);
+                    }
+
+                    let refac = 0;
+
+                    if (primerFactor == 1) {
+                        if (cantidadRestante > primerBase) {
+                            resfac = cantidadRestante - primerBase;
+                            Swal.fire('Error', 'No se podra asignar ' + resfac + ' unidades, el pedido es por paquete', 'error');
+                        } else {
+                            //Swal.fire('Exito', 'Si.', 'success');
+                            let motivoSeleccionado = $('#selectmotivo').val();
+                            if(motivoSeleccionado === "0"){
+                                Swal.fire('Error', 'Seleccione el motivo por el que esta incompleto', 'error');
+                            }else{
+                                guardarPaqueterias(idProducto, idpProducto, paqueterias, idPlan, idPP, motivoSeleccionado);
+                            }
+                        }
+                    } else {
+                        if (cantidadRestante < primerFactor && cantidadRestante != 0) {
+
+                            console.log(cantidadRestante);
+                            console.log(primerFactor);
+                            resfac = cantidadRestante;
+                            Swal.fire('Error', 'No se podra asignar ' + resfac + ' unidades, el pedido es por paquete', 'error');
+                        } else {
+                            //Swal.fire('Exito', 'Si.', 'success');
+                            let motivoSeleccionado = $('#selectmotivo').val();
+                            if (motivoSeleccionado === "0") {
+                                Swal.fire('Error', 'Seleccione el motivo por el que esta incompleto', 'error');
+                            } else {
+                                guardarPaqueterias(idProducto, idpProducto, paqueterias, idPlan, idPP, motivoSeleccionado);
+                            }
+                        }
+                    }
+                });
+
+                $('#actualizarBtn').off('click').on('click', () => {
+                    let cantidadRestante = total;
+
+                    for (let factor of factores.sort((a, b) => b - a)) {
+                        if (primerFactor === 1) {
+                            if (factor > primerFactor) {
+                                cantidadRestante = cantidadRestante % factor;
+                            }
+                        } else {
+                            if (factor >= primerFactor) {
+                                cantidadRestante = cantidadRestante % factor;
+                            }
+
+                        }
+                        console.log(`Restante después de módulo ${factor}: ${cantidadRestante}`);
+                    }
+
+                    let refac = 0;
+
+                    if (primerFactor == 1) {
+                        if (cantidadRestante > primerBase) {
+                            resfac = cantidadRestante - primerBase;
+                            Swal.fire('Error', 'No se podra asignar ' + resfac + ' unidades, el pedido es por paquete', 'error');
+                        } else {
+                            //Swal.fire('Exito', 'Si.', 'success');
+                            let motivoSeleccionado = $('#selectmotivo').val();
+                            if (motivoSeleccionado === "0") {
+                                Swal.fire('Error', 'Seleccione el motivo por el que esta incompleto', 'error');
+                            } else {
+                                actualizarPaqueterias(paqueterias, idpProducto, abs, idPlan, idPP, motivoSeleccionado);
+                            }
+                        }
+                    } else {
+                        if (cantidadRestante < primerFactor && cantidadRestante != 0) {
+
+                            console.log(cantidadRestante);
+                            console.log(primerFactor);
+                            resfac = cantidadRestante;
+                            Swal.fire('Error', 'No se podra asignar ' + resfac + ' unidades, el pedido es por paquete', 'error');
+                        } else {
+                            //Swal.fire('Exito', 'Si.', 'success');
+                            let motivoSeleccionado = $('#selectmotivo').val();
+                            if (motivoSeleccionado === "0") {
+                                Swal.fire('Error', 'Seleccione el motivo por el que esta incompleto', 'error');
+                            } else {
+                                actualizarPaqueterias(paqueterias, idpProducto, abs, idPlan, idPP, motivoSeleccionado);
+                            }
+                        }
+                    }
+                });
+
+                //$('#actualizarBtn').off('click').on('click', () => actualizarPaqueterias(paqueterias, idpProducto, abs, idPlan, idPP));
+
+
+                $('#paqueteriasModal').modal('show');
+            } catch (error) {
+                console.error('Error al cargar las paqueterías:', error);
+                $('#paqueterias-body').html('<tr><td colspan="3">Error al cargar las paqueterías.</td></tr>');
+            }
+        };
+
+        const abrirModalUbicaciones = async (codigoProducto, idpProducto, idPlan, cantidadAPickear) => {
+            try {
+
+                const abscodes = [];
+                $('#paqueterias-body tr[data-abscode]').each(function () {
+                    const absCode = $(this).data('abscode');
+                    if (absCode) {
+                        abscodes.push(absCode);
+                    }
+                });
+
+                const abscodesString = abscodes.join(',');
+
+                const response = await fetch(`/Picking/ConsultarUbicacionesProducto?codigo=${codigoProducto}&abs=${abscodesString}&idplan=${idPlan}`);
+
+                if (!response.ok) {
+                    throw new Error('Error al consultar ubicaciones');
+                }
+
+                const ubicaciones = await response.json();
+
+                const $ubicacionesContent = $('#ubicacionesContent');
+                $ubicacionesContent.empty();
+
+                if (ubicaciones.length > 0) {
+                    ubicaciones.forEach(ubicacion => {
+                        const absEntry = ubicacion.absEntry;
+
+                        $ubicacionesContent.append(`
+                                    <tr class="ubicacion-row" data-abs="${absEntry}">
+                                        <td>Sector ${ubicacion.sL1Code}: ${ubicacion.sL2Code}-${ubicacion.sL3Code}-${ubicacion.sL4Code}</td>
+                                        <td>${ubicacion.onHandQty}</td>
+                                        <td>
+                                            <button class="btn btn-sm btn-primary replace-btn"
+                                                data-bin-code="${ubicacion.binCode}"
+                                                data-absentry="${ubicacion.absEntry}"
+                                                data-sl1="${ubicacion.sL1Code}"
+                                                data-sl2="${ubicacion.sL2Code}"
+                                                data-sl3="${ubicacion.sL3Code}"
+                                                data-sl4="${ubicacion.sL4Code}"
+                                                data-producto="${idpProducto}"
+                                                data-onhand="${ubicacion.onHandQty}">
+                                                <i class="bx bx-revision"></i> Reemplazar
+                                            </button>&nbsp
+                                            <button class="btn btn-sm btn-success plus-btn"
+                                                data-bin-code="${ubicacion.binCode}"
+                                                data-absentry="${ubicacion.absEntry}"
+                                                data-sl1="${ubicacion.sL1Code}"
+                                                data-sl2="${ubicacion.sL2Code}"
+                                                data-sl3="${ubicacion.sL3Code}"
+                                                data-sl4="${ubicacion.sL4Code}"
+                                                data-producto="${idpProducto}"
+                                                data-onhand="${ubicacion.onHandQty}">
+                                                <i class="bx bx-plus-medical"></i> Agregar
+                                            </button>
+                                        </td>
+                                    </tr>
+                                `);
+                    });
+                } else {
+                    $ubicacionesContent.append('<tr><td colspan="7" class="text-center">No se encontraron ubicaciones.</td></tr>');
+                }
+
+                $('.replace-btn').on('click', function () {
+                    const binCode = $(this).data('bin-code');
+                    const Producto = $(this).data('producto');
+                    const absEntry = $(this).data('absentry');
+                    const sl1 = $(this).data('sl1');
+                    const sl2 = $(this).data('sl2');
+                    const sl3 = $(this).data('sl3');
+                    const sl4 = $(this).data('sl4');
+                    const onh = $(this).data('onhand');
+                    guardarNuevaUbicacion(Producto, binCode, absEntry, sl1, sl2, sl3, sl4, idPlan, codigoProducto, onh, idPP);
+                });
+
+                $('.plus-btn').on('click', function () {
+                    const binCode = $(this).data('bin-code');
+                    const Producto = $(this).data('producto');
+                    const absEntry = $(this).data('absentry');
+                    const sl1 = $(this).data('sl1');
+                    const sl2 = $(this).data('sl2');
+                    const sl3 = $(this).data('sl3');
+                    const sl4 = $(this).data('sl4');
+                    const onh = $(this).data('onhand');
+                    agregarNuevaUbicacion(Producto, binCode, absEntry, sl1, sl2, sl3, sl4, idPlan, codigoProducto, cantidadAPickear, onh);
+                });
+
+                $('#ubicacionesModal').modal('show');
+            } catch (error) {
+                console.error('Error al cargar las ubicaciones:', error);
+                $('#ubicacionesContent').html('<tr><td colspan="7" class="text-center">Error al cargar las ubicaciones.</td></tr>');
+            }
+        };
+
+        const agregarNuevaUbicacion = async (Producto, binCode, absEntry, sl1, sl2, sl3, sl4, idPlan, codigoProducto, cantidadAPickear, onh) => {
+
+            try {
+                const url = `/Picking/ObtenerPaqueteriasProducto?idProducto=${codigoProducto}&idp=${Producto}&Plan=${idPlan}&abs=${absEntry}`;
+
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error('Error al obtener las paqueterías');
+                }
+
+                const result = await response.json();
+
+                if (!result || !result.paqueterias) {
+                    console.error("No se encontraron paqueterías");
+                    return;
+                }
+
+                const paqueterias = result.paqueterias;
+                const stockActual = result.stockActual;
+
+                const nuevaFila = `
+                            <tr data-abscode="${absEntry}">
+                                <td colspan="2">${binCode}</td>
+                                <td colspan="3" style="color:${cantidadAPickear > stockActual ? 'red' : 'greeen'}">Stock:  ${stockActual}</td>
+                            </tr>
+                        `;
+                $('#paqueterias-body').append(nuevaFila);
+                let subtotalUbicacion = 0;
+                paqueterias.forEach((paq, index) => {
+                    const factor = paq.factor;
+                    const disabled = factor > cantidadAPickear ? 'disabled' : (paq.cantidadBase > factor ? 'disabled' : '');
+                    const cantidad = paq.cantidad || 0;
+
+                    const nuevaFilaPaqueteria = `
+                                <tr>
+                                    <td>${paq.idMedida}</td>
+                                    <td>${paq.base / paq.factor}</td>
+                                    <td>
+                                        <input type="number" class="form-control cantidad-input" data-ubiabs="${binCode}" data-id="${paq.idMedida}" data-factor="${factor}" data-abs="${absEntry}" data-pick="${cantidadAPickear}" value="${cantidad}" data-stock="${stockActual}" min="0" max="${Math.floor(stockActual / paq.factor)}" ${disabled}/>
+                                    </td>
+                                    <td class="resultado-cell">${cantidad * factor}</td>
+                                </tr>
+                            `;
+                    $('#paqueterias-body').append(nuevaFilaPaqueteria);
+                });
+
+                Swal.fire({
+                    title: 'Ubicación agregada',
+                    text: 'La nueva ubicación ha sido agregada correctamente.',
+                    icon: 'success',
+                    confirmButtonText: 'Aceptar'
+                }).then(() => {
+                    $('#ubicacionesModal').modal('hide');
+                });
+
+            } catch (error) {
+                console.error('Error al agregar la nueva ubicación:', error);
+                Swal.fire('Error', 'Hubo un problema al agregar la ubicación.', 'error');
+            }
+        };
+
+
+        const confirmarPick = async (idProducto, idpProducto, cantidadAPickear, descripcion, codigo, codfab, ubica, idPlan, abs, ubicacion, idPP) => {
+
+            try {
+                const response = await fetch(`/Picking/ObtenerPaqueteriasProducto?idProducto=${idProducto}&idp=${idpProducto}&Plan=${idPlan}&abs=${abs}`);
+                const { paqueterias, hayRegistros, stockActual } = await response.json();
+                let factores = [];
+                let factoresTodos = [];
+                let primerFactor = null;
+                let primerBase = null;
+                let total = 0;
+                const $paqueteriasBody = $('#paqueterias-body');
+                const estadoubis = stockActual >= cantidadAPickear ? 'info' : 'danger';
+
+                $paqueteriasBody.empty();
+
+                
+                $('#guardarBtn').show();
+                $('#actualizarBtn').hide();
+
+                paqueterias.forEach((paq, index) => {
+                    const factor = paq.factor;
+                    const disabled = factor > cantidadAPickear ? '' : '';
+                    const cantidad = paq.cantidad || (paq.base / paq.factor);
+                    const hiddentr = factor > cantidadAPickear ? 'hidden' : '';
+                    $('#paqueteriasstock').html(`Stock Total: ${paq.stock} <button id="ubicacionesBtn" class="btn btn-${estadoubis} btn-sm ms-2"><i class="bx bx-search"></i></button>`);
+
+                    $paqueteriasBody.append(`
+                                            <tr ${hiddentr}>
+                                                <td>${paq.idMedida}</td>
+                                                <td>${paq.base / paq.factor}</td>
+                                                <td>
+                                                    <input type="number" class="form-control cantidad-input" data-ubiabs="${ubicacion}" data-id="${paq.idMedida}" data-factor="${factor}" data-abs="${abs}" data-pick="${cantidadAPickear}" value="${cantidad}" data-stock="${stockActual}" min="0" max="${Math.floor(stockActual / paq.factor)}" ${disabled}/>
+                                                </td>
+                                                <td class="resultado-cell">${cantidad * factor}</td>
+                                            </tr>
+                                        `);
+
+                    factoresTodos.push(factor);
+                    if (paq.base !== 0) {
+                        factores.push(factor);
+                    }
+                    if (paq.base !== 0 && primerFactor === null) {
+                        primerFactor = factor;
+                        primerBase = paq.base / paq.factor;
+                    }
+                    total += cantidad * paq.factor;
+                });
+                let ubiAbs = ubicacion;
+
+                let partes = ubiAbs.slice(-7);
+                let partess = ubiAbs.slice(-5);
+                let partessec = partes[0];
+
+                $paqueteriasBody.prepend(`
+                                        <tr data-abscode="${abs}">
+                                            <td colspan="2"><span class="text-dark fw-bold fs-7">Sector ${partessec}:</span>${partess}</td>
+                                            <td colspan="3" style="color:${cantidadAPickear > stockActual ? 'red' : 'green'}">Stock:  ${stockActual}</td>
+                                        </tr>
+                                    `);
+                
+
+                $('#totalaContar').text(`${cantidadAPickear}`);
+                $('#totalCantidadPickada').text(`${total}`);
+                $('#diferencan').text(`${cantidadAPickear - total}`);
+
+                $('#paqueterias-body').on('input', '.cantidad-input', function () {
+                    total = 0;
+                    let cantidadMaximaAlcanzada = false;
+                    let cantidadMaximaAlcanzadaGlobal = false;
+                    let canpick = 0;
+                    cantidadAPickear = $('#paqueteriaspickear').text();
+
+                    let groupedByAbs = {};
+
+                    $('#paqueterias-body .cantidad-input').each(function () {
+                        const absEntry = $(this).data('abs');
+
+                        if (!groupedByAbs[absEntry]) {
+                            groupedByAbs[absEntry] = {
+                                total: 0,
+                                stock: $(this).data('stock'),
+                                inputs: []
+                            };
+                        }
+
+                        groupedByAbs[absEntry].inputs.push($(this));
+                    });
+
+                    for (let absEntry in groupedByAbs) {
+                        let group = groupedByAbs[absEntry];
+                        let groupTotal = 0;
+
+                        group.inputs.forEach(function (input) {
+                            const cantidad = parseInt(input.val()) || 0;
+                            const factor = parseInt(input.data('factor')) || 1;
+                            groupTotal += cantidad * factor;
+
+                            const resultadoCell = input.closest('tr').find('.resultado-cell');
+                            resultadoCell.text(cantidad * factor);
+
+                            const stock = group.stock;
+                            if (groupTotal > stock) {
+                                cantidadMaximaAlcanzada = true;
+
+                                if (input === $(this)) {
+                                    input.val(0);
+                                    const resultadoCell = input.closest('tr').find('.resultado-cell');
+                                    resultadoCell.text(0);
+                                }
+                            }
+                        });
+
+                        if (groupTotal > group.stock) {
+                            cantidadMaximaAlcanzada = true;
+                        }
+
+                        total += groupTotal;
+                    }
+
+                    if (total > cantidadAPickear) {
+                        cantidadMaximaAlcanzadaGlobal = true;
+                    }
+
+                    if (cantidadMaximaAlcanzada) {
+                        Swal.fire('Error', 'No puede ingresar más de la cantidad disponible para este almacén.', 'error');
+                        $('#paqueterias-body .cantidad-input').each(function () {
+                            if (hayRegistros) {
+                                if (cantidadMaximaAlcanzada) {
+                                    $('#actualizarBtn').hide();
+                                    $('#guardarBtn').hide();
+                                }
+                            } else {
+                                if (cantidadMaximaAlcanzada) {
+                                    $('#guardarBtn').hide();
+                                    $('#actualizarBtn').hide();
+                                }
+                            }
+                        });
+                    } else if (cantidadMaximaAlcanzadaGlobal) {
+                        Swal.fire('Error', `No puede ingresar más de ${cantidadAPickear} unidades en total.`, 'error');
+                        $('#paqueterias-body .cantidad-input').each(function () {
+                            if (hayRegistros) {
+                                $('#actualizarBtn').hide();
+                                $('#guardarBtn').hide();
+                            } else {
+                                $('#guardarBtn').hide();
+                                $('#actualizarBtn').hide();
+                            }
+                        });
+                    } else {
+                        if (hayRegistros) {
+                            $('#actualizarBtn').show();
+                            $('#guardarBtn').hide();
+                        } else {
+                            $('#guardarBtn').show();
+                            $('#actualizarBtn').hide();
+                        }
+                    }
+
+                    $('#totalCantidadPickada').text(`${total}`);
+                    $('#diferencan').text(`${cantidadAPickear - total}`);
+                });
+
+                let remaining = cantidadAPickear;
+                let cargaSugeridaHTML = "<strong>Carga Sugeridassssssssssssss:</strong><br>";
+
+                factoresTodos.sort((a, b) => b - a).forEach(factor => {
+                    if (remaining >= factor) {
+                        let paquetes = Math.floor(remaining / factor);
+                        remaining = remaining % factor;
+                        if (factor === 1) {
+                            cargaSugeridaHTML += `UND: ${paquetes}<br>`;
+                        } else {
+                            cargaSugeridaHTML += `PQT${factor}: ${paquetes}<br>`;
+                        }
+                    }
+                });
+
+                $('#cargaSugerida').html(cargaSugeridaHTML);
+
+                $('#paqueteriasdescripcion').text(`${descripcion}`);
+                $('#paqueteriascodigo').text(`Codigo: ${codigo}`);
+                $('#paqueteriascodfab').text(`Fabricante: ${codfab}`);
+                $('#paqueteriaspickear').text(`${cantidadAPickear}`);
+                $('#ubicacionesBtn').on('click', function () {
+                    abrirModalUbicaciones(codigo, idpProducto, idPlan, cantidadAPickear);
+                });
+
+                let nuevocantidadAPickear = $('#paqueteriaspickear').text();
+                if ($('#calculos').length === 0) {
+                    console.log(nuevocantidadAPickear);
+                    $('#paqueteriasModal .modal-body').append(`
+                                        <div class="row mt-3">
+                                            <div class="col-6">
+                                                <div id="cargaSugerida">
+                                                    <strong>Carga Sugerida:</strong>
+                                                </div>
+                                            </div>
+                                            <div class="col-6 text-end">
+                                                <div id="calculos">
+                                                    <p><strong>Total A Pickear:</strong> <span id="totalaContar">${nuevocantidadAPickear}</span></p>
+                                                    <p><strong>Total Pickados:</strong> <span id="totalCantidadPickada">${total}</span></p>
+                                                    <p><strong>Pendiente:</strong> <span id="diferencan">${cantidadAPickear - total}</span></p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    `);
+                }
+
+                $('#guardarBtn').off('click').on('click', () => {
+                    let cantidadRestante = total;
+
+                    for (let factor of factores.sort((a, b) => b - a)) {
+                        if (primerFactor === 1) {
+                            if (factor > primerFactor) {
+                                cantidadRestante = cantidadRestante % factor;
+                            }
+                        } else {
+                            if (factor >= primerFactor) {
+                                cantidadRestante = cantidadRestante % factor;
+                            }
+
+                        }
+                        console.log(`Restante después de módulo ${factor}: ${cantidadRestante}`);
+                    }
+
+                    let refac = 0;
+
+                    if (primerFactor == 1) {
+                        if (cantidadRestante > primerBase) {
+                            resfac = cantidadRestante - primerBase;
+                            Swal.fire('Error', 'No se podra asignar ' + resfac + ' unidades, el pedido es por paquete', 'error');
+                        } else {
+                            //Swal.fire('Exito', 'Si.', 'success');
+                            guardarPaqueterias(idProducto, idpProducto, paqueterias, idPlan, idPP,"0");
+                        }
+                    } else {
+                        if (cantidadRestante < primerFactor && cantidadRestante != 0) {
+
+                            console.log(cantidadRestante);
+                            console.log(primerFactor);
+                            resfac = cantidadRestante;
+                            Swal.fire('Error', 'No se podra asignar ' + resfac + ' unidades, el pedido es por paquete', 'error');
+                        } else {
+                            //Swal.fire('Exito', 'Si.', 'success');
+                            guardarPaqueterias(idProducto, idpProducto, paqueterias, idPlan, idPP,"0");
+                        }
+                    }
+                });
+
+                Swal.fire({
+                    title: '¿Estás seguro?',
+                    text: 'Una vez confirmado, no podrás deshacer esta acción.',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonText: 'Sí, confirmar',
+                    cancelButtonText: 'Cancelar',
+                    reverseButtons: true
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        $('#guardarBtn').click(); 
+                    } else {
+                        Swal.fire('Acción cancelada', 'No se realizó ninguna acción.', 'info');
+                    }
+                });
+            } catch (error) {
+                console.error('Error al cargar las paqueterías:', error);
+                $('#paqueterias-body').html('<tr><td colspan="3">Error al cargar las paqueterías.</td></tr>');
+            }
+        };
+
+        const guardarNuevaUbicacion = async (Producto, binCode, absEntry, sl1, sl2, sl3, sl4, idPlan, codigoProducto, onh) => {
+            try {
+                const url = `/Picking/GuardarNuevaUbicacion?id=${Producto}&bc=${binCode}&ae=${absEntry}&l1=${sl1}&l2=${sl2}&l3=${sl3}&l4=${sl4}&idPlan=${idPlan}&cod=${codigoProducto}`;
+                const urlParamss = new URLSearchParams(window.location.search);
+                const idPPs = urlParamss.get('idpp');
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error('Error al guardar la nueva ubicación');
+                }
+
+                const result = await response.json();
+
+                if (result.success) {
+                    Swal.fire({
+                        title: 'Ubicación asignada',
+                        text: 'La nueva ubicación fue asignada correctamente.',
+                        icon: 'success',
+                        confirmButtonText: 'Aceptar'
+                    }).then(() => {
+                        $('#ubicacionesModal').modal('hide');
+                        $('#paqueteriasModal').modal('hide');
+                        cargarProductosPickeador = async(idPlan, idPPs)
+                    });
+                } else {
+                    Swal.fire('Error', result.message || 'Error desconocido', 'error');
+                }
+            } catch (error) {
+                console.error('Error al guardar la nueva ubicación:', error);
+                Swal.fire('Error', 'Hubo un problema al asignar la ubicación.', 'error');
+            }
+        };
+
+        const actualizarPaqueterias = async (data, idpProducto, abs, idPlan, idPP, motivoSeleccionado) => {
+
+            const registros = [];
+
+            const motivo = motivoSeleccionado || "0";
+            $('.cantidad-input').each(function () {
+                const cantidad = $(this).val() || "0";
+                const idMedida = $(this).data('id');
+                const factor = $(this).data('factor');
+                const absentry = $(this).data('abs');
+                if (cantidad) {
+                    registros.push({
+                        idMedida: idMedida,
+                        cantidad: cantidad,
+                        factor: factor,
+                        abs: String(absentry)
+                    });
+                }
+            });
+
+            try {
+                const response = await fetch(`/Picking/ActualizarPaqueterias?idm=${motivo}&idpp=${idpProducto}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ registros, idpProducto })
+                });
+
+                if (response.ok) {
+                    // Swal.fire('Éxito', 'Datos actualizados exitosamente.', 'success').then(() => {
+                    //     $('#paqueteriasModal').modal('hide');
+                    //     cargarProductosPickeador(idPlan, idPP);
+                    // });
+                    $('#paqueteriasModal').modal('hide');
+                    cargarProductosPickeador(idPlan, idPP);
+                } else {
+                    throw new Error('Error al actualizar los datos.');
+                }
+            } catch (error) {
+                console.error('Error al actualizar las paqueterías:', error);
+                Swal.fire('Error', 'Error al actualizar los datos.', 'error');
+            }
+        };
+
+        const guardarPaqueterias = async (idProducto, idpProducto, data, idPlan, idPP, motivoSeleccionado) => {
+            
+            const registros = [];
+
+            const motivo = motivoSeleccionado || "0";
+            $('.cantidad-input').each(function () {
+                const cantidad = $(this).val() || "0";
+                const idMedida = $(this).data('id');
+                const factor = $(this).data('factor');
+                const abs = $(this).data('abs');
+                const ubiabs = $(this).data('ubiabs');
+                const stock = $(this).data('stock');
+                if (cantidad) {
+                    registros.push({
+                        idProducto: String(idProducto),
+                        idMedida: idMedida,
+                        cantidad: cantidad,
+                        idpProducto: idpProducto,
+                        factor: factor,
+                        stockGuardado: stock,
+                        absEntry: String(abs),
+                        ubiAbs: String(ubiabs)
+                    });
+                }
+            });
+
+            try {
+                const response = await fetch(`/Picking/GuardarPaqueterias?idm=${motivo}&idpp=${idpProducto}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(registros)
+                });
+
+                if (response.ok) {
+                    // Swal.fire('Éxito', 'Datos guardados exitosamente.', 'success').then(() => {
+                    //     $('#paqueteriasModal').modal('hide');
+                    //     cargarProductosPickeador(idPlan, idPP);
+                    // });
+                    $('#paqueteriasModal').modal('hide');
+                    cargarProductosPickeador(idPlan, idPP);
+                } else {
+                    throw new Error('Error al guardar los datos.');
+                }
+            } catch (error) {
+                console.error('Error al guardar las paqueterías:', error);
+                Swal.fire('Error', 'Error al guardar los datos.', 'error');
+            }
+        };
+
+
+        const finalizarConteoPlaca = async (idPlan, idPP) => {
+            try {
+                const response = await fetch(`/Picking/FinalizarConteoPlaca?idPlan=${idPlan}&idpp=${idPP}`, {
+                    method: 'POST'
+                });
+
+                // if (response.ok) {
+                //     Swal.fire('Éxito', 'Conteo finalizado exitosamente.', 'success').then(() => {
+                //         window.location.href = `/Picking/PickeadorConteo?idpp=${idPP}`;
+                //     });
+                // } else {
+                //     throw new Error('Error al finalizar el conteo.');
+                // }
+                if (response.ok) {
+                    const data = await response.json();
+
+                    if (data.success) {
+                        if (data.puesto === "3") {
+                            window.location.href = `/Picking/PickeadorConteo?idpp=${idPP}`;
+                        } else if (data.puesto === "2") {
+                            window.location.href = `/Picking/JefeConteo?idpp=${data.idpickador}`;
+                        }
+                    } else {
+                        throw new Error(data.message || 'Error al finalizar el conteo.');
+                    }
+                } else {
+                    throw new Error('Error al finalizar el conteo.');
+                }
+            } catch (error) {
+                console.error('Error al finalizar el conteo:', error);
+                Swal.fire('Error', 'Error al finalizar el conteo.', 'error');
+            }
+        };
+
+
+        const cargarMotivos = async () => {
+            try {
+                const response = await fetch(`/Picking/CargarMotivos`);
+                const personal = await response.json();
+
+                let selectpersonalOptions = `<option value="0">Elija una opción</option>`;
+                personal.forEach(motivo => {
+                    selectpersonalOptions += `<option value="${motivo.IDMotivo}">${motivo.DesMotivo}</option>`;
+                });
+
+                $("#selectmotivo").html('').append(selectpersonalOptions);
+            } catch (e) {
+                console.error(e);
+                Swal.fire('Error', 'Ocurrió un error al cargar los motivos', 'info');
+            }
+        };
+
+
+        const cargarFiltros = async (idPlan, idPP) => {
+            try {
+                const response = await fetch(`/Picking/FiltroPickador?idContador=${idPP}&idPlan=${idPlan}`);
+                const personal = await response.json();
+
+                let sectores = {};
+
+                personal.forEach(tipo => {
+                    if (!sectores[tipo.sL1Code]) {
+                        sectores[tipo.sL1Code] = [];
+                    }
+                    sectores[tipo.sL1Code].push(tipo.sL2Code);
+                });
+
+                let selectsectorOptions = `<option value="0">Elije un Sector</option>`;
+                Object.keys(sectores).forEach(sector => {
+                    selectsectorOptions += `<option value="${sector}">${sector}</option>`;
+                });
+
+                $("#sectorSelect").html('').append(selectsectorOptions);
+
+                $('#sectorSelect').change(() => {
+                    const selectedSector = $('#sectorSelect').val();
+
+                    if (selectedSector === '0') {
+                        // $('#posicionSelect').html('<option value="0">Seleccione una posición</option>');
+                        // $('#posicionSelect').val('0');
+                        location.reload();
+
+                    } else {
+                        const posiciones = sectores[selectedSector];
+
+                        let selectPosicionOptions = '<option value="0">Seleccione una posición</option>';
+                        posiciones.forEach(posicion => {
+                            selectPosicionOptions += `<option value="${posicion}">${posicion}</option>`;
+                        });
+
+                        $('#posicionSelect').html('').append(selectPosicionOptions);
+                    }
+                });
+
+            } catch (e) {
+                console.error(e);
+                Swal.fire('Error', 'Ocurrió un error al cargar los filtros', 'info');
+            }
+        };
+    </script>
+}

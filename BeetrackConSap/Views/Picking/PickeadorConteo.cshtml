@@ -1,0 +1,184 @@
+﻿@{
+    ViewData["Title"] = "Productos a Contar";
+}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,200..1000;1,200..1000&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="~/css/JefeConteo.css">
+<style>
+    #detalles {
+        display: none;
+        margin-top: 10px;
+    }
+
+    .btn {
+        border-radius: 50px;
+    }
+
+    .notification-badge {
+        background-color: red;
+        color: white;
+        padding: 2px 10px;
+        border-radius: 50px;
+        margin-left: 5px;
+    }
+</style>
+
+<div class="container">
+    <h1>Detalles del personal asignado <span id="plan-id"></span></h1>
+    <div class="card border-0">
+        <div class="card-body">
+            <table class="table" style="text-align:center">
+                <thead>
+                    <tr>
+                        <th>N°</th>
+                        <th>Nombre</th>
+                        <th>Detalle</th>
+                    </tr>
+                </thead>
+                <tbody id="pickeador-body">
+                    <tr>
+                        <td colspan="3">Cargando productos...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="detallesModal" tabindex="-1" aria-labelledby="detallesModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="detallesModalLabel">Detalles del Subregistro</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="modal-body-detalles">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(() => {
+            const idPP = @Html.Raw(ViewBag.IdPP);
+            cargarPickeadorPlacas(idPP);
+        });
+        const cargarPickeadorPlacas = async (idPP) => {
+            try {
+                const response = await fetch(`/Picking/ObtenerPickeadorPlacas?idpp=${idPP}`);
+                const data = await response.json();
+                const $pickeadorBody = $('#pickeador-body');
+
+                $pickeadorBody.empty();
+                data.forEach((item, index) => {
+                    console.log("item", item);
+
+                    console.log("item.idPick", idPP);
+                    console.log("item.idPlanPla", item.idPlanPla);
+                    console.log("idPP", item.usuario);
+                    const hiddeniniciar = item.fechaInicio === '0001-01-01T00:00:00' ? '' : 'hidden';
+
+                    const mostrar = item.fechaInicio === '0001-01-01T00:00:00' ? `<button class="btn btn-secondary" disabled>Esperar confirmacion de inicio</button><br><button class="btn btn-primary iniciarpickador-btn wan" data-id="${idPP}" data-plan="${item.idPlanPla}" data-jefe="${item.usuario}" ${hiddeniniciar}>Iniciar</button>` :
+                        (item.maxFinalizado === 1
+                            ? (item.minFinalizado === 1 ? `<button class="btn btn-success resumen-btn" data-id="${item.idPlanPla}">Terminado</button>` : `<button class="btn btn-warning detalles-btn" data-id="${item.idPlanPla}"><i class='bx bx-search'></i> Recontar</button>`)
+                            : `<button class="btn btn-warning detalles-btn" data-id="${item.idPlanPla}"><i class='bx bx-search'></i> Detalles</button>`);
+                    $pickeadorBody.append(`
+                                        <tr>
+                                            <td>${index + 1}</td>
+                                            <td>${item.placa}</td>
+                                            <td>${mostrar}</td>
+                                        </tr>
+                                    `);
+                });
+                $('.detalles-btn').click(function () {
+                    const idPlan = $(this).data('id');
+                    window.location.href = `/Picking/PickeadorProductos?id=${idPlan}&idpp=${idPP}`;
+                });
+                $('.resumen-btn').click(async function () {
+                    const idPlan = $(this).data('id');
+                    await mostrarDetallespick(idPP, idPlan);
+                });
+                $('.iniciarpickador-btn').click(async function () {
+                    const idpick = $(this).data('id');
+                    const idplan = $(this).data('plan');
+                    const jefe = $(this).data('jefe');
+                    await iniciarPicking(idpick, idplan, jefe);
+                });
+
+            } catch (error) {
+                console.error('Error al cargar los pickeadores:', error);
+                $('#pickeador-body').html('<tr><td colspan="3">Error al cargar los pickeadores.</td></tr>');
+            }
+        };
+        const iniciarPicking = (idpick, idplan, jefe) => {
+            Swal.fire({
+                title: '¿Estás seguro?',
+                text: "¡Se iniciara el Picking del personal!",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Sí, iniciar',
+                cancelButtonText: 'Cancelar',
+                reverseButtons: true
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    fetch(`/Picking/IniciarPicking?idpick=${idpick}&plan=${idplan}`, {
+                        method: 'POST',
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+
+                            Swal.fire({
+                                icon: 'success',
+                                title: '¡Iniciado con éxito!',
+                                text: data.message,
+                                confirmButtonText: 'Aceptar'
+                            });
+                            location.reload();
+                        });
+                }
+            });
+        };
+        const mostrarDetallespick = async (idPP, idPlan) => {
+            try {
+                const response = await fetch(`/Picking/ConsultarDetallePickeador?idPick=${idPP}&Plan=${idPlan}`);
+                const data = await response.json();
+
+                const $modalBody = $('#modal-body-detalles');
+                $modalBody.empty();
+
+                const $table = $('<table class="table"></table>');
+                const $thead = $('<thead><th>N°</th><th>Código</th><th>Producto</th><th>Stock</th><th>Cantidad</th><th>Cantidad Contada</th><th>Cantidad Pendiente</th></thead>');
+                const $tbody = $('<tbody></tbody>');
+
+                data.forEach((prod, index) => {
+                    const cantidadPendiente = prod.cantidad - (prod.cantidadContada || 0);
+                    const rowClass = (prod.cantidadContada === 0) ? 'table-danger' : (prod.cantidadContada < prod.cantidad) ? 'table-warning' :
+                        (prod.cantidadContada > prod.cantidad) ? 'table-success' : '';
+
+                    $tbody.append(`
+                                        <tr class="${rowClass}" style="text-align:center">
+                                            <td>${index + 1}</td>
+                                            <td>${prod.idProducto}</td>
+                                            <td>${prod.descripcion}</td>
+                                            <td>${prod.stockAct}</td>
+                                            <td>${prod.cantidad}</td>
+                                            <td>${prod.cantidadContada || 0}</td>
+                                            <td>${cantidadPendiente}</td>
+                                        </tr>
+                                    `);
+                });
+
+                $table.append($thead).append($tbody);
+                $modalBody.append($table);
+                $('#detallesModal').modal('show');
+            } catch (error) {
+                console.error('Error al consultar los detalles del pickeador:', error);
+            }
+        };
+    </script>
+}

@@ -1,0 +1,172 @@
+﻿@{
+    ViewData["Title"] = "Coordinador";
+}
+<div class="container">
+    <h1>Placas del Plan <span id="plan-id"></span></h1>
+
+    <div class="card border-0">
+        <div class="card-body">
+            <table class="table" style="text-align:center">
+                <thead>
+                    <tr>
+                        <th>N°</th>
+                        <th>Placa</th>
+                        <th>Acción</th>
+                    </tr>
+                </thead>
+                <tbody id="placas-body">
+                    <tr>
+                        <td colspan="3">Cargando productos...</td>
+                    </tr>
+                </tbody>
+            </table>
+
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(() => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const idPlan = urlParams.get('id');
+            $('#plan-id').text(idPlan);
+            cargarPlacas(idPlan);
+        });
+
+        const cargarPlacas = async (idPlan) => {
+            try {
+                const response = await fetch(`/Coordinador/ObtenerPlacaPlan`);
+                const data = await response.json();
+
+                const $placasBody = $('#placas-body');
+                $placasBody.empty();
+                data.forEach((pla, index) => {
+
+                    let botonHTML = '';
+
+                    if (pla.enviado === 0 && pla.cargar === 0 && pla.cargado === 0 && pla.revision === 0 && pla.sap === 0) {
+                        botonHTML = `
+                            <button class="btn btn-secondary" disabled>
+                                <i class='bx bx-search'></i> Falta Enviar
+                            </button>
+                        `;
+                    } else if (pla.enviado === 1 && pla.cargar === 0 && pla.cargado === 0 && pla.revision === 0  && pla.sap === 0) {
+                        botonHTML = `
+                            <button class="btn btn-warning detalles-btn" data-id="${pla.idPlanPla}">
+                                <i class='bx bx-search'></i> Picking Finalizado
+                            </button>
+                        `;
+                    } else if (pla.enviado === 1 && pla.cargar === 1 && pla.cargado === 0 && pla.revision === 0  && pla.sap === 0) {
+                        botonHTML = `
+                            <button class="btn btn-success" disabled>
+                                <i class='bx bx-search'></i> Carga en proceso
+                            </button>
+                        `;
+                    } else if (pla.enviado === 1 && pla.cargar === 1 && pla.cargado === 1 && pla.revision === 0 && pla.sap === 0) {
+                        botonHTML = `
+                            <button class="btn btn-warning cargaincom-btn" data-id="${pla.idPlanPla}">
+                                <i class='bx bx-search'></i> Revisar carga incompleta
+                            </button>
+                        `;
+                    } else if (pla.enviado === 1 && pla.cargar === 1 && pla.cargado === 1 && pla.revision === 1 && pla.sap === 0) {
+                        botonHTML = `
+                            <button class="btn btn-primary picking-btn" data-id="${pla.idPlanPla}">
+                                <i class='bx bx-search'></i> Generar Picking SAP
+                            </button>
+                        `;
+                    } else if (pla.enviado === 1 && pla.cargar === 1 && pla.cargado === 1 && pla.revision === 1 && pla.sap === 1) {
+                        botonHTML = `
+                            <button class="btn btn-success" disabled>
+                                <i class='bx bx-search'></i> Terminado
+                            </button>
+                        `;
+                    }
+
+                    $placasBody.append(`
+                        <tr>
+                            <td>${index + 1}</td>
+                            <td>${pla.placa}</td>
+                            <td>${botonHTML}</td>
+                        </tr>
+                    `);
+                });
+                                
+                $('.detalles-btn').click(function () {
+                    const idPlan = $(this).data('id');
+                    window.location.href = `/Coordinador/CoorProdDetalles?id=${idPlan}`;
+                });
+
+                $('.cargaincom-btn').click(function () {
+                    const idPlan = $(this).data('id');
+                    window.location.href = `/Coordinador/CoorCargaIncompleto?id=${idPlan}`;
+                });
+
+                $('.picking-btn').click(async function () {
+                    const idPlan = $(this).data('id');
+
+                    const confirmResult = await Swal.fire({
+                        title: '¿Estás seguro?',
+                        text: '¿Quieres generar el Picking SAP para este plan?',
+                        icon: 'question',
+                        showCancelButton: true,
+                        confirmButtonText: 'Sí, generar',
+                        cancelButtonText: 'Cancelar'
+                    });
+
+                    if (!confirmResult.isConfirmed) {
+                        return;
+                    }
+
+                    Swal.fire({
+                        title: 'Generando Picking SAP...',
+                        text: 'Esto puede tardar unos momentos...',
+                        showConfirmButton: false,
+                        allowOutsideClick: false,
+                        didOpen: () => {
+                            Swal.showLoading();
+                        }
+                    });
+
+                    try {
+                        const response = await fetch(`/Coordinador/ObtenerDatosYEnviar?IDPlan=${idPlan}`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            }
+                        });
+
+                        const result = await response.json();
+
+                        if (result.success) {
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Picking generado',
+                                text: result.message,
+                            });
+                        } else {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Error al generar Picking SAP',
+                                text: result.message,
+                            });
+                        }
+                    } catch (error) {
+                        console.error('Error al generar Picking SAP:', error);
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error al generar Picking SAP',
+                            text: 'Hubo un problema al generar el Picking SAP. Intente nuevamente.',
+                        });
+                    }
+                });
+
+
+            } catch (error) {
+                console.error('Error al cargar los productos:', error);
+                $('#placas-body').html('<tr><td colspan="5">Error al cargar los productos.</td></tr>');
+            }
+        };
+
+    </script>
+}

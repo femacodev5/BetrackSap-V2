@@ -1,0 +1,325 @@
+﻿<div class="container">
+    <div class="card border-0">
+        <div class="card-body">
+            <div class="form-group" style="max-width: 600px; margin-left: auto; margin-right: auto;">
+                <label><strong>Codigo de Producto:</strong> </label>
+                <input type="number" class="form-control" id="searchInput" placeholder="Buscar productos..." />
+            </div>
+
+            <div class="text-center mt-3">
+                <button id="buscarBtn" class="btn btn-primary">Buscar</button>
+            </div>
+
+            <div id="productos-body" style="max-width: 600px !important; margin-left: auto; margin-right: auto;" class="text-center">
+                <div class="m-2 p-2" style="border: 5px solid #C4E1F6; border-radius: 10px;">
+                    <span class="fw-bold text-dark fs-5">Cargando productos...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="paqueteriaModal" tabindex="-1" aria-labelledby="paqueteriaModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="paqueteriaModalLabel"></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <h6 id="paqueteriaItemCode"></h6>
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Medida</th>
+                            <th>Factor</th>
+                            <th>Codigo</th>
+                            <th>Accion</th>
+                        </tr>
+                    </thead>
+                    <tbody id="paqueteriaTableBody">
+                    </tbody>
+                </table>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="codigoBarrasModal" tabindex="-1" aria-labelledby="codigoBarrasModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="codigoBarrasModalLabel">Ingresar Código de Barras</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <label for="codigoBarrasInput">Código de barras:</label>
+                <input type="text" id="codigoBarrasInput" class="form-control" placeholder="Escribe el código de barras">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                <button type="button" class="btn btn-primary" id="guardarCodigoBarrasBtn">Guardar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    $(document).ready(() => {
+        $('#buscarBtn').click(() => {
+
+            const itemcode = document.getElementById('searchInput').value.trim();
+            buscarProductos(itemcode);
+        });
+    });
+
+    const buscarProductos = async (itemcode) => {
+        try {
+            const $productosBody = $('#productos-body');
+            $productosBody.empty();
+            $productosBody.append('<div class="m-2 p-2" style="border: 5px solid #C4E1F6; border-radius: 10px;"><span class="fw-bold text-dark fs-5">Cargando productos...</span></div>');
+
+            const response = await fetch(`/Home/ObtenerCodigoSap?itemcode=${itemcode}`);
+
+            if (response.ok) {
+                const data = await response.json();
+
+                $productosBody.empty();
+                if (data.length > 0) {
+                    data.forEach(function (prod) {
+                        const colorbtn = prod.codeBars === null ? 'secondary' : 'success';
+                        $productosBody.append(`
+                                <div class="m-2 p-2 product-card" style="border: 5px solid #C4E1F6; border-radius: 10px;">
+                                    <span class="fw-bold text-dark fs-5">${prod.itemName}</span>
+                                    <input type="hidden" class="idpProducto" value="${prod.itemCode}" />
+                                    <div class="d-flex justify-content-between">
+                                        <div class="p-0 d-block">
+                                            <span class="p-0 text-secondary">Código: ${prod.itemCode}</span><br />
+                                        </div>
+                                        <div class="p-0 d-block">
+                                            <button type="button" class="btn btn-${colorbtn} mt-4 paqueterias-btn" data-id="${prod.itemCode}">Detalles</button><br>
+                                        </div>
+                                    </div>
+                                </div>
+                            `);
+                    });
+
+                } else {
+                    $productosBody.append('<div class="m-2 p-2" style="border: 5px solid #C4E1F6; border-radius: 10px;">No se encontraron productos.</div>');
+                }
+
+
+                $('.paqueterias-btn').on('click', function () {
+                    const itemCode = $(this).data('id');
+                    console.log("click 1");
+                    obtenerPaqueterias(itemCode);
+                });
+            } else {
+                console.error('Error al obtener productos:', response.statusText);
+                Swal.fire('Error', 'Hubo un error al obtener los productos. Intente de nuevo.', 'error');
+            }
+        } catch (error) {
+            console.error('Error al buscar productos:', error);
+            Swal.fire('Error', 'Ocurrió un error al buscar los productos. Intente más tarde.', 'error');
+        }
+    };
+
+    const obtenerPaqueterias = async (itemCode) => {
+        document.getElementById('codigoBarrasInput').value = "";
+
+        try {
+            const response = await fetch(`/Home/ObtenerPaqueteriasSap?itemCode=${itemCode}`);
+
+            if (response.ok) {
+                const data = await response.json();
+
+                $('#paqueteriaModal').modal('show');
+
+                const itemName = $(`.idpProducto[value="${itemCode}"]`).closest('.product-card').find('span').text();
+                $('#paqueteriaModalLabel').text(itemName); 
+                $('#paqueteriaItemCode').text(`Código: ${itemCode}`);  
+
+                $('#paqueteriaTableBody').empty();
+
+                let numpqt = 0;
+                if (data.length > 0) {
+                    data.forEach(paq => {
+                        numpqt++;
+                        const botontipo = paq.bcdCode === null ? `<button class="btn btn-success agregar-btn" data-id="${itemCode}" data-uom="${paq.uomEntry}" data-num="${numpqt}"><i class="bx bx-plus"></i> </button>` : `<button class="btn btn-primary actualizar-btn" data-id="${itemCode}" data-entry="${paq.bcdEntry}" data-num="${numpqt}"><i class="bx bx-edit"></i> </button>`;
+                        const inputtipo = paq.bcdCode === null ? 'SIN VALOR' : paq.bcdCode
+                        $('#paqueteriaTableBody').append(`
+                            <tr>
+                                <td>${paq.medida}</td>
+                                <td>${paq.factor}</td>
+                                <td><input class="form-control" value="${inputtipo}" readonly/></td>
+                                <td>
+                                    ${botontipo}
+                                </td>
+                            </tr>
+                        `);
+                    });  
+                    
+                    $('.agregar-btn').on('click', function () {
+                        const itemCode = $(this).data('id');
+                        const uomEntry = $(this).data('uom');
+                        const numveri = $(this).data('num');
+                        $('#codigoBarrasModal').modal('show');
+
+                        $('#codigoBarrasModal').on('shown.bs.modal', function () {
+                            $('#codigoBarrasInput').focus();
+                        });
+
+                        $('#guardarCodigoBarrasBtn').off('click').on('click', async function () {
+                            const codigoBarras = $('#codigoBarrasInput').val().trim();
+
+                            if (codigoBarras === '') {
+                                Swal.fire('Advertencia', 'Por favor, ingrese un código de barras.', 'warning');
+                                return;
+                            }
+
+                            try {
+                                await guardarCodigoBarras(itemCode, uomEntry, codigoBarras, numveri);
+                                $('#codigoBarrasModal').modal('hide');
+                            } catch (error) {
+                                console.error('Error al guardar el código de barras:', error);
+                                Swal.fire('Error', 'Hubo un error al guardar el código de barras.', 'error');
+                            } 
+                        });
+                    });
+
+                    $('.actualizar-btn').on('click', function () {
+                        const itemCode = $(this).data('id');
+                        const bentry = $(this).data('entry');
+                        const numveri = $(this).data('num');
+
+                        $('#codigoBarrasModal').modal('show');
+                        
+                        $('#codigoBarrasModal').on('shown.bs.modal', function () {
+                            $('#codigoBarrasInput').focus();
+                        });
+
+                        $('#guardarCodigoBarrasBtn').off('click').on('click', async function () {
+                            const codigoBarras = $('#codigoBarrasInput').val().trim();
+
+                            if (codigoBarras === '') {
+                                Swal.fire('Advertencia', 'Por favor, ingrese un código de barras.', 'warning');
+                                return;
+                            }
+
+                            try {
+                                await actualizarCodigoBarras(itemCode, bentry, codigoBarras, numveri);
+                                $('#codigoBarrasModal').modal('hide');
+                            } catch (error) {
+                                console.error('Error al guardar el código de barras:', error);
+                                Swal.fire('Error', 'Hubo un error al guardar el código de barras.', 'error');
+                            }
+                        });
+                    });
+                } else {
+                    $('#paqueteriaTableBody').append(`
+                        <tr>
+                            <td colspan="3" class="text-center">No se encontraron paqueterías.</td>
+                        </tr>
+                    `);
+                }
+            } else {
+                console.error('Error al obtener paqueterías:', response.statusText);
+                Swal.fire('Error', 'No se pudieron obtener las paqueterías. Intente de nuevo.', 'error');
+            }
+
+        } catch (error) {
+            console.error('Error al obtener paqueterías:', error);
+            Swal.fire('Error', 'Ocurrió un error al obtener las paqueterías.', 'error');
+        }
+    };
+
+    const guardarCodigoBarras = async (itemCode, uomEntry, codigoBarras, numveri) => {
+        Swal.fire({
+            title: 'Cargando...',
+            text: 'Guardando código de barras...',
+            icon: 'info',
+            showConfirmButton: false,
+            allowOutsideClick: false,
+            willOpen: () => {
+                Swal.showLoading();
+            }
+        });
+        try {
+            const response = await fetch(`/Home/GuardarCodigoBarrasSap?num=${numveri}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    ItemCode: String(itemCode),
+                    UomEntry: uomEntry,
+                    Barcode: codigoBarras
+                })
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success) {
+                    Swal.fire('Éxito', 'Código de barras guardado exitosamente.', 'success');
+                    $('#paqueteriaModal').modal('hide');
+                    const searchcode = document.getElementById('searchInput').value.trim();
+                    buscarProductos(searchcode);
+                } else {
+                    Swal.fire('Error', 'Hubo un problema al guardar el código de barras.', 'error');
+                }
+            } else {
+                Swal.fire('Error', 'Error al enviar la solicitud al servidor.', 'error');
+            }
+        } catch (error) {
+            console.error('Error al enviar la solicitud:', error);
+            Swal.fire('Error', 'Error de red al intentar guardar el código de barras.', 'error');
+        }
+    };
+
+    const actualizarCodigoBarras = async (itemCode, bentry, codigoBarras, numveri) => {
+        Swal.fire({
+            title: 'Cargando...',
+            text: 'Guardando código de barras...',
+            icon: 'info',
+            showConfirmButton: false,
+            allowOutsideClick: false,
+            willOpen: () => {
+                Swal.showLoading();
+            }
+        });
+        try {
+            const response = await fetch(`/Home/ActualizarCodigoBarrasSap?num=${numveri}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    ItemCode: String(itemCode),
+                    BcdEntry: String(bentry),
+                    Barcode: codigoBarras
+                })
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success) {
+                    Swal.fire('Éxito', 'Código de barras actualizado exitosamente.', 'success');
+                    $('#paqueteriaModal').modal('hide');
+                    const searchcode = document.getElementById('searchInput').value.trim();
+                    buscarProductos(searchcode);
+                } else {
+                    Swal.fire('Error', 'Hubo un problema al actualizar el código de barras.', 'error');
+                }
+            } else {
+                Swal.fire('Error', 'Error al enviar la solicitud al servidor.', 'error');
+            }
+        } catch (error) {
+            console.error('Error al enviar la solicitud:', error);
+            Swal.fire('Error', 'Error de red al intentar actualizar el código de barras.', 'error');
+        }
+    };
+
+</script>

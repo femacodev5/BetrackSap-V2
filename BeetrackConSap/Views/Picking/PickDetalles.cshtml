@@ -1,0 +1,130 @@
+﻿@{
+    ViewData["Title"] = "Detalle del Pickeo";
+}
+<div class="container">
+    <h1>Detalles del personal asignado <span id="plan-id"></span></h1>
+
+    <div class="card border-0">
+        <div class="card-body">
+            <table class="table" style="text-align:center">
+                <thead>
+                    <tr>
+                        <th>N°</th>
+                        <th>Nombre</th>
+                        <th>Detalle</th>
+                    </tr>
+                </thead>
+                <tbody id="pickeador-body">
+                    <tr>
+                        <td colspan="3">Cargando productos...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="productosModal" tabindex="-1" aria-labelledby="productosModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="productosModalLabel">Productos del Contador</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <table class="table" id="productos-table" style="text-align:center">
+                    <thead>
+                        <tr>
+                            <th>N°</th>
+                            <th>Código</th>
+                            <th>Producto</th>
+                            <th>Cantidad</th>
+                            <th>Cantidad Contada</th>
+                            <th>Cantidad Pendiente</th>
+                        </tr>
+                    </thead>
+                    <tbody id="productos-body">
+                        <tr>
+                            <td colspan="6">Cargando productos...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(() => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const idPlan = urlParams.get('id');
+            $('#plan-id').text(idPlan);
+            cargarContadoresAsignados(idPlan);
+        });
+
+        const cargarContadoresAsignados = async (idPlan) => {
+            try {
+                const response = await fetch(`/Picking/ObtenerContadoresAsignados?id=${idPlan}`);
+                const data = await response.json();
+
+                const $pickeadorBody = $('#pickeador-body');
+                $pickeadorBody.empty();
+                data.forEach((det, index) => {
+                    const rowClass = det.finalizados !== 0 ? 'table-success' : 'table-warning'; // Colores pastel
+
+                    $pickeadorBody.append(`
+                                <tr class="${rowClass}">
+                                    <td>${index + 1}</td>
+                                    <td>${det.nombre}</td>
+                                    <td>
+                                        <button class="btn btn-success detalles-btn" data-id="${det.idpp}">
+                                            <i class='bx bx-search'></i> Detalles
+                                        </button>
+                                    </td>
+                                </tr>
+                            `);
+                });
+
+                $('.detalles-btn').click(function () {
+                    const idContador = $(this).data('id');
+                    cargarProductosContador(idContador, idPlan);
+                });
+            } catch (error) {
+                console.error('Error al cargar los contadores:', error);
+                $('#pickeador-body').html('<tr><td colspan="3">Error al cargar los contadores.</td></tr>');
+            }
+        };
+
+        const cargarProductosContador = async (idContador, idPlan) => {
+            try {
+                const response = await fetch(`/Picking/ObtenerProductosContador?idContador=${idContador}&idPlan=${idPlan}`);
+                const data = await response.json();
+
+                const $productosBody = $('#productos-body');
+                $productosBody.empty();
+                data.forEach((prod, index) => {
+                    const cantidadPendiente = prod.cantidad - (prod.cantidadContada || 0);
+                    const rowClass = (prod.cantidadContada < prod.cantidad) ? 'table-danger' :
+                        (prod.cantidadContada > prod.cantidad) ? 'table-success' : '';
+
+                    $productosBody.append(`
+                                <tr class="${rowClass}">
+                                    <td>${index + 1}</td>
+                                    <td>${prod.idProducto}</td>
+                                    <td>${prod.descripcion}</td>
+                                    <td>${prod.cantidad}</td>
+                                    <td>${prod.cantidadContada || 0}</td>
+                                    <td>${cantidadPendiente}</td>
+                                </tr>
+                            `);
+                });
+
+                $('#productosModal').modal('show');
+            } catch (error) {
+                console.error('Error al cargar los productos del contador:', error);
+                $('#productos-body').html('<tr><td colspan="6">Error al cargar los productos.</td></tr>');
+            }
+        };
+    </script>
+}

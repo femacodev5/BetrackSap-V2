@@ -1,0 +1,67 @@
+﻿@{
+    ViewData["Title"] = "Manifiestos de la Placa";
+}
+
+<div class="container">
+    <h1>Placas del Plan <span id="plan-id"></span></h1>
+
+    <div class="card border-0">
+        <div class="card-body">
+            <table class="table" style="text-align:center">
+                <thead>
+                    <tr>
+                        <th>N°</th>
+                        <th>Manifiesto</th>
+                        <th>Accion</th>
+                    </tr>
+                </thead>
+                <tbody id="manifiestos-body">
+                    <tr>
+                        <td colspan="3">Cargando productos...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(() => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const idPlan = urlParams.get('id');
+            $('#plan-id').text(idPlan);
+            cargarPlacas(idPlan);
+        });
+
+        const cargarPlacas = async (idPlan) => {
+            try {
+                const response = await fetch(`/Picking/ObtenerManifiestoPlan?ID=${idPlan}`);
+                const data = await response.json();
+
+                const $manifiestosBody = $('#manifiestos-body');
+                $manifiestosBody.empty();
+                data.forEach((man, index) => {
+                    $manifiestosBody.append(`
+                                        <tr>
+                                            <td>${index + 1}</td>
+                                            <td>${man.numero}</td>
+                                            <td>
+                                            <button class="btn btn-info planificar-btn" data-id="${man.idPlanMan}">
+                                                <i class='bx bx-search'></i> Planificar
+                                            </button>
+                                            </td>
+                                        </tr>
+                                    `);
+                });
+                $('.planificar-btn').click(function () {
+                    const idPlan = $(this).data('id');
+                    window.location.href = `/Picking/PlanProductos?id=${idPlan}`;
+                });
+            } catch (error) {
+                console.error('Error al cargar los manifiestos:', error);
+                $('#manifiestos-body').html('<tr><td colspan="3">Error al cargar los manifiestos.</td></tr>');
+            }
+        };
+    </script>
+}

@@ -1,0 +1,170 @@
+﻿@{
+   ViewData["Title"] = "Buscar Manifiesto";
+}
+
+<div class="container">
+    <h1>Datos del Manifiesto</h1>
+    <br /><br />
+    <button class="btn btn-primary" id="enviarlastBtn">Enviar a LastMile <i class="bx bx-send"></i></button>
+            
+    <div class="card border-0">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table" style="text-align:center" id="manifiestosTable">
+                    <thead>
+                        <tr>
+                            <th>Placa</th>
+                            <th>Documento</th>
+                            <th>Cliente</th>
+                            <th>Dirección</th>
+                            <th>Teléfono</th>
+                            <th>Código Cliente</th>
+                            <th>Email</th>
+                            <th>Latitud</th>
+                            <th>Longitud</th>
+                            <th>Descripción</th>
+                            <th>Código Producto</th>
+                            <th>Precio Unitario</th>
+                            <th>Cantidad</th>
+                            <th>CantidadxPaq</th>
+                            <th>CantidadPickada</th>
+                            <th>Unidad</th>
+                        </tr>
+                    </thead>
+                    <tbody id="manifiestos-body">
+                        <tr>
+                            <td colspan="16">Ingrese un número de manifiesto para buscar...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+@section Scripts {
+    <script>
+        
+        $(document).ready(function () {
+            const urlParams = new URLSearchParams(window.location.search);
+            const docEntry = urlParams.get('docEntry');
+            cargarManifiesto(docEntry);
+            $('#enviarlastBtn').hide();
+            
+        });
+
+        const cargarManifiesto = async (numeroManifiesto) => {
+            try {
+                const response = await fetch(`/Coordinador/ObtenerManifiestoNumero?numeroManifiesto=${numeroManifiesto}`);
+                const data = await response.json();
+
+                const $manifiestosBody = $('#manifiestos-body');
+                $manifiestosBody.empty();
+
+                if (data.length === 0) {
+                    $manifiestosBody.append('<tr><td colspan="14">No se encontraron resultados.</td></tr>');
+                    $('#enviarlastBtn').hide();
+                } else {
+                    data.forEach((manifiesto) => {
+                        $manifiestosBody.append(`
+                                        <tr>
+                                            <td>${manifiesto.u_EXP_PLACA}</td>
+                                            <td>${manifiesto.docNum}</td>
+                                            <td>${manifiesto.cardName}</td>
+                                            <td>${manifiesto.address}</td>
+                                            <td>${manifiesto.phone1}</td>
+                                            <td>${manifiesto.cardCode}</td>
+                                            <td>${manifiesto.e_Mail}</td>
+                                            <td>${manifiesto.u_XM_LatitudS}</td>
+                                            <td>${manifiesto.u_XM_LongitudS}</td>
+                                            <td>${manifiesto.dscription}</td>
+                                            <td>${manifiesto.itemCode}</td>
+                                            <td>${manifiesto.unitPrice}</td>
+                                            <td>${manifiesto.quantity}</td>
+                                            <td>${manifiesto.numPerMsr}</td>
+                                            <td>${manifiesto.pickQtty}</td>
+                                            <td>${manifiesto.unitMsr}</td>
+                                        </tr>
+                                    `);
+                    });
+                    $('#enviarlastBtn').show();
+                }
+
+            } catch (error) {
+                console.error('Error al cargar el manifiesto:', error);
+                $('#manifiestos-body').html('<tr><td colspan="14">Error al cargar los datos del manifiesto.</td></tr>');
+                $('#enviarlastBtn').hide();
+            }
+        };
+
+        $('#enviarlastBtn').click(async function () {
+            const confirm = await Swal.fire({
+                title: '¿Estás seguro?',
+                text: '¿Deseas enviar estos datos a LastMile?',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Sí, enviar',
+                cancelButtonText: 'No, cancelar'
+            });
+
+            if (confirm.isConfirmed) {
+                const manifiestosData = [];
+
+                $('#manifiestos-body tr').each(function () {
+                    const row = $(this);
+                    if (row.find('td').length > 1) {
+                        const manifiesto = {
+                            placa: row.find('td').eq(0).text(),
+                            documento: row.find('td').eq(1).text(),
+                            cliente: row.find('td').eq(2).text(),
+                            direccion: row.find('td').eq(3).text(),
+                            telefono: row.find('td').eq(4).text(),
+                            codigoCliente: row.find('td').eq(5).text(),
+                            email: row.find('td').eq(6).text(),
+                            latitud: row.find('td').eq(7).text(),
+                            longitud: row.find('td').eq(8).text(),
+                            descripcion: row.find('td').eq(9).text(),
+                            codigoProducto: row.find('td').eq(10).text(),
+                            precioUnitario: row.find('td').eq(11).text(),
+                            cantidad: row.find('td').eq(12).text(),
+                            cantidadxPaq: row.find('td').eq(13).text(),
+                            cantidadPickada: row.find('td').eq(14).text(),
+                            unidad: row.find('td').eq(15).text()
+                        };
+                        manifiestosData.push(manifiesto);
+                    }
+                });
+
+                if (manifiestosData.length > 0) {
+                    Swal.fire({
+                        title: 'Enviando datos...',
+                        text: 'Por favor espera mientras enviamos los datos.',
+                        icon: 'info',
+                        didOpen: () => {
+                            Swal.showLoading();
+                        }
+                    });
+
+                    try {
+                        const response = await fetch('/Coordinador/EnvioLastMile', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify(manifiestosData)
+                        });
+
+                        const result = await response.json();
+                        Swal.close();
+                        Swal.fire('Éxito', result.message, 'success');
+                    } catch (error) {
+                        Swal.close();
+                        console.error('Error al enviar los datos a LastMile:', error);
+                        Swal.fire('Error', 'Hubo un problema al enviar los datos.', 'error');
+                    }
+                } else {
+                    Swal.fire('Advertencia', 'No hay datos para enviar.', 'warning');
+                }
+            }
+        });
+    </script>
+}

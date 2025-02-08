@@ -1,0 +1,749 @@
+﻿<div class="container">
+    <h1>Productos a Contar <span id="plan-id"></span></h1>
+    <div class="mt-3 d-flex justify-content-between" style="max-width: 500px !important; margin-left: auto; margin-right: auto;">
+        <div class="form-group">
+            <button class="btn btn-warning" id="enviarReconteoBtn" hidden>Enviar a Reconteo</button>
+            <button class="btn btn-primary" id="vertodosBtn">Ver Verificados</button>
+        </div>
+    </div>
+    <br/>
+    <div class="form-group" style="max-width: 600px; margin-left: auto; margin-right: auto;">
+        <input type="text" class="form-control" id="searchInput" placeholder="Buscar productos..." />
+    </div>
+    <div class="card border-0">
+        <div class="card-body">
+            <div id="productos-body" style="max-width: 600px !important; margin-left: auto; margin-right: auto;" class="text-center">
+                <div class="m-2 p-2" style="border: 5px solid #C4E1F6; border-radius: 10px;">
+                    <span class="fw-bold text-dark fs-5">Cargando productos...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="mt-3 d-flex justify-content-between" style="max-width: 500px !important; margin-left: auto; margin-right: auto;">
+        <div class="form-group">
+            <button class="btn btn-danger" id="finalizarBtn">Finalizar</button>
+            <button class="btn btn-success" id="verfiGrupalBtn">Verificar Seleccionados</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="paqueteriasModal" tabindex="-1" role="dialog" aria-labelledby="paqueteriasModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title" id="paqueteriasdescripcion"></h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <span id="paqueteriascodigo"></span><br />
+                <span id="paqueteriascodfab"></span><br />
+                <span id="paqueteriasubica"></span><br />
+                <span id="paqueteriasstock"></span>
+                <table class="table" style="text-align:center">
+                    <thead>
+                        <tr>
+                            <th>N°</th>
+                            <th>Paquetería</th>
+                            <th>Cantidad</th>
+                        </tr>
+                    </thead>
+                    <tbody id="paqueterias-body">
+                        <tr>
+                            <td colspan="3">Cargando paqueterías...</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <div class="text-end fw-bold" id="totalCantidad">Total: 0</div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" id="guardarBtn" class="btn btn-primary">Guardar</button>
+                <button type="button" id="actualizarBtn" class="btn btn-success" style="display:none;">Guardar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="ubicacionesModal" tabindex="-1" aria-labelledby="ubicacionesModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="ubicacionesModalLabel">Ubicaciones del Producto</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <table class="table table-striped" id="ubicacionesTable">
+                    <thead>
+                        <tr>
+                            <th>Bin Code</th>
+                            <th>SL1 Code</th>
+                            <th>SL2 Code</th>
+                            <th>SL3 Code</th>
+                            <th>SL4 Code</th>
+                            <th>Unidad de Medida</th>
+                            <th>Cantidad</th>
+                            <th>Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ubicacionesContent">
+                        <tr><td colspan="6" class="text-center">Cargando ubicaciones...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+@section Scripts {
+    <script>
+        $(document).ready(() => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const idPlan = urlParams.get('id');
+            const idPP = urlParams.get('idpp');
+
+            $('#plan-id').text(idPlan);
+            cargarProductosVerificar(idPlan, idPP);
+
+            $('#vertodosBtn').click(async () => {
+                window.location.href = `/Picking/ProductosVerificados?id=${idPlan}&idpp=${idPP}`;
+            });
+
+            $('#searchInput').on('input', function () {
+                const searchTerm = $(this).val().toLowerCase();
+                console.log(searchTerm);
+                filtrarProductosinput(searchTerm);
+            });
+
+            $('#finalizarBtn').click(async () => {
+                const productosSeleccionados = [];
+
+                $('.paquete-checkbox:checked').each(function () {
+                    const productoId = $(this).data('producto');
+                    productosSeleccionados.push(productoId);
+                });
+
+                if (productosSeleccionados.length === 0) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'No hay productos seleccionados',
+                        text: 'Por favor, selecciona al menos un producto para verificar.',
+                        confirmButtonText: 'Cerrar'
+                    });
+                    return;
+                }
+
+                const idsSeleccionados = productosSeleccionados.join(',');
+                const urlParamss = new URLSearchParams(window.location.search);
+                const idPlan = urlParamss.get('id');
+                const idPP = urlParamss.get('idpp');
+
+                try {
+                    const response = await fetch(`/Picking/VerificarSeleccionados?ids=${idsSeleccionados}&idPlan=${idPlan}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        }
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Error al verificar los productos seleccionados');
+                    }
+
+                    const result = await response.json();
+
+                    if (result.success) {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Productos verificados',
+                            text: 'Los productos han sido verificados correctamente.',
+                            confirmButtonText: 'Cerrar'
+                        }).then(() => {
+                            cargarProductosVerificar(idPlan, idPP);  
+
+                            finalizarConteoPlaca(idPlan, idPP);  
+                        });
+                    } else {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: 'Hubo un problema al verificar los productos.',
+                            confirmButtonText: 'Cerrar'
+                        });
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error al verificar',
+                        text: 'Hubo un error al intentar verificar los productos.',
+                        confirmButtonText: 'Cerrar'
+                    });
+                }
+            });
+        });
+
+        const cargarProductosVerificar = async (idPlan, idPP) => {
+            try {
+                const response = await fetch(`/Picking/ObtenerProductosVerificar?idPlan=${idPlan}`);
+
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+
+                const data = await response.json();
+                const $productosBody = $('#productos-body');
+                $productosBody.empty();
+
+                if (!Array.isArray(data) || data.length === 0) {
+                    $productosBody.append('<div class="m-2 p-2" style="border: 5px solid #C4E1F6; border-radius: 10px;">No hay productos disponibles.</div>');
+                    return;
+                }
+                let resultadoFinal = 1;
+                let productosSeleccionados = [];
+                let productosrestantes = 0;
+                data.forEach((prod) => {
+                    resultadoFinal *= prod.verificado;
+                    const estado = prod.iniciado === '0' ? 'secondary' : (prod.cantidadContada === 0 ? 'danger' : (prod.cantidad === prod.cantidadContada ? 'success' : 'warning'));
+                    const disabled = prod.verificado === 1 ? 'disabled' : '';
+                    const iconveri = prod.verificado === 1 ? 'check' : 'x';
+                    const btnesta= prod.verificado === 1 ? 'success' : 'secondary';
+                    const hidden = prod.verificado === 1 ? 'hidden' : '';
+                    if(hidden === '' && prod.finalizado === 1){
+                        productosrestantes++;
+                    }
+                    const checkedd = prod.verificado === 1 ? 'checked' : '';
+                    const checkedi = prod.verificado === 1 ? 'disabled' : '';
+                    const reconteo = prod.cantidad === prod.cantidadContada ? '' : (prod.verificado === 1 ? '' : (prod.reconteo === 1 ? (prod.finalizado === 1 ? (prod.aceptado === 1 ? '<button class="btn btn-success">Faltante Aceptado</button>': '<button class="btn btn-success">Recontado</button>'): '<button class="btn btn-warning">Recontando</button>'): ''));
+                    const checkbox = estado === 'warning' 
+                        ? `<input type="checkbox" class="reconteo-checkbox" data-id="${prod.idProducto}" hidden/>` 
+                        : '';
+                    const productofinalizado = prod.finalizado === 1 ? '' : 'hidden';
+                    $productosBody.append(`
+                                        <div class="m-2 p-2 product-card" style="border: 5px solid #C4E1F6; border-radius: 10px;" ${hidden} ${productofinalizado}>
+                                            <span class="fw-bold text-dark fs-5">${checkbox}${prod.descripcion}</span>
+                                            <input type="hidden" class="idpProducto" value="${prod.idpProducto}"/>
+                                            <br>
+                                            <span class="p-0 text-secondary"><strong>Marca: ${prod.fabricante}</strong></span><br />
+                                            <span class="p-0 text-secondary">Código: ${prod.idProducto}</span><br />
+                                            <span class="p-0 text-secondary">Fabricante: ${prod.codigoFabricante}</span><br />
+                                            <span class="p-0 text-secondary">Cantidad a Pickear: ${prod.cantidad}</span><br />
+                                            <span class="p-0 text-secondary">Cantidad Pendiente: ${prod.cantidad - prod.cantidadContada}</span><br />
+                                            <span class="p-0 text-secondary">
+                                            <span class="text-dark fw-bold fs-7">Sector ${prod.sL1Code}: </span>&nbsp${prod.sL2Code}-${prod.sL3Code}-${prod.sL4Code}</span>
+
+                                            <div class="d-flex justify-content-between">
+                                                <div class="p-0 d-block">
+                                                </div>
+                                                <div class="paquetes" style="border: 2px solid #C4E1F6; padding: 10px; margin-top: 10px; border-radius: 10px;">
+                                                    ${prod.paquetes.map((paquete, index) => `
+                                                        <div class="paquete-item" style="border-bottom: 1px solid #C4E1F6; padding: 5px 0;" ${index > 0 ? 'hidden' : ''}>
+                                                            <label>
+                                                                <input type="checkbox" class="paquete-checkbox" data-producto="${prod.idProducto}" data-idplan="${idPlan}" data-paquete-index="${index}" data-factor="${paquete.factor}" data-cantpqt="${paquete.cantidadPaquete}" ${checkedd} ${disabled}/>                                                                
+                                                            </label>
+                                                        </div>
+                                                    `).join('')}
+                                                </div>
+                                                <div class="p-0 d-block">
+                                                    <span class="p-0 text-secondary">UNIDADES:</span>
+                                                    <button type="button" class="btn btn-${estado} mt-4 paqueterias-btn" data-ubica="${prod.sL1Code + "-" + prod.sL2Code + "-" + prod.sL3Code + "-" + prod.sL4Code}" data-id="${prod.idProducto}" data-abs="${prod.absEntry}" data-descri="${prod.descripcion}" data-codigo="${prod.idProducto}" data-codfab="${prod.codigoFabricante}" data-cantidad="${prod.cantidad}" ${disabled}>${prod.cantidadContada} UND</button>
+                                                    ${reconteo}
+                                                    <span class="p-0 text-secondary" id="cantidadverif"></span>
+                                                    <button type="button" class="btn btn-${btnesta} mt-4 veri-btn" data-id="${prod.idProducto}" ${hidden} hidden><i class="bx bx-${iconveri}"></i></button>
+                                                    <button type="button" class="btn btn-${btnesta} mt-4 paqueterias-btn" data-ubica="${prod.sL1Code + "-" + prod.sL2Code + "-" + prod.sL3Code + "-" + prod.sL4Code}" data-id="${prod.idProducto}" data-abs="${prod.absEntry}" data-descri="${prod.descripcion}" data-codigo="${prod.idProducto}" data-codfab="${prod.codigoFabricante}" data-cantidad="${prod.cantidad}" ${hidden}><i class="bx bx-edit"></i> </button>                                                
+                                                </div>
+                                            </div>
+                                        </div>
+                                    `);
+
+
+                    $(document).on('change', `.reconteo-checkbox[data-id="${prod.idProducto}"]`, function () {
+                        if (this.checked) {
+                            productosSeleccionados.push(prod.idProducto);
+                        } else {
+                            productosSeleccionados = productosSeleccionados.filter(id => id !== prod.idProducto);
+                        }
+                    });
+
+                    const verificarPaquetes = () => {
+                        const checkboxes = $(`.paquete-checkbox[data-producto="${prod.idProducto}"]`);
+                        const veriBtn = $(`.veri-btn[data-id="${prod.idProducto}"]`);
+
+                        const allChecked = checkboxes.length === checkboxes.filter(':checked').length;
+                        if (allChecked) {
+                            veriBtn.prop('disabled', false); 
+                        } else {
+                            veriBtn.prop('disabled', true); 
+                        }
+                    };
+
+                    // $(document).on('change', `.paquete-checkbox[data-producto="${prod.idProducto}"]`, function () {
+                    //     VerficiarCheckProducto(prod.idProducto, idPlan);
+
+                    //     verificarPaquetes();
+                    // });
+
+                    verificarPaquetes();
+                });
+                             
+
+                let searchte = document.getElementById('searchInput').value;
+                filtrarProductosinput(searchte);
+                             
+
+                if (resultadoFinal === 0) {
+                    $('#finalizarBtn').attr('hidden', true);
+                } else {
+                    $('#finalizarBtn').removeAttr('hidden');
+                    $('#enviarReconteoBtn').attr('hidden', true);
+                    $('#verfiGrupalBtn').attr('hidden', true);
+                }
+                $('.paqueterias-btn').click(function () {
+                    const idProducto = $(this).data('id');
+                    const descripcion = $(this).data('descri');
+                    const codigo = $(this).data('codigo');
+                    const abs = $(this).data('abs');
+                    const codfab = $(this).data('codfab');
+                    const ubica = $(this).data('ubica');
+                    const idpProducto = $(this).closest('.m-2').find('.idpProducto').val();
+                    const cantidadAPickear = $(this).data('cantidad');
+                    cargarPaqueteriasProducto(idProducto, idpProducto, cantidadAPickear, descripcion, codigo, codfab, ubica, idPlan, abs, idPP);
+                });
+
+                $('#enviarReconteoBtn').click(async function () {
+                    if (productosSeleccionados.length > 0) {
+                        const productosIds = productosSeleccionados.map(id => `'${id}'`).join(',');
+
+                        const result = await Swal.fire({
+                            title: '¿Estás seguro?',
+                            text: "¿Deseas enviar estos productos a reconteo?",
+                            icon: 'warning',
+                            showCancelButton: true,
+                            confirmButtonText: 'Sí, enviar a reconteo',
+                            cancelButtonText: 'No, cancelar',
+                        });
+
+                        if (result.isConfirmed) {
+                            try {
+                                const response = await fetch(`/Picking/ReconteoProducto?idPlan=${idPlan}&idProducto=${productosIds}`, {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                    }
+                                });
+
+                                const data = await response.json();
+
+                                if (data.success) {
+                                    Swal.fire('Éxito', data.message, 'success');
+                                    window.location.reload();
+                                } else {
+                                    Swal.fire('Error', data.message, 'error');
+                                }
+                            } catch (error) {
+                                console.error('Error al enviar reconteo:', error);
+                                Swal.fire('Error', 'Error al enviar reconteo.', 'error');
+                            }
+                        } else {
+                            console.log('Reconteo cancelado');
+                        }
+                    } else {
+                        Swal.fire('Advertencia', 'Por favor, selecciona al menos un producto para reconteo.', 'warning');
+                    }
+                });
+
+
+                $('.veri-btn').click(function () {
+                    const idProducto = $(this).data('id');
+                    veriProducto(idProducto, idPlan, idPP);
+                });
+            } catch (error) {
+                console.error('Error al cargar los productos:', error);
+                Swal.fire('Error', 'Error al cargar los productos.', 'error');
+            }
+        };
+
+        $(document).on('change', `.paquete-checkbox[data-producto]`, function () {
+            const idProducto = $(this).data('producto');
+            const idPlan = $(this).data('idplan');
+            VerficiarCheckProducto(idProducto, idPlan);
+        });
+
+
+        const filtrarProductosinput = (searchTerm) => {
+            console.log("LLEGO " + searchTerm);
+            const productos = $('.product-card');
+            productos.each(function () {
+                const descripcion = $(this).find('.fw-bold').text().toLowerCase();
+                const codigo = $(this).find('.text-secondary').first().text().toLowerCase();
+                const sector = $(this).find('.text-dark').text().toLowerCase();
+
+                if (descripcion.includes(searchTerm) || codigo.includes(searchTerm) || sector.includes(searchTerm)) {
+                    $(this).show();
+                    console.log("se econtro coincidencia");
+                } else {
+                    $(this).hide();
+                    console.log("no hya nada");
+                }
+            });
+        };
+
+        $('#verfiGrupalBtn').on('click', async function () {
+            const productosSeleccionados = [];
+
+            $('.paquete-checkbox:checked').each(function () {
+                const productoId = $(this).data('producto');
+                productosSeleccionados.push(productoId);
+            });
+
+            if (productosSeleccionados.length === 0) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'No hay productos seleccionados',
+                    text: 'Por favor, selecciona al menos un producto para verificar.',
+                    confirmButtonText: 'Cerrar'
+                });
+                return;
+            }
+
+            const idsSeleccionados = productosSeleccionados.join(',');
+            const urlParamss = new URLSearchParams(window.location.search);
+            const idPlan = urlParamss.get('id');
+            const idPP = urlParamss.get('idpp');
+
+            try {
+                const response = await fetch(`/Picking/VerificarSeleccionados?ids=${idsSeleccionados}&idPlan=${idPlan}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error('Error al verificar los productos seleccionados');
+                }
+
+                const result = await response.json();
+
+                if (result.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Productos verificados',
+                        text: 'Los productos han sido verificados correctamente.',
+                        confirmButtonText: 'Cerrar'
+                    }).then((result) => {
+                        cargarProductosVerificar(idPlan, idPP);
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: 'Hubo un problema al verificar los productos.',
+                        confirmButtonText: 'Cerrar'
+                    });
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error al verificar',
+                    text: 'Hubo un error al intentar verificar los productos.',
+                    confirmButtonText: 'Cerrar'
+                });
+            }
+        });
+
+        const VerficiarCheckProducto = async (idProducto, idPlan) => {
+            try {
+                const response = await fetch(`/Picking/VerificarCheck?idp=${idProducto}&idPlan=${idPlan}`, {
+                    method: 'POST'
+                });
+
+                if (response.ok) {
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const idPP = urlParams.get('idpp');
+
+                    cargarProductosVerificar(idPlan, idPP);
+                } else {
+                    throw new Error('Error al finalizar la verificación.');
+                }
+            } catch (error) {
+                console.error('Error al finalizar la verificación:', error);
+                Swal.fire('Error', 'Error al finalizar la verificación.', 'error'); 
+            }
+        };
+
+
+        const cargarPaqueteriasProducto = async (idProducto, idpProducto, cantidadAPickear, descripcion, codigo, codfab, ubica, idPlan, abs, idPP) => {
+            try {
+                const response = await fetch(`/Picking/ObtenerPaqueteriasProducto?idProducto=${idProducto}&idp=${idpProducto}&Plan=${idPlan}&abs=${abs}`);
+                const { paqueterias, hayRegistros, stockActual } = await response.json();
+
+                const $paqueteriasBody = $('#paqueterias-body');
+                const estadoubis = stockActual >= cantidadAPickear ? 'info' : 'danger';
+                $paqueteriasBody.empty();
+                let total = 0;
+
+                if (hayRegistros) {
+                    $('#guardarBtn').hide();
+                    $('#actualizarBtn').show();
+                } else {
+                    $('#guardarBtn').show();
+                    $('#actualizarBtn').hide();
+                }
+
+                const paqueteriasPorAbsEntry = paqueterias.reduce((acc, paq) => {
+                    if (!acc[paq.absEntry]) {
+                        acc[paq.absEntry] = [];
+                    }
+                    acc[paq.absEntry].push(paq);
+                    return acc;
+                }, {});
+
+                for (const [absEntry, paqueteriasDeAbs] of Object.entries(paqueteriasPorAbsEntry)) {
+                    $paqueteriasBody.append(`
+                                    <tr data-abscode="${absEntry}">
+                                        <td colspan="3">Ubicacion:</td>
+                                        <td>${absEntry}</td>
+                                    </tr>
+                                `);
+
+                    paqueteriasDeAbs.forEach((paq, index) => {
+                        const factor = paq.factor;
+                        const disabled = factor > cantidadAPickear ? 'disabled' : (paq.cantidadBase > factor ? 'disabled' : '');
+                        const cantidad = paq.cantidad || 0;
+                        $('#paqueteriasstock').text("Stock Actual: " + `${paq.stock}`);
+
+                        $paqueteriasBody.append(`
+                                        <tr>
+                                            <td>${index + 1}</td>
+                                            <td>${Math.floor(cantidadAPickear / paq.factor)}</td>
+                                            <td>${paq.idMedida}</td>
+                                            <td>
+                                                <input type="number" class="form-control cantidad-input" data-id="${paq.idMedida}" data-factor="${factor}" data-abs="${paq.absEntry}" data-pick="${cantidadAPickear}" value="${cantidad}" min="0" ${disabled}/>
+                                            </td>
+                                        </tr>
+                                    `);
+
+                        total += cantidad * factor;
+                        console.log(total);
+                    });
+
+                }
+                              
+                $('#paqueterias-body').on('input', '.cantidad-input', function () {
+                    total = 0;
+                    let cantidadMaximaAlcanzada = false;
+                    let canpick = 0;
+                    $('#paqueterias-body .cantidad-input').each(function () {
+
+                        const cantidad = parseInt($(this).val()) || 0;
+                        const factor = parseInt($(this).data('factor')) || 1;
+                        canpick = parseInt($(this).data('pick')) || 0;
+                        total += cantidad * factor;
+                        console.log(total);
+                        console.log(canpick);
+                        if (total > canpick) {
+                            cantidadMaximaAlcanzada = true;
+                        }
+                    });
+
+                    if (cantidadMaximaAlcanzada) {
+                        Swal.fire('Error', `No puede ingresar más de ${canpick}.`, 'error');
+                        $('#paqueterias-body .cantidad-input').each(function () {
+                            if (hayRegistros) {
+                                if (cantidadMaximaAlcanzada) {
+                                    $('#actualizarBtn').hide();
+                                    $('#guardarBtn').hide();
+                                }
+                            } else {
+                                if (cantidadMaximaAlcanzada) {
+                                    $('#guardarBtn').hide();
+                                    $('#actualizarBtn').hide();
+                                }
+                            }
+
+                        });
+                    } else {
+                        if (hayRegistros) {
+                            $('#actualizarBtn').show();
+                            $('#guardarBtn').hide();
+                        } else {
+                            $('#guardarBtn').show();
+                            $('#actualizarBtn').hide();
+                        }
+                    }
+
+                    $('#totalCantidad').text(`Total: ${total}`);
+                });
+
+                $('#paqueteriasdescripcion').text(`${descripcion}`);
+                $('#paqueteriascodigo').text(`${codigo}`);
+                $('#paqueteriascodfab').text(`${codfab}`);
+                $('#totalCantidad').text(`Total: ${total}`);
+                $('#paqueteriasubica').html(`${ubica} || Stock: ${stockActual}`);
+                $('#guardarBtn').off('click').on('click', () => guardarPaqueterias(idProducto, idpProducto, paqueterias, idPlan, idPP));
+                $('#actualizarBtn').off('click').on('click', () => actualizarPaqueteriasVeri(paqueterias, idpProducto, idProducto, idPlan, idPP));
+
+                $('#paqueteriasModal').modal('show');
+            } catch (error) {
+                console.error('Error al cargar las paqueterías:', error);
+                $('#paqueterias-body').html('<tr><td colspan="3">Error al cargar las paqueterías.</td></tr>');
+            }
+        };
+
+        
+        const actualizarPaqueteriasVeri = async (data, idpProducto, idProducto, idPlan, idPP) => {
+            const registros = [];
+            $('.cantidad-input').each(function () {
+                const cantidad = $(this).val();
+                const idMedida = $(this).data('id');
+                const factor = $(this).data('factor');
+                const absentry = $(this).data('abs');
+                if (cantidad) {
+                    registros.push({
+                        idMedida: idMedida,
+                        cantidad: cantidad,
+                        factor: factor,
+                        abs: String(absentry)
+                    });
+                }
+            });
+
+            try {
+                const response = await fetch('/Picking/ActualizarPaqueteriasVeri', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ registros, idpProducto, idProducto:String(idProducto), idPlan })
+                });
+
+                if (response.ok) {
+                    Swal.fire('Éxito', 'Datos actualizados exitosamente.', 'success').then(() => {
+                        $('#paqueteriasModal').modal('hide');
+                        cargarProductosVerificar(idPlan, idPP);
+                    });
+                } else {
+                    throw new Error('Error al actualizar los datos.');
+                }
+            } catch (error) {
+                console.error('Error al actualizar las paqueterías:', error);
+                Swal.fire('Error', 'Error al actualizar los datos.', 'error');
+            }
+        };
+
+        const guardarPaqueterias = async (idProducto, idpProducto, data, idPlan, idPP) => {
+            const registros = [];
+            $('.cantidad-input').each(function () {
+                const cantidad = $(this).val();
+                const idMedida = $(this).data('id');
+                const factor = $(this).data('factor');
+                if (cantidad) {
+                    registros.push({
+                        idProducto: idProducto,
+                        idMedida: idMedida,
+                        cantidad: cantidad,
+                        idpProducto: idpProducto,
+                        factor: factor
+                    });
+                }
+            });
+
+            try {
+                const response = await fetch('/Picking/GuardarPaqueterias', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(registros)
+                });
+
+                if (response.ok) {
+                    Swal.fire('Éxito', 'Datos guardados exitosamente.', 'success').then(() => {
+                        $('#paqueteriasModal').modal('hide');
+                        cargarProductosVerificar(idPlan, idPP);
+                    });
+                } else {
+                    throw new Error('Error al guardar los datos.');
+                }
+            } catch (error) {
+                console.error('Error al guardar las paqueterías:', error);
+                Swal.fire('Error', 'Error al guardar los datos.', 'error');
+            }
+        };
+                
+        const finalizarConteoPlaca = async (idPlan, idPP) => {
+            try {
+                const response = await fetch(`/Picking/VerificarConteoPlaca?idPlan=${idPlan}`, {
+                    method: 'POST'
+                });
+
+                if (response.ok) {
+                    Swal.fire('Éxito', 'Verificación finalizada exitosamente.', 'success').then(() => {
+                        window.location.href = `/Picking/JefeConteo?idpp=${idPP}`;  
+                    });
+                } else {
+                    throw new Error('Error al finalizar la verificación.');
+                }
+            } catch (error) { 
+                console.error('Error al finalizar la verificación:', error);
+                Swal.fire('Error', 'Error al finalizar la verificación.', 'error');
+            }
+        };
+
+       
+        const veriProducto = async (idProducto, idPlan, idPP) => {
+            const result = await Swal.fire({
+                title: '¿Estás seguro?',
+                text: 'Una vez verificado, no podrás cambiar esta acción.',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Sí, verificar',
+                cancelButtonText: 'Cancelar'
+            });
+
+            if (result.isConfirmed) {
+                try {
+                    const response = await fetch(`/Picking/VeriProducto?idProducto=${idProducto}&idPlan=${idPlan}`, {
+                        method: 'POST'
+                    });
+
+                    if (response.ok) {
+                        Swal.fire('Éxito', 'Verificación finalizada exitosamente.', 'success').then(() => {
+                            cargarProductosVerificar(idPlan, idPP);
+                        });
+                    } else {
+                        throw new Error('Error al finalizar la verificación.');
+                    }
+                } catch (error) {
+                    console.error('Error al finalizar la verificación:', error);
+                    Swal.fire('Error', 'Error al finalizar la verificación.', 'error');
+                }
+            } else {
+                console.log('Verificación cancelada');
+            }
+        };
+        const verificarPaquetes = () => {
+            const allCheckboxes = $('.paquete-checkbox');
+
+            const allChecked = allCheckboxes.length === allCheckboxes.filter(':checked').length;
+
+            if (allChecked) {
+                $('#finalizarBtn').removeAttr('hidden'); 
+            } else {
+                $('#finalizarBtn').attr('hidden', true);  
+            }
+        };
+
+        $(document).on('change', '.paquete-checkbox', function () {
+            verificarPaquetes();
+        });
+
+        verificarPaquetes();
+
+    </script>
+}

@@ -1,0 +1,70 @@
+﻿body {
+}
+* {
+    font-family: "Nunito", serif;
+    font-size: 14px;
+}
+
+@media (max-width: 600px) {
+    .col-12{
+        margin:0px;
+        padding:0px;
+    }
+    .card-body{
+        padding:0px;
+    }
+    .wan{
+        width:100px;
+        height:35px;
+        padding:5px 0px;
+        margin-right:0px !important;
+    }
+    .dwlbtn {
+        padding: 0px 3px;
+        width: 35px;
+        border-radius: 50%;
+        height: 35px;
+    }
+    .lblexport{
+        display:none;
+    }
+    .wan2{
+        width:80px;
+    }
+    .responsivebtn {
+        padding:5px 0px;
+        width:100px !important;
+    }
+    .celdaline {
+        white-space: nowrap;
+    }
+    .sinmargen {
+        margin: 0px 0px;
+    }
+    .pdingresp {
+        padding: 0px 10px;
+    }
+    .respnm {
+        margin: 0px;
+        padding: 0px;
+    }
+    .alingleft{
+        margin-top:20px;
+        width:100%;
+    }
+    .backcolordisbled{
+        background-color:dimgrey !important;
+    }
+    .table-responsive {
+        overflow-x: auto !important;
+    }
+    .filtrofecha {
+        width: 80vw !important;
+        margin: 20px 10vw !important;
+    }
+    .withtable {
+        width: 90vw !important;
+        margin-top: 30px;
+    }
+
+}

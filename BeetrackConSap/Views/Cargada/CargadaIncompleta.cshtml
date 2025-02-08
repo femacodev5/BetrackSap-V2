@@ -1,0 +1,549 @@
+﻿<div class="container">
+    <h1>Productos a Cargar<span id="plan-id"></span></h1>
+    <div class="form-group" style="max-width: 600px; margin-left: auto; margin-right: auto;">
+        <input type="text" class="form-control" id="searchInput" placeholder="Buscar productos..." />
+    </div>
+    <div class="mt-3 d-flex justify-content-between" style="max-width: 500px !important; margin-left: auto; margin-right: auto;">
+        <div class="form-group">
+            <button class="btn btn-danger" id="finalizarBtn">Finalizar</button>
+            <button class="btn btn-secondary" id="confirmaBtn">Esperando Confirmacion</button>
+            <button class="btn btn-success" id="cargacompletaBtn">Confirmar Carga Completa</button>
+        </div>
+    </div>
+    <div class="card border-0">
+        <div class="card-body">
+            <div id="productos-body" style="max-width: 600px !important; margin-left: auto; margin-right: auto;" class="text-center">
+                <div class="m-2 p-2" style="border: 5px solid #C4E1F6; border-radius: 10px;">
+                    <span class="fw-bold text-dark fs-5">Cargando productos...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+<div class="modal fade" id="paqueteriasModal" tabindex="-1" role="dialog" aria-labelledby="paqueteriasModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="paqueteriasModalLabel">Paqueterías del Producto</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <table class="table" style="text-align:center">
+                    <thead>
+                        <tr>
+                            <th>N°</th>
+                            <th>Paquetes</th>
+                            <th>Paquetería</th>
+                            <th>Cantidad</th>
+                        </tr>
+                    </thead>
+                    <tbody id="paqueterias-body">
+                        <tr>
+                            <td colspan="3">Cargando paqueterías...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" id="guardarBtn" class="btn btn-primary">Guardar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="pedidosModal" tabindex="-1" role="dialog" aria-labelledby="pedidosModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="pedidosModalLabel">Detalles de Pedidos</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <h6 id="producto-descripcion"></h6>
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Número Pedido</th>
+                            <th>Solicitado</th>
+                            <th>Pickado</th>
+                            <th>Factor</th>
+                            <th>Cantidad a Cargar</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="pedidos-body">
+                        <tr>
+                            <td colspan="3">Cargando pedidos...</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button class="btn btn-primary" id="guardarpedido-btn">Guardar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(() => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const idPlan = urlParams.get('id');
+
+            $('#plan-id').text(idPlan);
+            cargarProductos(idPlan);
+
+            $('#searchInput').on('input', function () {
+                const searchTerm = $(this).val().toLowerCase();
+                console.log(searchTerm);
+                filtrarProductos(searchTerm);
+            });
+
+            $('#cargacompletaBtn').click(() => {
+                Swal.fire({
+                    title: '¿Estás seguro?',
+                    text: "¿Quieres confirmar la carga?",
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#3085d6',
+                    cancelButtonColor: '#d33',
+                    confirmButtonText: 'Sí, confirmar!'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        confirmarcargaCompleta(idPlan);
+                    }
+                });
+            });
+
+            $('#finalizarBtn').click(() => {
+                Swal.fire({
+                    title: '¿Estás seguro?',
+                    text: "¿Quieres finalizar la carga?",
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#3085d6',
+                    cancelButtonColor: '#d33',
+                    confirmButtonText: 'Sí, finalizar!'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        finalizarCargaPlaca(idPlan, idPP);
+                    }
+                });
+            });
+        });
+
+        const cargarProductos = async (idPlan) => {
+            try {
+                const response = await fetch(`/Cargada/ObtenerProductos?id=${idPlan}`);
+
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+
+                const data = await response.json();
+                const $productosBody = $('#productos-body');
+                $productosBody.empty();
+
+                if (!Array.isArray(data) || data.length === 0) {
+                    $productosBody.append('<div class="m-2 p-2" style="border: 5px solid #C4E1F6; border-radius: 10px;">No hay productos disponibles.</div>');
+                    return;
+                }
+                let resultadoFinal = 1;
+                let tipocarga = 1;
+                data.forEach((prod) => {
+                    resultadoFinal *= prod.estado;
+                    const totalbtn = prod.cargado === 0 ? prod.cantidad : prod.cargado;
+                    const estadototalbtn = prod.cargado === 0 ? 'success' : (prod.cantidad === prod.cargado ? 'success' : 'warning');
+                    const hiddencard = prod.cantidad === prod.cargado ? 'hidden' : (prod.confirma === 1 ? 'hidden': '');
+                    const varestado = prod.cantidad === prod.cargado ? 1 : (prod.confirma === 1 ? 1 : 0);
+                    tipocarga *= varestado;
+                    $productosBody.append(`
+
+                                                <div class="m-2 p-2 producto-card" style="border: 5px solid #C4E1F6; border-radius: 10px;" ${hiddencard}>
+                                                    <span class="fw-bold text-dark fs-5">${prod.descripcion}</span>
+                                                    <input type="hidden" class="idpProducto" value="${prod.idpProducto}" />
+                                                    <div class="d-flex justify-content-between">
+                                                        <div class="p-0 d-block">
+                                                            <span class="p-0 text-secondary">Código: ${prod.idProducto}</span><br />
+                                                            <span class="p-0 text-secondary">Cantidad a cargar: ${prod.cantidad}</span><br />
+                                                            <span class="p-0 text-secondary">Falta retirar: ${prod.cantidad - totalbtn}</span><br />
+                                                        </div>
+                                                        <div class="p-0 d-block">
+                                                            <button type="button" class="btn btn-${estadototalbtn} mt-4 paqueterias-btn" data-id="${prod.idProducto}" data-cantidad="${prod.cantidad}">
+                                                                ${totalbtn} UND
+                                                            </button><br><br>
+                                                            <button class="btn btn-success aceptar-btn" data-idp="${prod.idpProducto}" data-plan="${idPlan}" data-id="${prod.idProducto}" data-total="${prod.cantidad}" data-cargado="${totalbtn}"><i class="bx bx-check"></i></button><button type="button" class="btn btn-${estadototalbtn} mt-4 paqueterias-btn" data-id="${prod.idProducto}" data-cantidad="${prod.cantidad}"><i class="bx bx-alt"></i></button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            `);
+                });
+                if (resultadoFinal === 0) {
+                    $('#finalizarBtn').attr('hidden', true);
+                    $('#confirmaBtn').attr('hidden', true);
+                } else {
+                    if (tipocarga === 0) {
+                        $('#confirmaBtn').removeAttr('hidden');
+                        $('#finalizarBtn').attr('hidden', true);
+                    } else {
+                        $('#confirmaBtn').attr('hidden', true);
+                        cargaconfir(idPlan);
+                        $('#finalizarBtn').removeAttr('hidden');
+
+                    }
+                    $('#cargacompletaBtn').attr('hidden', true);
+                }
+                $('.paqueterias-btn').click(function () {
+                    const idProducto = $(this).data('id');
+                    const idpProducto = $(this).closest('.m-2').find('.idpProducto').val();
+                    const cantidadAPickear = $(this).data('cantidad');
+                    cargarPaqueteriasProducto(idProducto, idpProducto, cantidadAPickear, idPlan);
+                });
+
+                $('.aceptar-btn').click(function () {
+                    const idProducto = $(this).data('id');
+                    const idPlan = $(this).data('plan');
+                    const totalCantidad = $(this).data('total');
+                    const cargado = $(this).data('cargado');
+                    const idp = $(this).data('idp');
+                    cargarPedidosProducto(idPlan, idProducto, totalCantidad, cargado, idp);
+                    $('#pedidosModal').modal('show');
+                });
+
+            } catch (error) {
+                console.error('Error al cargar los productos:', error);
+                Swal.fire('Error', 'Error al cargar los productos.', 'error');
+            }
+        };
+
+        const cargarPedidosProducto = async (idPlan, idProducto, totalCantidad, cargado, idp) => {
+            try {
+                const response = await fetch(`/Coordinador/ObtenerPedidosProducto?IDPlan=${idPlan}&IDProducto=${idProducto}`);
+                const data = await response.json();
+
+                const $pedidosBody = $('#pedidos-body');
+                $pedidosBody.empty();
+
+                let totalCantidadIngresada = 0;
+                let cantidadRestante = cargado;
+
+                data.forEach((pedido) => {
+                    const cantidadSolicitada = pedido.cantidad;
+                    let cantidadAEntregar = 0;
+
+                    if (cantidadRestante >= cantidadSolicitada) {
+                        cantidadAEntregar = Math.floor(cantidadSolicitada / pedido.factor) * pedido.factor;
+                        cantidadRestante -= cantidadAEntregar;
+                    } else {
+                        cantidadAEntregar = Math.floor(cantidadRestante / pedido.factor) * pedido.factor;
+                        cantidadRestante -= cantidadAEntregar;
+                    }
+
+                    $pedidosBody.append(`
+                                <tr data-id-plan-ped="${pedido.idPlanPed}" data-factor="${pedido.factor}">
+                                    <td>${pedido.numeroGuia}</td>
+                                    <td>${cantidadSolicitada / pedido.factor}</td>
+                                    <td>${pedido.cantidadCargar}</td>
+                                    <td>${pedido.factor}</td>
+                                    <td><input type="number" value="${pedido.cantidadCargar}" class="form-control cantidadpedido-input" min="0" data-factor="${pedido.factor}" max="${cantidadSolicitada / pedido.factor}" data-id-plan-ped="${pedido.idPlanPed}"/></td>
+                                    <td><button class="btn btn-info ver-info-btn" data-numero-guia="${pedido.numeroGuia}"><i class="bx bx-search"></i></button></td>
+                                </tr>
+                            `);
+                    totalCantidadIngresada += pedido.cantidadCargar * pedido.factor;
+                });
+
+                if (totalCantidadIngresada === cargado) {
+                    $('#guardarpedido-btn').show();
+                } else {
+                    $('#guardarpedido-btn').hide();
+                }
+
+                $('#producto-descripcion').text(data[0]?.descripcion || "");
+
+                $('#guardarpedido-btn').off('click').on('click', () => {
+                    guardarCantidadPedido(data, idPlan, idp);
+                });
+
+                $('.ver-info-btn').click(function () {
+                    const numeroGuia = $(this).data('numero-guia');
+                    cargarInformacionPedido(numeroGuia);
+                    $('#informacionPedidoModal').modal('show');
+                });
+
+                $('.cantidadpedido-input').on('input', function () {
+                    totalCantidadIngresada = 0;
+
+                    $('.cantidadpedido-input').each(function () {
+                        const inputValue = parseInt($(this).val(), 10) || 0;
+                        const factor = parseInt($(this).data('factor'), 10);
+
+                        totalCantidadIngresada += inputValue * factor;
+                    });
+
+                    $('#diferencan').text(totalCantidadIngresada - cargado);
+
+                    if (totalCantidadIngresada === cargado) {
+                        $('#guardarpedido-btn').show();
+                    } else {
+                        $('#guardarpedido-btn').hide();
+                    }
+                });
+
+                $pedidosBody.append(`
+                            <tr>
+                                <td colspan="5" class="text-right"><strong>Falta Retirar:</strong></td>
+                                <td id="diferencan">${totalCantidadIngresada - cargado}</td>
+                            </tr>
+                        `);
+
+            } catch (error) {
+                console.error('Error al cargar los pedidos:', error);
+                Swal.fire('Error', 'Error al cargar los pedidos.', 'error');
+                $('#pedidos-body').html('<tr><td colspan="3">Error al cargar los pedidos.</td></tr>');
+            }
+        };
+
+        const guardarCantidadPedido = async (data, idPlan, idp) => {
+            const updates = [];
+
+            $('#pedidos-body tr').each(function () {
+                const cantidadInput = $(this).find('input').val() || "0";
+                const idPlanPed = $(this).data('id-plan-ped');
+                const factorpedido = $(this).data('factor');
+                const cantfinal = factorpedido * cantidadInput;
+
+                if (idPlanPed && cantidadInput) {
+                    updates.push({
+                        idPlanPed: String(idPlanPed),
+                        cantidadCargar: String(cantfinal),
+                        idp: String(idp)
+                    });
+                }
+            });
+
+            if (updates.length === 0) {
+                Swal.fire('Advertencia', 'No hay datos para guardar.', 'warning');
+                return;
+            }
+
+            try {
+                const response = await fetch('/Coordinador/GuardarCantidadFinalConfirma', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(updates)
+                });
+
+                if (response.ok) {
+                    Swal.fire('Éxito', 'Cantidades guardadas con éxito.', 'success').then(() => {
+                        $('#pedidosModal').modal('hide');
+                        cargarProductos(idPlan);
+                    });
+                } else {
+                    const errorResponse = await response.json();
+                    throw new Error(errorResponse.message || 'Error al guardar las cantidades.');
+                }
+            } catch (error) {
+                console.error('Error al guardar las cantidades:', error);
+                Swal.fire('Error', 'Ocurrió un error al guardar las cantidades.', 'error');
+            }
+        };
+
+        const cargaconfir = async (idPlan) => {
+            try {
+                const response = await fetch(`/Cargada/CargaConfirmada?idPlan=${idPlan}`, {
+                    method: 'POST'
+                });
+                 window.location.href = `/Home/ConsultasEnviadas`;
+            } catch (error) {
+                console.error('Error al finalizar la carga:', error);
+                Swal.fire('Error', 'Error al finalizar la carga.', 'error');
+            }
+        };
+
+        const filtrarProductos = (searchTerm) => {
+            const productos = $('.producto-card');
+            productos.each(function () {
+                const descripcion = $(this).find('.fw-bold').text().toLowerCase();
+                const codigo = $(this).find('.text-secondary').first().text().toLowerCase();
+                const sector = $(this).find('.text-dark').text().toLowerCase();
+
+                if (descripcion.includes(searchTerm) || codigo.includes(searchTerm) || sector.includes(searchTerm)) {
+                    $(this).show();
+                    console.log("se econtro coincidencia");
+                } else {
+                    $(this).hide();
+                    console.log("no hya nada");
+                }
+            });
+        };
+
+        const cargarPaqueteriasProducto = async (idProducto, idpProducto, cantidadAPickear, idPlan) => {
+            try {
+                const response = await fetch(`/Cargada/ObtenerPaqueteriasProductoCarga?idProducto=${idProducto}&idp=${idpProducto}`);
+                const paqueterias = await response.json();
+
+                const $paqueteriasBody = $('#paqueterias-body');
+                $paqueteriasBody.empty();
+                let totalInput = 0;
+
+                paqueterias.forEach((paq, index) => {
+
+                    $paqueteriasBody.append(`
+                                <tr>
+                                    <td>${index + 1}</td>
+                                    <td>${paq.cantidad}</td>
+                                    <td>${paq.medidad}</td>
+                                    <td>
+                                        <input type="number" value="${paq.cargado}" class="form-control cantidad-input" data-id="${paq.idpIngresado}" data-factor="${paq.factor}" value="${paq.cargado}" min="0" max="${paq.cantidad}" data-cantidad="${paq.cantidad}" />
+                                    </td>
+                                </tr>
+                            `);
+                    totalInput += paq.cantidad * paq.factor;
+                });
+
+                $paqueteriasBody.prepend(`
+                            <tr>
+                                <td colspan="3">Cantidad a cargar:</td>
+                                <td>${cantidadAPickear}</td>
+                            </tr>
+                        `);
+
+                $paqueteriasBody.append(`
+                            <tr>
+                                <td colspan="3" class="text-right"><strong>Total A Contar:</strong></td>
+                                <td id="totalaContar">${cantidadAPickear}</td>
+                            </tr>
+                            <tr>
+                                <td colspan="3" class="text-right"><strong>Total Pickado:</strong></td>
+                                <td id="totalCantidadIngresada">${totalInput}</td>
+                            </tr>
+                            <tr>
+                                <td colspan="3" class="text-right"><strong>Pendiente:</strong></td>
+                                <td id="diferencan">${cantidadAPickear - totalInput}</td>
+                            </tr>
+                        `);
+
+                $('.cantidad-input').on('input', function () {
+                    totalInput = 0;
+
+                    $('.cantidad-input').each(function () {
+                        const cantidad = parseInt($(this).val()) || 0;
+                        const factor = parseInt($(this).data('factor')) || 1;
+
+                        totalInput += cantidad * factor;
+                    });
+
+                    if (totalInput > cantidadAPickear) {
+                        Swal.fire('Error', `No puede ingresar más de ${cantidadAPickear} en total.`, 'error');
+                    }
+
+                    $('#totalCantidadIngresada').text(totalInput);
+                    $('#diferencan').text(cantidadAPickear - totalInput);
+
+                    if (totalInput <= cantidadAPickear) {
+                        $('#guardarBtn').show();
+                    } else {
+                        $('#guardarBtn').hide();
+                    }
+                });
+
+
+                $('#guardarBtn').off('click').on('click', () => guardarPaqueteriasCargada(idProducto, idpProducto, paqueterias, idPlan));
+
+                $('#paqueteriasModal').modal('show');
+                if (totalInput <= cantidadAPickear) {
+                    $('#guardarBtn').show();
+                } else {
+                    $('#guardarBtn').hide();
+                }
+            } catch (error) {
+                console.error('Error al cargar las paqueterías:', error);
+                $('#paqueterias-body').html('<tr><td colspan="3">Error al cargar las paqueterías.</td></tr>');
+            }
+        };
+
+
+        const guardarPaqueteriasCargada = async (idProducto, idpProducto, data, idPlan) => {
+            const registros = [];
+            $('.cantidad-input').each(function () {
+                const cantidad = $(this).val() || "0";
+                const idMedida = $(this).data('id');
+                const factor = $(this).data('factor');
+                if (cantidad) {
+                    registros.push({
+                        idProducto: idProducto,
+                        idMedida: idMedida,
+                        cantidad: cantidad,
+                        idpProducto: idpProducto,
+                        factor: factor
+                    });
+                }
+            });
+
+            try {
+                const response = await fetch('/Cargada/GuardarPaqueteriasConfirmada', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(registros)
+                });
+
+                if (response.ok) {
+                    Swal.fire('Éxito', 'Datos guardados exitosamente.', 'success').then(() => {
+                        $('#paqueteriasModal').modal('hide');
+                        cargarProductos(idPlan);
+                    });
+                } else {
+                    throw new Error('Error al guardar los datos.');
+                }
+            } catch (error) {
+                console.error('Error al guardar las paqueterías:', error);
+                Swal.fire('Error', 'Error al guardar los datos.', 'error');
+            }
+        };
+
+        const finalizarCargaPlaca = async (idPlan, idPP) => {
+            try {
+                const response = await fetch(`/Cargada/FinalizarCargaPlaca?idPlan=${idPlan}`, {
+                    method: 'POST'
+                });
+
+                if (response.ok) {
+                    Swal.fire('Éxito', 'Carga finalizado exitosamente.', 'success').then(() => {
+                        window.location.href = `/Picking/JefeConteo?idpp=${idPP}`;
+                    });
+                } else {
+                    throw new Error('Error al finalizar la carga.');
+                }
+            } catch (error) {
+                console.error('Error al finalizar la carga:', error);
+                Swal.fire('Error', 'Error al finalizar la carga.', 'error');
+            }
+        };
+        const confirmarcargaCompleta = async (idPlan) => {
+            try {
+                const response = await fetch(`/Cargada/AceptarCargaCompleta?idPlan=${idPlan}`, {
+                    method: 'POST'
+                });
+
+                if (response.ok) {
+                    Swal.fire('Éxito', 'Carga confirmada exitosamente.', 'success').then(() => {
+                        window.location.reload();
+                    });
+                } else {
+                    throw new Error('Error al confirmar la carga.');
+                }
+            } catch (error) {
+                console.error('Error al confirmar la carga:', error);
+                Swal.fire('Error', 'Error al confirmar la carga.', 'error');
+            }
+        };
+    </script>
+}

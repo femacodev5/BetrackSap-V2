@@ -1,0 +1,284 @@
+﻿@{
+    ViewData["Title"] = "SCORE BOARD DE CLIENTE";
+}
+<style>
+    table thead {
+        text-align: center
+    }
+
+    .table td:nth-child(4), td:nth-child(5), #tblVentaXMes td:nth-child(3) {
+        text-align: right
+    }
+
+    div.display-6:after {
+        font: 1rem cursive;
+        content: attr(data-pts) '';
+        position: absolute;
+        right: 4px;
+        bottom: 0px;
+    }
+
+    .ap {
+        color: green;
+        -webkit-text-stroke: 2px green;
+    }
+
+    .ob {
+        color: orange;
+        -webkit-text-stroke: 2px orange;
+    }
+
+    .de {
+        color: red;
+        -webkit-text-stroke: 2px red;
+    }
+
+    .popover-body {
+        white-space: pre-line
+    }
+</style>
+<div class="card">
+    <div class="card-header">
+        SCOREBOARD DE CLIENTE
+        <i class="bi bi-info-circle float-end" id="pInfo" data-bs-toggle="popover" data-bs-title="Resumen" data-bs-container="body"></i>
+    </div>
+    <div class="card-body">
+        <form asp-action="GetScore" class="row g-1 mb-3" id="frmScore">
+            <div class="input-group col-sm">
+                <label class="input-group-text">Doc o Nombre</label>
+                <input class="form-control" autocomplete="off" name="Id" minlength="5" maxlength="50" placeholder="Nº de doc o nombre (puede incluir comodin %)" required>
+                <button class="btn btn-outline-secondary" id="btnS"><i class="bi bi-search"></i></button>
+            </div>
+            <div class="input-group col-sm">
+                <label class="input-group-text" for="Nombre">Nombre</label>
+                <input class="form-control" id="Nombre" disabled>
+            </div>
+            <div class="input-group col-sm">
+                <label class="input-group-text" for="Zona">Zona</label>
+                <input class="form-control" id="Zona" disabled>
+            </div>
+        </form>
+
+        <div class="row g-2">
+            <div class="col-sm-6">
+                <div class="row row-cols-1 row-cols-sm-2 g-3">
+                    <div class="col">
+                        <div class="card bg-primary-subtle shadow">
+                            <div class="card-body">
+                                <div class="row"><div class="col"><h5 class="card-title">Tipo Cliente</h5></div><div class="col-auto"><i class="bi bi-person-bounding-box display-6"></i></div></div>
+                                <div class="display-6 mb-0" data-pts="" id="TipoC"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="card shadow">
+                            <div class="card-body">
+                                <div class="row"><div class="col"><h5 class="card-title">Primera Compra</h5></div><div class="col-auto"><i class="bi bi-calendar3 display-6"></i></div></div>
+                                <div class="display-6 mb-0" data-pts="" id="PrimeraC"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="card bg-success-subtle shadow">
+                            <div class="card-body">
+                                <div class="row"><div class="col"><h5 class="card-title">Promedio Compra</h5></div><div class="col-auto"><i class="bi bi-bank display-6"></i></div></div>
+                                <div class="display-6 mb-0" data-pts="" id="Promedio"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="card bg-warning-subtle shadow">
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col"><h5 class="card-title">Contado</h5></div>
+                                    <div class="col"><h5 class="card-title">Credito</h5></div>
+                                    <div class="col-auto"><i class="bi bi-piggy-bank display-6"></i></div>
+                                </div>
+                                <div class="row text-center">
+                                    <div class="display-6 col" id="ProDiasCon"></div>
+                                    <div class="display-6 col" id="ProDiasCre"></div>
+                                    <div class="display-6 col-auto" id="PromedioDias"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+            <div class="col-sm-3">
+                <canvas id="elG"></canvas>
+            </div>
+            <div class="col-sm-3 d-flex align-items-center">
+                <div id="lblS" style="width: 100%;">
+                    <div class="display-1" id="lblR"></div>
+                    <div class="display-6" id="lblRd"></div>
+                </div>
+            </div>
+            <div class="col-sm-12">
+                <table class="table table-bordered table-hover table-sm" id="tblVentaXMes">
+                    <caption class="caption-top">Ventas Por Mes</caption>
+                    <thead><tr><th>Año</th><th>Mes</th><th>Total</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+            <div class="col-sm-6">
+                <table class="table table-bordered table-hover table-sm" id="tblDiasCre">
+                    <caption class="caption-top fw-bold">Dias De Pago Credito</caption>
+                    <thead><tr><th>F. Emision</th><th>F. Vencimiento</th><th>F. Pago</th><th>NumCp</th><th>Diferencia</th><th>Total</th><th>Origen</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+            <div class="col-sm-6">
+                <table class="table table-bordered table-hover table-sm" id="tblDiasCon">
+                    <caption class="caption-top fw-bold">Dias De Pago Contado</caption>
+                    <thead><tr><th>F. Emision</th><th>F. Vencimiento</th><th>F. Pago</th><th>NumCp</th><th>Diferencia</th><th>Total</th><th>Aprobado</th><th>Origen</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<div class="modal" id="mdlSearch" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Lista de Busqueda</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <table class="table table-bordered table-hover table-sm" id="tblSearch">
+                    <thead><tr><th>Doc Identidad</th><th>Nombre</th></tr></thead>
+                    <tbody role="button"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="//cdn.jsdelivr.net/npm/canvas-gauges@2.1.7/gauge.min.js"></script>
+    <script>
+        const bsPInfo = new bootstrap.Popover(pInfo, { html: true }), mdl = new bootstrap.Modal(mdlSearch);
+        tblSearch.tBodies[0].ondblclick = e => {
+            if (id = e.target.closest('tr')?.id ?? '') {
+                frmScore.Id.value = id;
+                frmScore.requestSubmit();
+                mdl.hide();
+            }
+        }
+        frmScore.onsubmit = e => {
+            e.preventDefault();
+            rg.draw();
+            loadBtn(frmScore.btnS);
+            fetch(
+
+                e.target.action + '?' + new URLSearchParams(new FormData(e.target)), { method: 'post' })
+                .then(async r => r.ok ? r.json() : Promise.reject(await r.text() || r.statusText))
+                .then(d => {
+                    //47865240
+                    console.log("test", d)
+
+                    if (d.listSearch) {
+                        tblSearch.tBodies[0].innerHTML = d.listSearch.reduce((a, c) => a + `<tr id=${c.docIdentidad}><td>${c.docIdentidad}</td><td>${c.nombre}</td></tr>`, '');
+                        mdl.show();
+                        return;
+                    }
+
+                    Nombre.value = d.antiguedad.personaNombre;
+                    Zona.value = d.antiguedad.codigo + ' | ' + d.antiguedad.descripcion;
+
+                    //console.log(d.antiguedad)
+
+                    let time = (new Date() - new Date(d.antiguedad.fecha)) / 1000
+                    let [unit, base] = Object.entries(DATE_UNITS).find(o => time >= o[1]);
+                    bsPInfo._config.content = d.str;
+
+                    tblVentaXMes.tBodies[0].innerHTML = d.consumo.reduce((a, c) => { return a + `<tr><td>${c.anio}</td><td>${c.mes}</td><td>${nToS(c.total)}</td></tr>` }, '')
+
+                    tblDiasCre.tBodies[0].innerHTML = d.diasPagoCre.reduce((a, c) => {
+                        return a + `<tr><td>${sToD(c.fechaEmision)}</td><td>${sToD(c.fechaVencimiento)}</td><td>${sToD(c.fechaPago)}</td><td>${c.numCp}</td><td>${c.diferencia}</td><td>${nToS(c.total)}</td><td>${c.origen}</td></tr>`
+                    }, '');
+                    tblDiasCon.tBodies[0].innerHTML = d.diasPagoCon.reduce((a, c) => {
+                        return a + `<tr><td>${sToD(c.fechaEmision)}</td><td>${sToD(c.fechaVencimiento)}</td><td>${sToD(c.fechaPago)}</td><td>${c.numCp}</td><td>${c.diferencia}</td><td>${nToS(c.total)}</td><td>
+                                                        <div class="form-switch text-center"><input class="form-check-input" type="checkbox" value="${c.pkid}" ${c.aprobado ? ' checked' : ''}></div></td><td>${c.origen}</td></tr>`
+                    }, '');
+
+                    TipoC.innerText = d.scoreBoard.persona ? 'Juridica' : 'Natural';
+                    TipoC.dataset.pts = d.scoreBoard.tipoPersona;
+
+                    PrimeraC.innerText = sToD(d.antiguedad.fecha);
+                    PrimeraC.dataset.pts = es.format(-Math.floor(time / base), unit) + ', ' + d.scoreBoard.antiguedad;
+                    Promedio.innerText = nToS(d.promedio);
+                    Promedio.dataset.pts = d.scoreBoard.volumenCompra;
+
+                    ProDiasCon.innerText = d.avgCon.toLocaleString('es-pe', { maximumFractionDigits: 2 });
+                    ProDiasCre.innerText = d.avgCre.toLocaleString('es-pe', { maximumFractionDigits: 2 });
+                    PromedioDias.dataset.pts = d.scoreBoard.diasPagoContado + ' + ' + d.scoreBoard.diasPagoCredito;
+
+                    rg.value = d.scoreBoard.scoreFinal;
+
+                }).catch(e => Toast.fire(e, '', 'error')).finally(loadBtn);
+        }
+        const rg = new RadialGauge({
+            animatedValue: true,
+            animationDuration: 3500,
+            animationRule: 'elastic',
+            fontTitleSize: 50, fontUnitsSize: 35, fontValueSize: 32,
+            highlights: [{ from: 0, to: 50, color: '#fc030399' },
+            { from: 50, to: 60, color: '#fdea0299' },
+            { from: 60, to: 100, color: '#00ff0080' }],
+            height: 250,
+            renderTo: elG,
+            title: 'DESAPROBADO',
+            units: '%',
+            value: 0,
+            valueDec: 2,
+            valueInt: 2,
+            listeners: {
+                animationEnd: function () {
+                    const status = rg.value > 60 ? 'APROBADO' : rg.value > 49 ? 'OBSERVADO' : 'DESAPROBADO';
+                    rg.update({ title: status })
+                    lblR.innerText = rg.value;
+                    lblRd.innerText = status;
+                    lblS.className = 'col-sm-3 text-center ' + status.slice(0, 2).toLowerCase();
+                }
+            }
+        });
+
+        tblDiasCon.tBodies[0].onclick = e => {
+            let el = e.target
+            if (el.type == 'checkbox') {
+                Swal.fire({
+                    allowOutsideClick: () => !Swal.isLoading(),
+                    backdrop: true,
+                    input: 'textarea',
+                    inputAttributes: {
+                        maxlength: 100
+                    },
+                    inputPlaceholder: 'Detalle (max 100)',
+                    //inputValue: tr.lastElementChild.innerText,
+                    inputValidator: (value) => !value && 'Ingrese Detalle',
+                    showCancelButton: true,
+                    showLoaderOnConfirm: true,
+                    title: '¿Cambiar estado?',
+                    text: 'Nuevo Estado Sera ' + (el.checked ? 'Aprobado' : 'Desaprobado'),//tr.cells[4].innerText,
+                    preConfirm: (detalle) =>
+                        fetch(`/Home/AddOrEditDetalle/${el.value}?detalle=${detalle}&aprobado=${el.checked}`)
+                            .then(async (r) => r.ok ? {
+                                msg: await r.text(),
+                                detalle
+                            } : Promise.reject(await r.text() || r.statusText))
+                            .catch(error => Swal.showValidationMessage(`Error: ${error}`))
+                }).then(r => {
+                    if (r.isConfirmed) {
+                        //tr.lastElementChild.innerText = r.value.detalle
+                        Toast.fire(r.value.msg, '', 'success')
+                    }
+                    else el.checked = !el.checked
+                })
+            }
+        }
+    </script>
+}

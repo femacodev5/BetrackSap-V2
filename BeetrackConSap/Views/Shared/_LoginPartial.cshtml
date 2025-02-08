@@ -1,0 +1,60 @@
+﻿
+<ul class="navbar-nav">
+    @if (User.Identity.IsAuthenticated) {
+        <li class="nav-item">
+            <a class="nav-link">
+                <span>@User.Identity.Name @User.FindFirst("Almacen")?.Value</span>
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link">
+                <span>@User.Identity.Name @User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value</span>
+            </a>
+        </li>
+        <li class="nav-item">
+            <a asp-action="LogOut" asp-controller="UserFemaco" class="nav-link">
+                <span>Salir</span>
+            </a>
+        </li>
+    } else {
+        <li class="nav-item">
+            <a asp-action="Login" asp-controller="UserFemaco" class="nav-link">
+                <span>Ingresar</span>
+            </a>
+        </li>
+    }
+</ul>
+<script>
+    function adjustNavbar() {
+        var screenWidth = window.innerWidth;
+        var body = document.body;
+        var container = document.getElementById('usuarioContainer');
+        if (container) {
+            body.removeChild(container);
+        }
+        container = document.createElement('div');
+        container.id = 'usuarioContainer';
+        container.style.display = 'none'; 
+        container.style.position = 'absolute';    
+        container.style.left = '50px';            
+        container.style.top = '10px';
+        container.style.color = 'white';
+        container.style.zIndex = '1000';         
+        var nombreUsuario = document.createElement('span');
+        nombreUsuario.id = 'nombreUsuario';
+        nombreUsuario.style.fontWeight = 'normal'; 
+        nombreUsuario.innerHTML = '@User.Identity.Name @User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value';
+        var almacen = document.createElement('span');
+        almacen.id = 'almacen';
+        almacen.style.fontWeight = 'normal'; 
+        //almacen.innerHTML = '@User.Identity.Name @User.FindFirst("Almacen")?.Value';
+        container.appendChild(nombreUsuario);
+        container.appendChild(almacen);
+        body.appendChild(container);
+        if (screenWidth <= 768) {
+            container.style.display = 'inline-block'; 
+        }
+    }
+    window.onload = adjustNavbar;
+    window.onresize = adjustNavbar;
+</script>

@@ -1,0 +1,1072 @@
+﻿@{
+    ViewData["Title"] = "Placas del Plan";
+}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,200..1000;1,200..1000&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="~/css/JefeConteo.css">
+<style>
+    #detalles {
+        display: none;
+        margin-top: 10px;
+    }
+    .btn{
+        border-radius:50px;
+    }
+
+    .notification-badge {
+        background-color: red;
+        color: white;
+        padding: 2px 10px;
+        border-radius: 50px;
+        margin-left: 5px;
+    }
+</style>
+
+<div class="container margin">
+    <h1>Placas del Plan <span id="plan-id"></span></h1>
+
+    <div class="row justify-content-center">
+        <div class="col-12">
+            <div class="card border-0">
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table" style="text-align:center">
+                            <thead>
+                                <tr>
+                                    <th>N°</th>
+                                    <th>Placa</th>
+                                    <th>Asignar</th>
+                                    <th>Accion</th>
+                                </tr>
+                            </thead>
+                            <tbody id="placas-body">
+                                <tr>
+                                    <td colspan="3">Cargando productos...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="coordinadorModal" tabindex="-1" role="dialog" aria-labelledby="coordinadorModalLabel" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="coordinadorModalLabel">Detalles de la Placa</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <table class="table" id="detalles-table">
+                        <thead>
+                            <tr>
+                                <th>Descripción</th>
+                                <th>Cantidad</th>
+                                <th>Cantida Picada</th>
+                                <th>Diferencia</th>
+                            </tr>
+                        </thead>
+                        <tbody id="detalles-body">
+                            <tr>
+                                <td colspan="4">Cargando detalles...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="confirmaaaar-envio">Enviar a Coordinador</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="modal fade" id="jefeDeGrupoModal" tabindex="-1" role="dialog" aria-labelledby="jefeDeGrupoModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="jefeDeGrupoModalLabel">Asignar Jefe de Grupo</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <label for="select-pickeador">Seleccione un Jefe de grupo:</label>
+                <select id="select-pickeador" class="form-control"></select>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="guardar-jefe">Guardar Jefe</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="detallesModal" tabindex="-1" aria-labelledby="detallesModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="detallesModalLabel">Detalles del Subregistro</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="modal-body-detalles">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modal-asignar" tabindex="-1" role="dialog" aria-labelledby="modalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalLabel">Asignar Pickeador</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="select-pickeadorpick">Seleccionar Pickeador</label>
+                    <select id="select-pickeadorpick" class="form-control">
+                        <option value="">Seleccione un pickeador</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" id="guardar-asignacion" class="btn btn-primary">Guardar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(() => {
+            const idPP = @Html.Raw(ViewBag.IdPP);
+            const urlParams = new URLSearchParams(window.location.search);
+            const idPlan = urlParams.get('id');
+            $('#plan-id').text(idPlan);
+            cargarPlacas(idPlan, idPP);
+        });
+        function restarHoras(inicio, fin) {
+            const [h1, m1] = inicio.split(':').map(Number);
+            const [h2, m2] = fin.split(':').map(Number);
+
+            const totalMinInicio = h1 * 60 + m1;
+            const totalMinFin = h2 * 60 + m2;
+
+            let diferenciaMinutos = totalMinFin - totalMinInicio;
+
+            if (diferenciaMinutos < 0) {
+                diferenciaMinutos += 24 * 60;
+            }
+            const horas = Math.floor(diferenciaMinutos / 60);
+            const minutos = diferenciaMinutos % 60;
+
+            return `${String(horas).padStart(2, '0')}:${String(minutos).padStart(2, '0')}`;
+        }
+
+
+
+        const cargarPlacas = async (idPlan, idPP) => {
+            try {
+                const response = await fetch(`/Picking/ObtenerPlacaPlanJefe?ID=${idPP}`);
+                const data = await response.json();
+                const $placasBody = $('#placas-body');
+                $placasBody.empty();
+
+                const groupedData = data.reduce((acc, pla) => {
+                    if (!acc[pla.placa]) {
+                        acc[pla.placa] = [];
+                    }
+                    acc[pla.placa].push(pla);
+                    return acc;
+                }, {});
+
+                Object.entries(groupedData).forEach(([placa, registros], index) => {
+                    const primeraPlaca = registros[0];
+                    console.log("--------->", primeraPlaca);
+
+                    const buttoncolor = primeraPlaca.idPick === 0 ? 'secondary' : (primeraPlaca.pendientes === 0 ? 'success' : 'warning');
+                    const buttontext = primeraPlaca.idPick === 0 ? 'Asignar' : (primeraPlaca.pendientes === 0 ? 'Picking Iniciado' : 'Asignar');
+                    const hiddenbtn = primeraPlaca.idPick === 0 ? '' : (primeraPlaca.pendientes === 0 ? 'hidden' : '');
+
+                    const enviarBoton = primeraPlaca.items === primeraPlaca.finalizados && primeraPlaca.items > 0 && primeraPlaca.usuario
+                        ? (primeraPlaca.verificados === primeraPlaca.finalizados
+                            ? (primeraPlaca.acontarTotal === primeraPlaca.contadosTotal
+                                ? `<button class="btn btn-success cargada-btn" data-id="${primeraPlaca.idPlanPla}">Enviar a Carga</button>`
+                                : `<button class="btn btn-success confirmar-envio" data-id="${primeraPlaca.idPlanPla}">Enviar a Coordinador</button>`)
+                            : (primeraPlaca.completos + primeraPlaca.aceptados + primeraPlaca.recontados === primeraPlaca.finalizados && primeraPlaca.completos + primeraPlaca.aceptados + primeraPlaca.recontados === primeraPlaca.items
+                                ? `<button class= "btn btn-warning verificar-btn" data-id="${primeraPlaca.idPlanPla}" hidden><i class='bx bx-search'></i> Revisar Picking</button>` : '<button class="btn btn-secondary"> Revisar Picking</button>'))
+                        : '';
+
+                    const asignarBtn = primeraPlaca.usuario
+                        ? `<button class="btn btn-${buttoncolor} planificar-btn"  style="position: relative; font-weight: bold; padding: 3px; display: flex ; align-items: center; justify-content: center; margin: 0px auto;" planificar-btn" data-id="${primeraPlaca.idPlanPla}" ${hiddenbtn}><i class='bx bx-search'></i> ${buttontext}<span class="notification-badge">${primeraPlaca.pendientes} Pendientes</span></button>
+                                    <button class="btn btn-${buttoncolor} detalles-btn" data-id="${primeraPlaca.idPlanPla}" hidden><i class='bx bx-search'></i> Detalle</button>`
+                        : '';
+
+                    const asignarJefeBoton = (!primeraPlaca.usuario || primeraPlaca.usuario.trim() === '')
+                        ? `<button class="btn btn-warning asignar-jefe-btn" data-id="${primeraPlaca.idPlanPla}">Asignar Jefe de Grupo</button>`
+                        : '';
+
+                    const enviado = primeraPlaca.enviado === 0
+                        ? `<td>${asignarBtn}</td><td>${enviarBoton} ${asignarJefeBoton}</td>`
+                        : (primeraPlaca.cargar === 1
+                            ? (primeraPlaca.cargado === 1
+                                ? '<td></td><td><button class="btn btn-success">Carga Terminada</button></td>'
+                                : `<td></td><td><button class="btn btn-warning detallescarga-btn" data-id="${primeraPlaca.idPlanPla}"> <i class="bx bx-search"></i>Pendiente Carga</button></td>`)
+                            : `<td></td><td><button class="btn btn-secondary">En Coordinador</button></td>`);
+                    const jefe = primeraPlaca.jefe === null ? 'Falta Asignar' : primeraPlaca.jefe;
+                    const inicioplaca = primeraPlaca.fechaIni === '0001-01-01T00:00:00' ? '' : primeraPlaca.fechaIni.slice(11, 16);
+                    const terminoplaca = primeraPlaca.fechaFi === '0001-01-01T00:00:00' ? '' : primeraPlaca.fechaFi.slice(11, 16);
+                    function formatDate(dateString) {
+                        const date = new Date(dateString);
+                        const day = String(date.getDate()).padStart(2, '0');
+                        const month = String(date.getMonth() + 1).padStart(2, '0');
+                        const year = date.getFullYear();
+
+                        const hours = date.getHours();
+                        const minutes = String(date.getMinutes()).padStart(2, '0');
+                        const seconds = String(date.getSeconds()).padStart(2, '0');
+
+                        const ampm = hours >= 12 ? 'pm' : 'am';
+                        const formattedHours = hours % 12 || 12;
+                        const formattedTime = `${formattedHours}:${minutes}:${seconds} ${ampm}`;
+
+                        return `${day}/${month}/${year}, ${formattedTime}`;
+                    }
+                    const diferenciatiempoplaca = primeraPlaca.fechaFi === '0001-01-01T00:00:00' ? '' : restarHoras(inicioplaca, terminoplaca);
+
+
+
+                    const $mainRow = $(`
+            <tr id="fila2-${placa}" class="table-success main-row" style=" cursor: pointer; vertical-align: middle; --bs-table-border-color: #ffffff;">
+                <td>${index + 1}</td>
+                <td>
+                    <strong>${placa} <br>Items: ${primeraPlaca.items}</strong>
+                    <br>
+                    <button id="botonTiempo-${placa}" onclick="toggleDetalles2('${placa}', ${index + 1})" style="background-color: #00000000; border: 0px; color: red; font-weight: 600">
+                        Tiempo: ${diferenciatiempoplaca} <span style="color:red">▼</span>
+                    </button>
+                    <div id="detallesnuevo-${placa}-${index + 1}" style="display: none;">
+                        <strong id="inicio-${placa}-${index + 1}">Inicio: ${formatDate(primeraPlaca.fechaIni)}</strong><br>
+                        <strong id="fin-${placa}-${index + 1}">Fin: ${formatDate(primeraPlaca.fechaFi)}</strong>
+                    </div>
+                </td>
+                ${enviado}
+            </tr>
+        `);
+
+
+
+
+                    $placasBody.append($mainRow);
+
+                    if (registros.length > 0) {
+                        const $subTable = $(`
+                                            <tr class="subtable" style="display: ;">
+                                                <td colspan="4">
+                                                    <table class="table">
+                                                        <thead>
+                                                        </thead>
+                                                        <tbody></tbody>
+                                                    </table>
+                                                </td>
+                                            </tr>
+                                        `);
+                        const $subTableBody = $subTable.find('tbody');
+
+                        registros.forEach((reg) => {
+                            if (reg.nombre === null) {
+                                reg.nombre = "Ninguno";
+                            }
+                            const estadodetalle = reg.contados === 0 ? 'secondary' : (reg.acontar === reg.contados ? 'success' : 'warning');
+                            const estdetalle = reg.completos + reg.recontados + reg.aceptados === reg.finalizados && reg.completos + reg.recontados + reg.aceptados === reg.items ? 'success' : estadodetalle;
+                            const textodetalle = reg.contados === 0 ? 'Pendiente' : (reg.acontar === reg.contados ? 'Finalizado' : (reg.items === reg.finalizados ? 'Finalizado' : (reg.fechaTermino === '0001-01-01T00:00:00' ? 'Pendiente' : 'Finalizado')));
+
+                            const newestdetalle = reg.recontad === 0 ? (reg.items === reg.finalizados ? (reg.acontar === reg.contados ? 'success' : 'warning') : estdetalle) : 'warning';
+                            const hiddenninguno = reg.nombre === 'Ninguno' ? 'hidden' : '';
+                            const hiddeniniciar = reg.fechaInicio === '0001-01-01T00:00:00' ? '' : 'hidden';
+                            const inicio = reg.fechaInicio === '0001-01-01T00:00:00' ? '' : reg.fechaInicio.slice(11, 16);
+                            const termino = reg.fechaTermino === '0001-01-01T00:00:00' ? '' : reg.fechaTermino.slice(11, 16);
+                            const diferenciatiempo = reg.fechaTermino === '0001-01-01T00:00:00' ? '' : restarHoras(inicio, termino);
+                            const btnborrarpickeador = reg.fechaInicio === '0001-01-01T00:00:00'
+                                ? `<button class="btn btn-danger borrar-btn wan" data-id="${reg.idPick}" data-plan="${reg.idPlanPla}"><i class="bx bx-trash "></i> Borrar</button>
+                                                                   <button class="btn btn-secondary cambiarpickador-btn wan" data-id="${reg.idPick}" data-plan="${reg.idPlanPla}"><i class="bx bx-edit "></i> Cambiar</button>
+                                                                   <button class="btn btn-primary quitar-btn wan" data-id="${reg.idPick}" data-plan="${reg.idPlanPla}"><i class="bx bx-filter "></i> Quitar</button>` : '';
+                            const hiddeninicial = reg.fechaInicio === '0001-01-01T00:00:00' ? 'hidden' : '';
+                            //const hiddenrevisar = textodetalle === 'Finalizado' || reg.totalItems === reg.verificadosPickador ? '' : '';
+                            const verficarcolorbtn = reg.totalItems === reg.verificadosPickador ? 'success' : 'warning';
+                            const verficartextobtn = reg.totalItems === reg.verificadosPickador ? 'Revision terminada' : 'Revisar Picking';
+                            const verficareventobtn = reg.totalItems === reg.verificadosPickador ? 'nada' : 'verificarpickador';
+                            const hiddenrevisarfinal = reg.fechaTermino !== '0001-01-01T00:00:00' ? 'hidden' : '';
+                            const hiddenverificar = reg.fechaTermino === '0001-01-01T00:00:00' ? 'hidden' : '';
+                            const inicioveri = reg.fechaVeriIni === '0001-01-01T00:00:00' ? '' : reg.fechaVeriIni.slice(11, 16);
+                            function convertirHora(horafomatodoce) {
+                                if (!horafomatodoce || !horafomatodoce.includes(':')) {
+                                    return '-';  
+                                }
+
+                                let hora = parseInt(horafomatodoce.split(':')[0]);
+                                let minutos = horafomatodoce.split(':')[1];
+
+                                if (isNaN(hora) || isNaN(minutos)) {
+                                    return '-';  
+                                }
+
+                                let periodo = hora >= 12 ? 'pm' : 'am';
+
+                                hora = hora % 12;
+                                hora = hora ? hora : 12;
+
+                                return `${hora}:${minutos} ${periodo}`;
+                            }
+
+                            const terminoveri = reg.fechaVeriFin === '0001-01-01T00:00:00' ? '' : reg.fechaVeriFin.slice(11, 16);
+                            const diferenciatiempoveri = reg.fechaVeriFin === '0001-01-01T00:00:00' ? '' : restarHoras(inicioveri, terminoveri);
+                            console.log("reg", reg);
+
+                            console.log("reg.idPick", reg.idPick);
+                            console.log("reg.idPlanPla", reg.idPlanPla);
+                            console.log("idPP", idPP);
+
+                            const btnrevisar = (textodetalle === 'Finalizado' || textodetalle === 'Pendiente') && reg.enviado !== 1 ? `<button class= "btn btn-${verficarcolorbtn} ${verficareventobtn}-btn" data-pick="${reg.idPick}" data-id="${reg.idPlanPla}" ${hiddenverificar}><i class='bx bx-search'></i> ${verficartextobtn}</button>` : '';
+                            $subTableBody.append(`
+                            <tr  id="fila-${reg.idPick}" ${hiddenninguno}  style="vertical-align:middle; background-color: white;">
+                                  <td>
+                                     ${reg.nombre}<br>
+                                     <strong> Peso: ${reg.pesoTotal}</strong><br>
+                                     <strong> Items: ${reg.totalItems}</strong>
+                                  </td>
+                                  <td>
+                                     <button class="btn btn-${newestdetalle} detalles-subregistro-btn wan" style="margin-right:3px" data-id="${reg.idPick}" data-plan="${reg.idPlanPla}" data-jefe="${idPP}">${textodetalle}</button>
+                                     <button class="btn btn-primary iniciarpickador-btn wan" data-id="${reg.idPick}" data-plan="${reg.idPlanPla}" data-jefe="${idPP}" ${hiddeniniciar}>Iniciar</button>
+                                  <br>
+                                     <button id="botonTiempo-${reg.idPick}" onclick="toggleDetalles('${reg.idPick}')" style="background-color: #00000000; border:0px;color:red;font-weight: 700;">
+                                            Tiempo: ${diferenciatiempo}
+                                     </button>
+                                      <div id="detalles-${reg.idPick}" style="font-weight: 600">
+                                                     ${convertirHora(inicio)} — ${convertirHora(termino)}
+                                      </div>
+                                   </td>
+                                   <td>${btnborrarpickeador} ${btnrevisar}<button class="btn btn-primary vistapickeador-btn" data-id="${reg.idPlanPla}" data-idpick="${reg.idPick}" ${hiddeninicial} ${hiddenrevisarfinal}><i class='bx bx-search'></i>Revisar</button><br>
+                                      <button id="botonTiempoVeri-${reg.idPick}" onclick="toggleDetallesVeri('${reg.idPick}')" style="background-color: #00000000;border:0px;color:red ">
+                                            Tiempo: ${diferenciatiempoveri}
+                                      </button>
+                                      <div id="detallesVeri-${reg.idPick}" style="font-weight: 600" >
+                                                 ${convertirHora(inicioveri)} —  ${convertirHora(terminoveri)}
+                                      </div>
+                                   <td><button class="btn btn-success exportar-btn dwlbtn" data-id="${reg.idPick}" data-plan="${reg.idPlanPla}" ><i class="bi bi-cloud-download"></i><label class="lblexport">Exportar</label></button></td>
+                               </tr>`);
+                        });
+
+                        $placasBody.append($subTable);
+
+                        $mainRow.click(() => {
+                            $subTable.toggle();
+                        });
+                    }
+
+                });
+
+
+
+
+
+
+                $('.vistapickeador-btn').click(function () {
+                    const idPlan = $(this).data('id');
+                    const idpick = $(this).data('idpick');
+                    window.location.href = `/Picking/PickeadorProductos?id=${idPlan}&idpp=${idpick}`;
+                });
+
+                $('.planificar-btn').click(function () {
+                    const idPlan = $(this).data('id');
+                    window.location.href = `/Picking/PlanProductos?id=${idPlan}`;
+                });
+                $('.verificar-btn').click(function () {
+                    const idPlan = $(this).data('id');
+                    window.location.href = `/Picking/VerificarProductos?id=${idPlan}&idpp=${idPP}`;
+                });
+
+                $('.verificarpickador-btn').click(function () {
+                    const idPlan = $(this).data('id');
+                    const idPick = $(this).data('pick');
+                    window.location.href = `/Picking/VerificarProductosPickador?id=${idPlan}&idpick=${idPick}`;
+                });
+
+                $('.asignados-btn').click(function () {
+                    const idPlan = $(this).data('id');
+                    window.location.href = `/Picking/PlanAsignados?id=${idPlan}`;
+                });
+
+                $('.detalles-subregistro-btn').click(async function () {
+                    const idPick = $(this).data('id');
+                    const idPlan = $(this).data('plan');
+                    const jefef = $(this).data('jefe');
+                    await mostrarDetallespick(idPick, idPlan, jefef);
+                });
+
+
+                $('.detalles-btn').click(function () {
+                    const idPlan = $(this).data('id');
+                    window.location.href = `/Picking/PickDetalles?id=${idPlan}`;
+                });
+
+                $('.asignar-jefe-btn').click(async function () {
+                    const idPlanPla = $(this).data('id');
+                    //await cargarPersonal();
+                    //$('#jefeDeGrupoModal').data('id', idPlanPla).modal('show');
+                });
+
+                $('.confirmar-envio').click(async function () {
+                    const idPlanPla = $(this).data('id');
+                    const confirm = await Swal.fire({
+                        title: '¿Está seguro?',
+                        text: "¿Desea enviar la placa al coordinador?",
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonText: 'Sí, enviar',
+                        cancelButtonText: 'Cancelar'
+                    });
+
+                    if (confirm.isConfirmed) {
+                        await enviarACoordinador(idPlanPla);
+                    }
+
+                    //const idPlanPla = $(this).data('id');
+                    //await mostrarDetalles(idPlanPla);
+                });
+
+                $('.exportar-btn').click(function () {
+                    const id = $(this).data('id');
+                    const plan = $(this).data('plan');
+                    obtenerDataExportar(plan, id);
+                });
+
+                $('.cargada-btn').click(async function () {
+                    const idPlanPla = $(this).data('id');
+                    await confirmarYEnviarCargada(idPlanPla);
+                });
+
+                $('.borrar-btn').click(async function () {
+                    const idpick = $(this).data('id');
+                    const idplan = $(this).data('plan');
+                    await borrarPicking(idpick, idplan);
+                });
+
+                $('.iniciarpickador-btn').click(async function () {
+                    const idpick = $(this).data('id');
+                    const idplan = $(this).data('plan');
+                    const jefe = $(this).data('jefe');
+                    await iniciarPicking(idpick, idplan, jefe);
+                });
+
+                $('.cambiarpickador-btn').click(async function () {
+                    const idpick = $(this).data('id');
+                    const idplan = $(this).data('plan');
+                    cargarPersonal(idplan);
+                    await cambiarPicking(idpick, idplan);
+                });
+
+                $('.quitar-btn').click(async function () {
+                    const idpick = $(this).data('id');
+                    const idplan = $(this).data('plan');
+                    window.location.href = `/Picking/QuitarPlanProductos?id=${idplan}&idpick=${idpick}`;
+                });
+
+                $('.detallescarga-btn').click(function () {
+                    const idPlan = $(this).data('id');
+                    window.location.href = `/Cargada/CargadaProductos?id=${idPlan}&idpp=${idPP}`;
+                });
+
+            } catch (error) {
+                console.error('Error al cargar los productos:', error);
+                $('#placas-body').html('<tr><td colspan="4">Error al cargar los productos.</td></tr>');
+            }
+        };
+
+        const cargarPersonal = async (idPlan) => {
+            try {
+                const response = await fetch(`/Picking/CargarPersonalPickeo?id=${idPlan}`);
+                const personal = await response.json();
+
+                let selectpersonalOptions = `<option value="0">Elija una opcion</option>`;
+                personal.forEach(tipo => {
+                    selectpersonalOptions += `<option value="${tipo.IDPP}">${tipo.Nombre}</option>`;
+                });
+
+                $("#select-pickeadorpick").html('').append(selectpersonalOptions);
+            } catch (e) {
+                console.error(e);
+                Swal.fire('Error', 'Ocurrió un error al cargar el personal', 'info');
+            }
+        };
+
+        const obtenerDataExportar = async (idPlan, idPP) => {
+            try {
+                const response = await fetch(`/Picking/ObtenerDataExportar?idpick=${idPP}&idplan=${idPlan}`);
+
+                if (!response.ok) {
+                    throw new Error('Error al obtener los datos del servidor');
+                }
+
+                const data = await response.json();
+
+                if (Array.isArray(data) && data.length > 0) {
+                    const dataPesadoCero = data.filter(item => item.pesado === 0);
+                    const dataPesadoUno = data.filter(item => item.pesado === 1);
+
+                    console.log("Datos con pesado 0:", dataPesadoCero);
+                    console.log("Datos con pesado 1:", dataPesadoUno);
+
+                    const { jsPDF } = window.jspdf;
+                    const doc = new jsPDF({
+                        margin: { top: 10, left: 10, bottom: 5, right: 10 }
+                    });
+
+
+                    const primerRegistro = data[0] || {};
+
+
+                    const nombre = primerRegistro.nombre || 'Nombre no disponible';
+                    const placa = primerRegistro.placa || 'Placa no disponible';
+                    const capacidad = primerRegistro.capacidad || 'Capacidad no disponible';
+                    const totalItems = primerRegistro.totalItems || 'Total no disponible';
+                    const pesoventa = primerRegistro.pesoVenta || 'Total no disponible';
+                    const jefe = primerRegistro.jefe || 'Jefe no disponible';
+
+                    const totalPeso = data.reduce((sum, item) => sum + parseFloat(item.pesoTotal || 0), 0).toFixed(2);
+
+
+                    doc.setFontSize(18);
+                    doc.text('Lista de Picking', 20, 20);
+
+                    doc.setFontSize(12);
+
+                    doc.text(`Nombre: ${nombre}`, 20, 30);
+                    doc.text(`Peso Venta: ${pesoventa}`, 90, 30);
+                    doc.text(`Placa: ${placa} Jefe: ${jefe}`, 20, 40);
+
+                    const pageWidth = doc.internal.pageSize.width;
+                    const totalItemsWidth = doc.getTextWidth(`Total Items: ${totalItems}`);
+                    const totalPesoWidth = doc.getTextWidth(`Total Peso: ${totalPeso} kg`);
+
+                    const rightX = pageWidth - Math.max(totalItemsWidth, totalPesoWidth) - 20;
+
+                    doc.text(`Total Items: ${totalItems}`, rightX, 30);
+                    doc.text(`Capacidad: ${capacidad}`, 90, 40);
+                    doc.text(`Total Peso: ${totalPeso} kg`, 148, 40);
+
+                    let y = 50;
+
+                    const tableColumn = ["Ubicacion", "Codigo", "Cod.Fabr", "Cant.", "Unidad", "Descripcion", "Marca", "Peso"];
+                    if (dataPesadoCero.length > 0) {
+                        doc.setFontSize(14);
+                        doc.text('Liviano', 90, y);
+                        y += 2;
+
+                        doc.setFontSize(8);
+                        const tableRows = [];
+
+                        dataPesadoCero.forEach(item => {
+                            const row = [
+                                `${item.sL1Code}-${item.sL2Code}-${item.sL3Code}-${item.sL4Code}`,
+                                item.idProducto,
+                                item.codigoFabricante,
+                                item.totalCantidad,
+                                item.medidaBase,
+                                item.descripcion,
+                                item.fabricante,
+                                item.pesoTotal
+                            ];
+                            tableRows.push(row);
+                        });
+
+                        doc.autoTable({
+                            head: [tableColumn],
+                            body: tableRows,
+                            startY: y,
+                            theme: 'grid',
+                            styles: {
+                                fontSize: 8,
+                                cellPadding: 0.5,
+                                lineWidth: 0.3,
+                                cellBorder: true,
+                            },
+                            headStyles: {
+                                halign: 'center',
+                                fontSize: 8,
+                            },
+                            tableWidth: 'auto',
+                            columnStyles: {
+                                0: { cellWidth: 15 }, 1: { cellWidth: 15, halign: 'center' }, 2: { cellWidth: 15, halign: 'center' }, 3: { cellWidth: 10, halign: 'center' }, 4: { cellWidth: 15 }, 5: { cellWidth: 80 }, 6: { cellWidth: 26 }, 7: { cellWidth: 10 }
+                            },
+                        });
+
+                        y = doc.lastAutoTable.finalY + 5;
+                    }
+
+                    if (dataPesadoUno.length > 0) {
+                        doc.setFontSize(14);
+                        doc.text('Pesado', 90, y);
+                        y += 2;
+
+                        const tableRowsPesado = [];
+
+                        dataPesadoUno.forEach(item => {
+                            const row = [
+                                `${item.sL1Code}-${item.sL2Code}-${item.sL3Code}-${item.sL4Code}`,
+                                item.idProducto,
+                                item.codigoFabricante,
+                                item.totalCantidad,
+                                item.medidaBase,
+                                item.descripcion,
+                                item.fabricante,
+                                item.pesoTotal
+                            ];
+                            tableRowsPesado.push(row);
+                        });
+
+                        doc.autoTable({
+                            head: [tableColumn],
+                            body: tableRowsPesado,
+                            startY: y,
+                            theme: 'grid',
+                            styles: {
+                                fontSize: 8,
+                                cellPadding: 0.5,
+                                lineWidth: 0.3,
+                                cellBorder: true,
+                            },
+                            headStyles: {
+                                halign: 'center',
+                                fontSize: 8,
+                            },
+                            tableWidth: 'auto',
+                            columnStyles: {
+                                0: { cellWidth: 15 }, 1: { cellWidth: 15, halign: 'center' }, 2: { cellWidth: 15, halign: 'center' }, 3: { cellWidth: 10, halign: 'center' }, 4: { cellWidth: 15 }, 5: { cellWidth: 80 }, 6: { cellWidth: 26 }, 7: { cellWidth: 10 }
+                            },
+                        });
+
+                        y = doc.lastAutoTable.finalY + 5;
+                    }
+
+                    doc.save('RESUMENPLANIFICACION.pdf');
+                } else {
+                    console.error('No se recibieron datos válidos de la API');
+                }
+
+            } catch (error) {
+                console.error('Error al obtener los datos:', error);
+                Swal.fire('Error', 'Hubo un problema al obtener los datos', 'error');
+            }
+        };
+
+
+        const cambiarPicking = (idpick, idplan) => {
+
+            $('#modal-asignar').modal('show');
+            $('#guardar-asignacion').click(() => {
+
+                const pickeadorId = $('#select-pickeadorpick').val();
+
+                if (pickeadorId === "0") {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Selecciona un pickeador',
+                        text: 'Por favor, selecciona un pickeador antes de continuar.',
+                        confirmButtonText: 'Aceptar'
+                    });
+                } else {
+                    fetch(`/Picking/CambiarPicking?idpick=${idpick}&plan=${idplan}&pick=${pickeadorId}`, {
+                        method: 'POST',
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+
+                            Swal.fire({
+                                icon: 'success',
+                                title: '¡Cambiado con éxito!',
+                                text: data.message,
+                                confirmButtonText: 'Aceptar'
+                            });
+
+                            location.reload();
+                        })
+                        .catch(error => {
+                            console.error(error);
+                            Swal.fire('Error', 'Ocurrió un error al cambiar el picking', 'error');
+                        });
+                }
+            });
+        };
+        const borrarPicking = (idpick, idplan) => {
+            Swal.fire({
+                title: '¿Estás seguro?',
+                text: "¡Los productos asignados a este pickeador serán borrados permanentemente!",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Sí, borrar',
+                cancelButtonText: 'Cancelar',
+                reverseButtons: true
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    fetch(`/Picking/BorrarPicking?idpick=${idpick}&plan=${idplan}`, {
+                        method: 'DELETE',
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+
+                            Swal.fire({
+                                icon: 'success',
+                                title: '¡Borrado con éxito!',
+                                text: data.message,
+                                confirmButtonText: 'Aceptar'
+                            });
+                            location.reload();
+                        });
+                }
+            });
+        };
+
+        const iniciarPicking = (idpick, idplan, jefe) => {
+            Swal.fire({
+                title: '¿Estás seguro?',
+                text: "¡Se iniciara el Picking del personal!",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Sí, iniciar',
+                cancelButtonText: 'Cancelar',
+                reverseButtons: true
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    fetch(`/Picking/IniciarPicking?idpick=${idpick}&plan=${idplan}`, {
+                        method: 'POST',
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+
+                            Swal.fire({
+                                icon: 'success',
+                                title: '¡Iniciado con éxito!',
+                                text: data.message,
+                                confirmButtonText: 'Aceptar'
+                            });
+                            location.reload();
+                        });
+                }
+            });
+        };
+
+
+        const mostrarDetallespick = async (idPick, idPlan, jefef) => {
+            try {
+                const response = await fetch(`/Picking/ConsultarDetallePickeador?idPick=${idPick}&Plan=${idPlan}`);
+                const data = await response.json();
+
+                const $modalBody = $('#modal-body-detalles');
+                $modalBody.empty();
+
+                const $tableContainer = $('<div class="table-responsive"></div>');
+                const $table = $('<table class="table"></table>');
+                const $thead = $('<thead><th>N°</th><th>Código</th><th>Producto</th><th>Stock</th><th>Cantidad</th><th>Cantidad Contada</th><th>Cantidad Pendiente</th></thead>');
+                const $tbody = $('<tbody></tbody>');
+
+                data.forEach((prod, index) => {
+                    const cantidadPendiente = prod.cantidad - (prod.cantidadContada || 0);
+                    const rowClass = (prod.cantidadContada === 0) ? 'table-danger' : (prod.cantidadContada < prod.cantidad) ? 'table-warning' :
+                        (prod.cantidadContada > prod.cantidad) ? 'table-success' : '';
+                    const reconteoBtn = cantidadPendiente != 0 ? (prod.reconteo === 1 ? (prod.finalizado === 1 ? (prod.aceptado === 1 ? '<button class="btn btn-success">Aceptado</button>' : '<button class="btn btn-success">Recontado</button>') : '<button class="btn btn-warning">Recontando</button>') : `<button class="btn btn-secondary mandarReconteo-btn wan2" style="margin-bottom: 2px; width:80px" data-id="${idPlan}" data-producto="${prod.idProducto}">Recontar</button><button class="btn btn-secondary aceptarfal-btn wan2" style="width:80px" data-id="${idPlan}" data-producto="${prod.idProducto}">Aceptar</button>`) : '<button class="btn btn-success">Completo</button>';
+
+                    $tbody.append(`
+                                        <tr class="${rowClass}" style="text-align:center">
+                                            <td>${index + 1}</td>
+                                            <td>${prod.idProducto}</td>
+                                            <td>${prod.descripcion}</td>
+                                            <td>${prod.stockAct}</td>
+                                            <td>${prod.cantidad}</td>
+                                            <td>${prod.cantidadContada || 0}</td>
+                                            <td>${cantidadPendiente}</td>
+                                            <td>${reconteoBtn}</td>
+                                        </tr>
+                                    `);
+                });
+
+                $table.append($thead).append($tbody);
+                $tableContainer.append($table);
+                $modalBody.append($tableContainer);
+
+                $('.mandarReconteo-btn').click(async function () {
+
+                    const idPlanPla = $(this).data('id');
+                    const producto = $(this).data('producto');
+
+                    const result = await Swal.fire({
+                        title: '¿Estás seguro?',
+                        text: "¿Deseas enviar estos productos a reconteo?",
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonText: 'Sí, enviar a reconteo',
+                        cancelButtonText: 'No, cancelar',
+                    });
+
+                    if (result.isConfirmed) {
+                        try {
+                            const response = await fetch(`/Picking/ReconteoProducto?idPlan=${idPlanPla}&idProducto=${producto}`, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                }
+                            });
+
+                            const data = await response.json();
+
+                            if (data.success) {
+                                Swal.fire('Éxito', data.message, 'success');
+                                cargarPlacas(idPlanPla, jefef);
+                                mostrarDetallespick(idPick, idPlanPla);
+                            } else {
+                                Swal.fire('Error', data.message, 'error');
+                            }
+                        } catch (error) {
+                            console.error('Error al enviar reconteo:', error);
+                            Swal.fire('Error', 'Error al enviar reconteo.', 'error');
+                        }
+                    } else {
+                        console.log('Reconteo cancelado');
+                    }
+                });
+
+                $('.aceptarfal-btn').click(async function () {
+
+                    const idPlanPla = $(this).data('id');
+                    const producto = $(this).data('producto');
+
+                    const result = await Swal.fire({
+                        title: '¿Estás seguro?',
+                        text: "¿Deseas aceptar los faltantes?",
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonText: 'Sí, aceptar',
+                        cancelButtonText: 'No, cancelar',
+                    });
+
+                    if (result.isConfirmed) {
+                        try {
+                            const response = await fetch(`/Picking/AceptarProducto?idPlan=${idPlanPla}&idProducto=${producto}`, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                }
+                            });
+
+                            const data = await response.json();
+
+                            if (data.success) {
+                                Swal.fire('Éxito', data.message, 'success');
+                                cargarPlacas(idPlanPla, jefef);
+                                mostrarDetallespick(idPick, idPlanPla);
+                            } else {
+                                Swal.fire('Error', data.message, 'error');
+                            }
+                        } catch (error) {
+                            console.error('Error al aceptar:', error);
+                            Swal.fire('Error', 'Error al aceptar.', 'error');
+                        }
+                    } else {
+                        console.log('Aceptacion cancelado');
+                    }
+                });
+
+                $('#detallesModal').modal('show');
+
+            } catch (error) {
+                console.error('Error al consultar los detalles del pickeador:', error);
+            }
+        };
+
+
+        const mostrarDetalles = async (idPlanPla) => {
+            try {
+                const response = await fetch(`/Picking/ObtenerDataPickeado?id=${idPlanPla}`);
+                const detalles = await response.json();
+
+                const $detallesBody = $('#detalles-body');
+                $detallesBody.empty();
+
+                const groupedData = detalles.reduce((acc, detalle) => {
+                    if (!acc[detalle.nombre]) {
+                        acc[detalle.nombre] = [];
+                    }
+                    acc[detalle.nombre].push(detalle);
+                    return acc;
+                }, {});
+
+                for (const nombre in groupedData) {
+                    const items = groupedData[nombre];
+                    const totalCantidad = items.reduce((sum, item) => sum + item.cantidad, 0);
+                    const totalCantidaPicada = items.reduce((sum, item) => sum + item.cantidadPicada, 0);
+                    const totalDiferencia = totalCantidad - totalCantidaPicada;
+
+                    $detallesBody.append(`
+                                        <tr>
+                                            <td colspan="2" class="font-weight-bold">${nombre}</td>
+                                            <td colspan="2" class="font-weight-bold">${totalDiferencia}</td>
+                                        </tr>
+                                    `);
+
+                    items.forEach(detalle => {
+                        const rowClass = detalle.diferencia === 0 ? 'table-success' : 'table-danger';
+
+                        $detallesBody.append(`
+                                            <tr class="${rowClass}">
+                                                <td>${detalle.descripcion}</td>
+                                                <td>${detalle.cantidad}</td>
+                                                <td>${detalle.cantidadPicada}</td>
+                                                <td>${detalle.diferencia}</td>
+                                            </tr>
+                                        `);
+                    });
+                }
+
+                $('#coordinadorModal').modal('show');
+                $('#confirmar-envio').data('id', idPlanPla);
+
+            } catch (error) {
+                console.error('Error al cargar los detalles:', error);
+                $('#detalles-body').html('<tr><td colspan="4">Error al cargar los detalles.</td></tr>');
+            }
+        };
+
+
+
+        // $('#confirmar-envio').click(async function () {
+        //     const idPlanPla = $(this).data('id');
+        //     const confirm = await Swal.fire({
+        //         title: '¿Está seguro?',
+        //         text: "¿Desea enviar la placa al coordinador?",
+        //         icon: 'warning',
+        //         showCancelButton: true,
+        //         confirmButtonText: 'Sí, enviar',
+        //         cancelButtonText: 'Cancelar'
+        //     });
+
+        //     if (confirm.isConfirmed) {
+        //         await enviarACoordinador(idPlanPla);
+        //     }
+        // });
+
+        $('#guardar-jefe').click(async function () {
+            const idPlanPla = $('#jefeDeGrupoModal').data('id');
+            const idPickeador = $('#select-pickeador').val();
+
+            if (idPickeador === '0') {
+                Swal.fire('Advertencia', 'Por favor elija un Jefe de grupo.', 'warning');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/Picking/GuardarJefePlaca?idPlanPla=${idPlanPla}&idPickeador=${idPickeador}`, {
+                    method: 'POST'
+                });
+
+                if (response.ok) {
+                    Swal.fire('Éxito', 'Jefe de Grupo asignado correctamente.', 'success');
+                    const idPlan = new URLSearchParams(window.location.search).get('id');
+                    cargarPlacas(idPlan);
+                    $('#jefeDeGrupoModal').modal('hide');
+                } else {
+                    throw new Error('Error al guardar el jefe de placa.');
+                }
+            } catch (error) {
+                console.error('Error al guardar el jefe de placa:', error);
+                Swal.fire('Error', 'Error al guardar el jefe de placa.', 'error');
+            }
+        });
+
+        const confirmarYEnviarCargada = async (idPlanPla) => {
+            const resultado = await Swal.fire({
+                title: '¿Estás seguro?',
+                text: '¿Deseas enviar esta carga?',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Sí, enviar',
+                cancelButtonText: 'Cancelar',
+                reverseButtons: true
+            });
+
+            if (resultado.isConfirmed) {
+                try {
+                    const response = await fetch(`/Picking/EnviarCargadaJefe?idPlanPla=${idPlanPla}`, {
+                        method: 'POST'
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        Swal.fire('¡Éxito!', 'La carga ha sido enviada.', 'success').then(() => {
+                            window.location.reload();
+                        });
+                    } else {
+                        throw new Error('Error al enviar la carga');
+                    }
+                } catch (error) {
+                    Swal.fire('Error', 'Hubo un problema al enviar la carga.', 'error');
+                    console.error('Error al enviar la carga:', error);
+                }
+            }
+        };
+
+        const enviarACoordinador = async (idPlanPla) => {
+            try {
+                const response = await fetch(`/Picking/EnviarACoordinador?idPlanPla=${idPlanPla}`, {
+                    method: 'POST'
+                });
+
+                if (response.ok) {
+                    Swal.fire('Éxito', 'Placa enviada al coordinador.', 'success');
+                    const idPlan = new URLSearchParams(window.location.search).get('id');
+                    cargarPlacas(idPlan);
+                    $('#coordinadorModal').modal('hide');
+                    window.location.reload();
+                } else {
+                    throw new Error('Error al enviar la placa al coordinador.');
+                }
+            } catch (error) {
+                console.error('Error al enviar la placa al coordinador:', error);
+                Swal.fire('Error', 'Error al enviar la placa al coordinador.', 'error');
+            }
+        };
+
+
+
+
+
+
+        function toggleDetalles2(placa, index) {
+            const detalles = document.getElementById(`detallesnuevo-${placa}-${index}`);
+            const botonTiempo = document.getElementById(`botonTiempo-${placa}`);
+            const span = botonTiempo.querySelector('span');
+
+            if (!detalles || !botonTiempo || !span) {
+                console.log("Error: no se encontraron los elementos.");
+                return;
+            }
+
+            if (detalles.style.display === 'none') {
+                detalles.style.display = 'block';
+                span.textContent = '▲';
+            } else {
+                detalles.style.display = 'none';
+                span.textContent = '▼';
+            }
+        }
+
+
+
+
+    </script>
+}

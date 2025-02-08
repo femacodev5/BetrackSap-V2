@@ -1,0 +1,73 @@
+﻿@{
+    ViewData["Title"] = "Planificacion";
+}
+
+<nav class="nav nav-tabs my-2">
+</nav>
+<div class="tab-content">
+    <div class="tab-pane fade show active" id="tapContado">
+        <div class="card border-0">
+            <div class="card-body">
+                <div class="tab-content" id="nav-tabContent">
+                    <div class="tab-pane fade show active" id="nav-ventasinc" role="tabpanel">
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="table-responsive">
+                                    <label for="tabla1">Planificaciones Subidas</label>
+                                    <table id="tabla1" class="table" style="text-align:center">
+                                        <thead>
+                                            <tr>
+                                                <th>ID</th>
+                                                <th>Fecha</th>
+                                                <th>Accion</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                        </tbody>
+                                    </table>
+                                </div>                                
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+@section Scripts {
+    <script>
+        $(document).ready(() => {
+            cargarPlanificaciones();
+        });
+
+        const cargarPlanificaciones = async () => {
+            try {
+                const response = await fetch('/Picking/ObtenerPlanificaciones');
+                const data = await response.json();
+
+                const $tabla1 = $('#tabla1 tbody');
+                $tabla1.empty();
+
+                data.forEach(item => {
+                    $tabla1.append(`
+                                <tr>
+                                    <td>${item.IDPlan}</td>
+                                    <td>${item.Fecha}</td>
+                                    <td>
+                                        <button class="btn btn-info planificar-btn" data-id="${item.IDPlan}">
+                                            <i class='bx bx-search'></i> Planificar
+                                        </button>
+                                    </td>
+                                </tr>
+                            `);
+                });
+                $('.planificar-btn').click(function () {
+                    const idPlan = $(this).data('id');
+                    window.location.href = `/Picking/PlanPlacas?id=${idPlan}`;
+                });
+            } catch (error) {
+                console.error('Error al cargar los conteos pendientes:', error);
+            }
+        };
+    </script>
+}

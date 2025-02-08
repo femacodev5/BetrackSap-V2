@@ -1,0 +1,1043 @@
+﻿@{
+    ViewBag.Title = "Consultas";
+}
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,200..1000;1,200..1000&display=swap" rel="stylesheet">
+<style>
+    * {
+        font-family: "Nunito", serif;
+    }
+
+    .ts-control {
+        border-radius: 3px 0px 0px 3px;
+    }
+
+    .form-select {
+        padding: 0px 2.25rem 0px 0;
+    }
+    .enlinea{
+        display:flex;
+    }
+</style>
+
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-6">
+            <div class="mb-3">
+                <label for="hastavenc" class="form-label">Fecha Entrega:</label>
+                <input type="date" class="form-control" name="hastavenc" id="hastavenc" />
+            </div>
+            <div class="mb-3">
+                <label for="selereparto" class="form-label">Vendedores:</label>
+                <select class="form-select" name="selereparto[]" id="selereparto" autocomplete="off" multiple>
+                    @foreach (var vendedor in ViewBag.Vendedores) {
+                        <option value="@vendedor.Value">@vendedor.Text</option>
+                    }
+                </select>
+            </div>
+            <div class="enlinea" id="inputpesos">
+                <div style="margin: 5px;">
+                    <label for="Capacidad" class="form-label">Capacidad:</label>
+                    <input id="inputcapacidad" class="form-control" readonly />
+                </div>
+                <div style="margin: 5px;">
+                    <label for="CargaTotal" class="form-label">Carga Total:</label>
+                    <input id="inputcargatotal" class="form-control" readonly />
+                </div>
+                <div style="margin: 5px;">
+                    <label for="Diferencia" class="form-label">Peso Disponible:</label>
+                    <input id="inputdiferencia" class="form-control" readonly />
+                </div>
+            </div>
+            <div class="mb-3 row">
+               
+                <div class="col-md-6">
+                    <label for="Utilidad" class="form-label">Utilidad:</label>
+                    <input id="inpututilidad" class="form-control" readonly />
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="mb-3">
+                <label for="territorio" class="form-label">Territorio:</label>
+                <select class="form-select" name="territorio" id="territorio" autocomplete="off" multiple>
+
+                    @foreach (var territorio in ViewBag.Territorios) {
+                        <option value="@territorio.Value">@territorio.Text </option>
+                    }
+                </select>
+            </div>
+            <div class="mb-3">
+                <label for="zonarep" class="form-label">Zona de Reparto:</label>
+                <select class="form-select" name="zonarep" id="zonarep" autocomplete="off" multiple>
+                    @foreach (var zonarep in ViewBag.Zonarep) {
+                        <option value="@zonarep.Value">@zonarep.Value : @zonarep.Text</option>
+                    }
+                </select>
+            </div>
+            <div class="mb-3">
+                <label for="selectplacas" class="form-label">Placa:</label>
+                <select class="form-select" name="selectplacas" id="selectplacas" autocomplete="off">
+                </select>
+            </div>
+            <div class="mb-3 row">
+                <div class="col-md-4">
+                    <button class="btn btn-dark mx-2" id="btnRevisarDetalle"><i class="bx bx-globe"></i> Revisar Detalle</button>
+                </div>
+                <div class="col-md-4">
+                    <label for="Alerta" class="form-label">Items con Alerta:</label>
+                    <input id="inputalerta" class="form-control" readonly />
+                </div>
+                <div class="col-md-4">
+                    <label for="NumPedidos" class="form-label">N° Pedidos:</label>
+                    <input id="inputnumpedidos" class="form-control" readonly />
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex justify-content-center mt-4">
+        <button class="btn btn-success mx-2" id="btnEnviar" hidden><i class="bx bx-send"></i> Enviar a Planner</button>
+        <button class="btn btn-primary mx-2" id="btnBuscar"><i class="bx bx-search"></i> Cargar Pedidos SAP</button>
+        <button class="btn btn-secondary mx-2" id="btnProvincia" hidden><i class="bx bx-shield-plus"></i> Planificar Provincia</button>
+    </div>
+
+    <div class="table-responsive mt-4">
+        <table class="table table-bordered table-hover table-sm align-middle" id="tblVentaConC" name="table_reporte">
+            <thead>
+                <tr>
+                    <th></th>
+                    <th></th>
+                    <th>Fecha Entrega</th>
+                    <th>N° Documento</th>
+                    <th>Nombre Cliente</th>
+                    <th>Direccion</th>
+                    <th>Zona reparto</th>
+                    <th>Vendedor</th>
+                    <th>Telefono</th>
+                    <th>Peso</th>
+                    <th>Utilidad</th>
+                    <th>Accion</th>
+                    <th>Enviado</th>
+                </tr>
+            </thead>
+            <tbody style="cursor:pointer;font-size:12px;font-weight: 700;"></tbody>
+            <tfoot>
+                <tr>
+                    <th colspan="9">Total:</th>
+                    <th id="sumatoriaPes"></th>
+                    <th id="sumatoriaUti"></th>
+                    <th></th>
+                    <th></th>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+</div>
+
+<div class="modal fade" id="modalProvincia" tabindex="-1" aria-labelledby="modalProvinciaLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalProvinciaLabel">Planificación de Provincia</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="table-responsive mt-3" style="font-weight: 700;">
+                    <table class="table table-bordered table-hover table-sm align-middle" id="tblSeleccionados">
+                        <thead>
+                            <tr>
+                                <th>N°</th>
+                                <th>ID</th>
+                                <th>Descripcion</th>
+                                <th>Cantidad</th>
+                                <th>Peso</th>
+                                <th>Utilidad</th>
+                                <th>Stock</th>
+                            </tr>
+                        </thead>
+                        <tbody style="cursor:pointer;font-size:12px;">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="ModalDetallePedido" tabindex="-1" role="dialog" aria-labelledby="ModalDetallePedidoLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="ModalDetallePedidoLabel">Detalle del Pedido</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" style="max-height: 80vh; overflow-y: auto;">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Codigo</th>
+                            <th>Nombre</th>
+                            <th>Medida</th>
+                            <th>Cantidad</th>
+                            <th>Peso X item</th>
+                            <th>Utilidad</th>
+                        </tr>
+                    </thead>
+                    <tbody id="modalDetalleBody">
+                    </tbody>
+                    <tr>
+                        <td colspan="4"></td>
+                        <td id="tdsumatoriapeso"></td>
+                        <td id="tdsumatoriautil"></td>
+                    </tr>
+                    <tfoot>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+@section Scripts {
+    <script>
+        $(document).ready(() => {
+            cargarPlacas();
+        });
+
+        let sumatoriaPeso = 0;
+        let sumatoriaUtis = 0;
+
+
+        btnBuscar.onclick = e => {
+            var selectElementzonarep = document.getElementById("zonarep");
+            var selectedOptionszonarep = Array.from(selectElementzonarep.selectedOptions).map(option => `'${option.value}'`);
+            var selectElementterritorio = document.getElementById("territorio");
+            var selectedOptionsterritorio = Array.from(selectElementterritorio.selectedOptions).map(option => `'${option.value}'`);
+            var selectElement = document.getElementById("selereparto");
+            var selectedOptions = Array.from(selectElement.selectedOptions).map(option => `'${option.value}'`);
+
+            var url = '/Home/VentaConConsolidado?hastavenc=' + encodeURIComponent(document.getElementById('hastavenc').value) +
+                '&terri=' + encodeURIComponent(selectedOptionsterritorio.join(',')) +
+                '&rpt=' + encodeURIComponent(selectedOptions.join(',')) +
+                '&znrpt=' + encodeURIComponent(selectedOptionszonarep.join(','));
+
+            fetch(url)
+                .then(async (r) => {
+                    if (!r.ok) {
+                        return Promise.reject(await r.text() || r.statusText);
+                    }
+                    return r.json();
+                })
+                .then(d => {
+
+                    let hastavenc = document.getElementById('hastavenc').value;
+                    let fecha = new Date(hastavenc + " ");
+                    let formattedHastavenc = ('0' + fecha.getDate()).slice(-2) + '/' + ('0' + (fecha.getMonth() + 1)).slice(-2) + '/' + fecha.getFullYear();
+
+                    let esConsolidado = url.endsWith('ConConsolidado');
+                    sumatoriaPeso = d.reduce((total, item) => total + parseFloat(item.capacidaduno), 0);
+                    sumatoriaUtis = d.reduce((total, item) => total + parseFloat(item.utilidad), 0);
+
+                    let contador = 1;
+                    tbl = '#tblVentaConC';
+                    columnas = [
+                        {
+                            data: null,
+                            render: function (data, type, row) {
+                                if (data.fechamaxentrega === formattedHastavenc) {
+                                    return '<input type="checkbox" checked>';
+                                } else {
+                                    return '<input type="checkbox">';
+                                }
+                            },
+                            orderable: false
+                        },
+                        {
+                            data: null,
+                            render: function (data, type, row) {
+                                return '';
+                            },
+                            orderable: false
+                        },
+                        { data: 'fechamaxentrega' },
+                        { data: 'ndocumento' },
+                        {
+                            data: 'nombrecontacto',
+                            render: function (data, type, row) {
+                                return `
+                                                            <button class="btn btn-primary pedidodetalle-btn" style="height: 30px;width: 30px; padding: 0px; align-content: center; vertical-align: middle; display: flex; justify-content: center; align-items: center;" data-ndocumento="${row.ndocumento}">
+                                                        <i class="bx bx-search"></i>
+                                                    </button>
+                                                    ${data}
+                                                `;
+                            },
+                            orderable: false
+                        },
+                        { data: 'direccion' },
+                        { data: 'name' },
+                        { data: 'vendedor' },
+                        { data: 'telefono' },
+                        { data: 'pesototal' },
+                        { data: 'utilidadtotal' },
+                        {
+                            data: null,
+                            defaultContent: '<button class="btn-sap">SAP</button>',
+                            orderable: false
+                        },
+                        {
+                            data: 'existe',
+                            render: function (data, type, row) {
+                                if (data === 0) {
+                                    return '<td class="table table-success">Sin Enviar</td>';
+                                } else if (data === 1) {
+                                    return '<td class="table table-warning">Enviado</td>';
+                                } else if (data === 2) {
+                                    return '<td class="table table-primary">Enviado y Planeado</td>';
+                                }
+                            }
+                        }
+                    ];
+
+                    let seenDocuments = [];
+                    if ($.fn.dataTable.isDataTable(tbl)) {
+                        $(tbl).DataTable().clear().destroy();
+                    }
+
+                    sumatoriaUtis = 0;
+                    sumatoriaPeso = 0;
+                    let alerts = 0;
+                    let alertapeso = 0;
+                    let numpedidos = 0;
+                    new DataTable(tbl, {
+                        autoWidth: false, buttons: ['copy', { extend: 'excel', footer: true }, 'pdf'],
+                        columns: columnas,
+                        data: d, destroy: false, dom: 'Bfrt', paging: false, rowId: 'pkid', order: [],
+                        createdRow: function (row, data, dataIndex) {
+                            let fechamaxentrega = data.fechamaxentrega;
+                            let ndocumento = data.ndocumento;
+                            let pesototis = parseFloat(data.capacidaduno);
+                            let utilitotis = data.utilidad;
+                            let entry = data.entry;
+                            let exist = data.existe;
+                            let dtalert = data.alertastock;
+                            let dtpeso = data.costoxkilo;
+                            alerts += data.alertastock;
+                             
+                            if (dtpeso === "0") {
+                                alertapeso++;
+                            }
+                            if (seenDocuments.includes(ndocumento)) {
+                                $(row).hide();
+                            } else {
+                                seenDocuments.push(ndocumento);
+                                if (fechamaxentrega === formattedHastavenc) {
+                                    numpedidos++;
+                                }
+                                $(row).find('td:eq(1)').text(contador++);
+                            }
+
+                            if (fechamaxentrega !== formattedHastavenc) {
+                                pesototis = 0;
+                                utilitotis = 0;
+                                if (dtalert === 1) {
+                                    if (dtpeso === "0") {
+                                        $(row).css('background-color', '#C6E7FF');
+                                    } else {
+                                        $(row).css('background-color', '#A888B5');
+                                    }
+
+                                } else {
+                                    if (dtpeso === "0") {
+                                        $(row).css('background-color', '#C6E7FF');
+                                    } else {
+                                        if (exist === 0) {
+                                            $(row).css('background-color', '#BC7C7C');
+                                        } else if (exist === 1) {
+                                            $(row).css('background-color', '#FFE6A9');
+                                        } else if (exist === 2) {
+                                            $(row).css('background-color', '#A9D0F5');
+                                        }
+                                    }
+                                }
+                            } else {
+                                if (dtalert === 1) {
+                                    if (dtpeso === "0") {
+                                        $(row).css('background-color', '#C6E7FF');
+                                    } else {
+                                        $(row).css('background-color', '#A888B5');
+                                    }
+                                } else {
+                                    if (dtpeso === "0") {
+                                        $(row).css('background-color', '#C6E7FF');
+                                    } else {
+                                        if (exist === 0) {
+                                            $(row).css('background-color', '#A5B68D');
+                                        } else if (exist === 1) {
+                                            $(row).css('background-color', '#FFE6A9');
+                                        } else if (exist === 2) {
+                                            $(row).css('background-color', '#A9D0F5');
+                                        }
+                                    }
+                                }
+                                sumatoriaUtis += utilitotis;
+                                sumatoriaPeso += pesototis;
+                            }
+                            $(row).find('.btn-sap').on('click', function () {
+                                openSAPModal(entry);
+                            });
+                        }
+                    });
+
+                    $(document).on('click', '.pedidodetalle-btn', function () {
+                        var ndocumento = String($(this).data('ndocumento'));
+                        var matchingRows = d.filter(item => item.ndocumento === ndocumento);
+
+                        $('#modalDetalleBody').empty();
+                        let prosumpeso = 0;
+                        let prosumutil = 0;
+                        matchingRows.forEach(row => {
+                            prosumpeso += parseFloat(row.capacidaduno);
+                            prosumutil += parseFloat(row.utilidad);
+                            var rowHtml = `
+                                            <tr>
+                                                <td>${row.codigoitem}</td>
+                                                <td>${row.nombreitem}</td>
+                                                <td>${row.medidabase}</td>
+                                                <td>${row.cantidad}</td>
+                                                <td>${row.capacidaduno}</td>
+                                                <td>${row.utilidad}</td>
+                                            </tr>
+                                        `;
+                            $('#modalDetalleBody').append(rowHtml);
+                            document.getElementById('tdsumatoriapeso').textContent = prosumpeso.toFixed(3);
+                            document.getElementById('tdsumatoriautil').textContent = prosumutil.toFixed(3);
+                        });
+
+                        $('#ModalDetallePedido').modal('show');
+                    });
+
+
+                    document.getElementById('sumatoriaPes').textContent = sumatoriaPeso.toFixed(3);
+                    document.getElementById('sumatoriaUti').textContent = sumatoriaUtis.toFixed(3);
+                    document.getElementById('inputcargatotal').value = sumatoriaPeso.toFixed(3);
+                    document.getElementById('inpututilidad').value = sumatoriaUtis.toFixed(3);
+                    document.getElementById('inputnumpedidos').value = numpedidos;
+                    let capacidadvehiculo = document.getElementById('inputcapacidad').value;
+                    let diferencia = capacidadvehiculo - sumatoriaPeso.toFixed(3);
+
+                    document.getElementById('inputdiferencia').value = diferencia.toFixed(3);
+
+                    if (diferencia < 0) {
+                        document.getElementById('inputdiferencia').style.backgroundColor = '#BC7C7C'; //Peso Placa acumulado
+                    } else {
+                        document.getElementById('inputdiferencia').style.backgroundColor = '#A5B68D'; //Peso Placa acumulado
+                    }
+
+                    let allMatch = d.every(item => item.fechamaxentrega === formattedHastavenc);
+                    let button = document.getElementById('btnEnviar');
+                    let buttonprov = document.getElementById('btnProvincia');
+
+                    // if (allMatch) {
+                    //     button.hidden = false;
+                    //     buttonprov.hidden = true;
+                    // } else {
+                    //     button.hidden = false;
+                    //     buttonprov.hidden = true;
+                    // }
+
+                    let placaSeleccionada = document.getElementById("selectplacas").value;
+                    if (placaSeleccionada != "0" && placaSeleccionada != "") {
+                        button.hidden = true;
+                        buttonprov.hidden = false;
+                    } else {
+                        button.hidden = false;
+                        buttonprov.hidden = true;
+                    }
+
+                    if (sumatoriaPeso === 0) {
+                        button.hidden = true;
+                        buttonprov.hidden = true;
+                    }
+                    if (alerts !== 0) {
+                        if (alertapeso !== 0) {
+                            button.hidden = true;
+                            buttonprov.hidden = true;
+                            document.getElementById('inputalerta').value = 0;
+                            Swal.fire({
+                                icon: 'warning',
+                                title: 'Hay un Problema',
+                                text: 'Hay registros que no cuentan con peso.',
+                            });
+                        } else {
+                            button.hidden = true;
+                            buttonprov.hidden = true;
+                            document.getElementById('inputalerta').value = alerts;
+                            Swal.fire({
+                                icon: 'warning',
+                                title: 'Hay un Problema',
+                                text: 'Hay registros que no cuentan con stock.',
+                            });
+                        }
+                    } else {
+                        if (alertapeso !== 0) {
+                            button.hidden = true;
+                            buttonprov.hidden = true;
+                            document.getElementById('inputalerta').value = 0;
+                            Swal.fire({
+                                icon: 'warning',
+                                title: 'Hay un Problema',
+                                text: 'Hay registros que no cuentan con peso.',
+                            });
+                        } else {
+                            document.getElementById('inputalerta').value = 0;
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Éxito',
+                                text: 'Se extrajeron los pedidos.',
+                            });
+                        }
+                    }
+
+                })
+                .catch(error => {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: `Ocurrió un error al procesar los datos: ${error}`,
+                    });
+                })
+                .finally();
+        }
+
+        document.addEventListener("DOMContentLoaded", function () {
+            const btnEnviar = document.getElementById("btnEnviar");
+            const btnProvincia = document.getElementById("btnProvincia");
+            const selectPlacas = document.getElementById("selectplacas");
+            const sumatoriaPes = document.getElementById("sumatoriaPes");
+            let alerts = parseInt(document.getElementById("inputalerta").value) || 0;
+            function checkButtonVisibility() {
+                const sumatoriaValue = parseFloat(sumatoriaPes.textContent) || 0;
+                console.log("--->", alerts);
+                console.log("--->", sumatoriaValue);
+                console.log("--->", selectPlacas.value);
+                console.log("----------------------------");
+
+
+                if (alerts === 0) {
+                    if (sumatoriaValue === 0) {
+                        btnEnviar.hidden = true;
+                        btnProvincia.hidden = true;
+                    } else {
+                        if (selectPlacas.value === "0" || selectPlacas.value === "") {
+                            btnEnviar.hidden = false;
+                            btnProvincia.hidden = true;
+                            console.log("prov ");
+                        } else {
+                            btnEnviar.hidden = true;
+                            btnProvincia.hidden = false;
+                            console.log("planner ");
+                        }
+                    }
+                }
+            }
+
+            selectPlacas.addEventListener("change", function () {
+                checkButtonVisibility();
+            });
+
+            checkButtonVisibility();
+        });
+
+        document.getElementById('btnProvincia').addEventListener('click', function () {
+            let placaSeleccionada = document.getElementById("selectplacas").value;
+            if (placaSeleccionada === "0") {
+                Swal.fire({
+                    icon: 'warning',
+                    title: '¡Advertencia!',
+                    text: 'Por favor, seleccione una placa.',
+                    confirmButtonText: 'OK'
+                });
+                return;
+            }
+
+            let selectedRows = [];
+
+            $('#tblVentaConC tbody input[type="checkbox"]:checked').each(function () {
+                let row = $(this).closest('tr');
+                let rowData = $('#tblVentaConC').DataTable().row(row).data();
+                selectedRows.push(rowData);
+            });
+
+            if (selectedRows.length === 0) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: '¡Advertencia!',
+                    text: 'No hay pedidos para guardar. Por favor, agregue al menos un pedido.',
+                    confirmButtonText: 'OK'
+                });
+                return;
+            }
+
+            Swal.fire({
+                title: '¿Está seguro?',
+                text: "Una vez generado, no podrá deshacer esta acción.",
+                icon: 'warning',
+                showCancelButton: true,
+                cancelButtonText: 'Cancelar',
+                confirmButtonText: 'Sí, generar'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    Swal.fire({
+                        title: 'Enviando...',
+                        text: 'Estamos procesando tu solicitud.',
+                        allowOutsideClick: false,
+                        didOpen: () => {
+                            Swal.showLoading();
+                        }
+                    });
+
+
+                    let datos = {};
+                    datos[placaSeleccionada] = {
+                        Capacidad: $(`#selectplacas option[value="${placaSeleccionada}"]`).data("peso").toString(),
+                        Pedidos: selectedRows
+                    };
+
+                    fetch('/Home/GenerarPlanificacionProvincia', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(datos),
+                    })
+                        .then(async (response) => {
+                            if (response.ok) {
+                                const responseData = await response.json();
+                                Swal.close();
+                                Swal.fire('¡Éxito!', 'Los datos fueron enviados correctamente.', 'success').then(() => {
+                                    window.location.href = '/Home/ConsultasEnviadas';
+                                });
+                            } else {
+                                const errorText = await response.text();
+                                Swal.close();
+                                Swal.fire({
+                                    icon: 'error',
+                                    title: '¡Error!',
+                                    text: `Ocurrió un error al guardar la planificación: ${errorText}`,
+                                    confirmButtonText: 'OK'
+                                });
+                            }
+                        })
+                        .catch(error => {
+                            Swal.close();
+                            Swal.fire({
+                                icon: 'error',
+                                title: '¡Error!',
+                                text: `Error al realizar la solicitud: ${error}`,
+                                confirmButtonText: 'OK'
+                            });
+                        });
+                }
+            });
+        });
+
+        document.getElementById('btnRevisarDetalle').addEventListener('click', function () {
+            let selectedRows = [];
+
+            $('#tblVentaConC tbody input[type="checkbox"]:checked').each(function () {
+                let row = $(this).closest('tr');
+                let rowData = $('#tblVentaConC').DataTable().row(row).data();
+                selectedRows.push(rowData);
+            });
+
+            if (selectedRows.length === 0) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: '¡Advertencia!',
+                    text: 'No hay pedidos seleccionados. Por favor, seleccione al menos uno.',
+                    confirmButtonText: 'OK'
+                });
+                return;
+            }
+
+            $('#tblSeleccionados tbody').empty();
+
+            selectedRows.forEach(function (rowData) {
+                let rowColor = rowData.alertastock === 1 ? '#BC7C7C' : '#A5B68D';
+
+                let capacidadFloat = parseFloat(rowData.capacidaduno);
+                if (capacidadFloat === 0 || capacidadFloat === null) { // ---------------> Cambio: Pinta de rojo las filas sin peso =0
+                    rowColor = '#f78981';
+                }
+
+
+                let rowHtml = `
+                            <tr style="background-color: ${rowColor};">
+                                <td>${rowData.ndocumento}</td>
+                                <td>${rowData.codigoitem}</td>
+                                <td>${rowData.nombreitem}</td>
+                                <td>${rowData.cantidad}</td>
+                                <td>${rowData.capacidaduno}</td>
+                                <td>${rowData.utilidad}</td>
+                                <td>${rowData.stock}</td>
+                            </tr>
+                        `;
+
+                $('#tblSeleccionados tbody').append(rowHtml);
+            });
+
+
+
+            $('#modalProvincia').modal('show');
+        });
+
+        $('#tblVentaConC tbody').on('change', 'input[type="checkbox"]', function () {
+            let checkbox = $(this);
+            let row = checkbox.closest('tr');
+            let rowData = $('#tblVentaConC').DataTable().row(row).data();
+            let documentNumber = rowData.ndocumento;
+            let capacidaduno = parseFloat(rowData.pesototal);
+            let utilidad = parseFloat(rowData.utilidadtotal);
+
+            if (checkbox.prop('checked')) {
+                sumatoriaPeso += capacidaduno;
+                sumatoriaUtis += utilidad;
+            } else {
+                sumatoriaPeso -= capacidaduno;
+                sumatoriaUtis -= utilidad;
+            }
+
+            document.getElementById('sumatoriaPes').textContent = sumatoriaPeso.toFixed(3);
+            document.getElementById('sumatoriaUti').textContent = sumatoriaUtis.toFixed(3);
+            document.getElementById('inputcargatotal').value = sumatoriaPeso.toFixed(3);
+            document.getElementById('inpututilidad').value = sumatoriaUtis.toFixed(3);
+
+            let capacidadvehiculo = document.getElementById('inputcapacidad').value;
+            let diferencia = capacidadvehiculo - sumatoriaPeso.toFixed(3);
+
+            document.getElementById('inputdiferencia').value = diferencia.toFixed(3);
+
+            if (diferencia < 0) {
+                document.getElementById('inputdiferencia').style.backgroundColor = '#BC7C7C';
+            } else {
+                document.getElementById('inputdiferencia').style.backgroundColor = '#A5B68D';
+            }
+
+            if (!checkbox.prop('checked')) {
+                $('#tblVentaConC tbody input[type="checkbox"]').each(function () {
+                    let otherRow = $(this).closest('tr');
+                    let otherRowData = $('#tblVentaConC').DataTable().row(otherRow).data();
+                    if (otherRowData.ndocumento === documentNumber) {
+                        $(this).prop('checked', false);
+                    }
+                });
+            } else {
+                $('#tblVentaConC tbody input[type="checkbox"]').each(function () {
+                    let otherRow = $(this).closest('tr');
+                    let otherRowData = $('#tblVentaConC').DataTable().row(otherRow).data();
+                    if (otherRowData.ndocumento === documentNumber) {
+                        $(this).prop('checked', true);
+                    }
+                });
+            }
+        });
+
+        function openSAPModal(entry) {
+
+            const today = new Date();
+            const todayFormatted = today.toISOString().split('T')[0];
+            Swal.fire({
+                title: 'Actualizar Fecha de Entrega',
+                html: `<input type="date" id="newFechaEntrega" class="swal2-input" value="${todayFormatted}" />`,
+                preConfirm: () => {
+                    const newDate = document.getElementById('newFechaEntrega').value;
+                    if (!newDate) {
+                        Swal.showValidationMessage('Por favor, seleccione una fecha');
+                    }
+                    return newDate;
+                },
+                confirmButtonText: 'Confirmar',
+                cancelButtonText: 'Cancelar',
+                showCancelButton: true,
+                focusConfirm: false,
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    const newFechaEntrega = result.value;
+
+                    Swal.fire({
+                        title: '¿Está seguro?',
+                        text: `¿Desea actualizar la fecha de entrega?`,
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonText: 'Sí, actualizar',
+                        cancelButtonText: 'No, cancelar'
+                    }).then((confirmResult) => {
+                        if (confirmResult.isConfirmed) {
+                            Swal.fire({
+                                title: 'Cargando...',
+                                text: 'Actualizando fecha de entrega...',
+                                didOpen: () => {
+                                    Swal.showLoading();
+                                },
+                                allowOutsideClick: false,
+                                showConfirmButton: false
+                            });
+
+                            actualizarEntregaSAP(entry, newFechaEntrega).then(() => {
+                                Swal.fire('Actualizado', 'La fecha de entrega ha sido actualizada correctamente', 'success')
+                            }).catch((error) => {
+                                Swal.fire('Error', 'Hubo un problema al actualizar la fecha de entrega', 'error');
+                            });
+                        } else {
+                            Swal.fire('Cancelado', 'La actualización ha sido cancelada', 'info');
+                        }
+                    });
+                }
+            });
+        }
+
+
+        function actualizarEntregaSAP(entry, newFechaEntrega) {
+            fetch(`/Home/ActualizarEntregaSAP?ndocumento=${entry}&nuevaFecha=${newFechaEntrega}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        Swal.fire('Éxito', 'Fecha de entrega actualizada correctamente', 'success').then(() => {
+                            document.getElementById('btnBuscar').click();
+                        });
+                    } else {
+                        Swal.fire('Error', 'No se pudo actualizar la fecha de entrega', 'error');
+                    }
+                })
+                .catch(error => {
+                    Swal.fire('Error', 'Hubo un problema al procesar la solicitud', 'error');
+                });
+        }
+
+        btnEnviar.onclick = e => {
+
+            ///Validar territorio y Placa para recien plamificar provincia
+            /*var territorioSeleccionado = document.getElementById('territorio').value;
+            var placaSeleccionada = document.getElementById('selectplacas').value;
+
+            if (territorioSeleccionado==="") {
+                Swal.fire('Advertencia', 'Por favor, seleccione un territorio.', 'warning');
+                return;
+            }
+
+            if (placaSeleccionada==="0") {
+                Swal.fire('Advertencia', 'Por favor, seleccione una placa.', 'warning');
+                return;
+            } */
+            /////////////////
+
+            Swal.fire({
+                title: '¿Estás seguro?',
+                text: "Esta acción enviará los datos seleccionados al servidor. ¿Quieres continuar?",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Sí, continuar',
+                cancelButtonText: 'No, cancelar',
+                reverseButtons: true
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    Swal.fire({
+                        title: 'Enviando...',
+                        text: 'Estamos procesando tu solicitud.',
+                        allowOutsideClick: false,
+                        didOpen: () => {
+                            Swal.showLoading();
+                        }
+                    });
+
+                    let selectedRows = [];
+                    $('#tblVentaConC tbody input[type="checkbox"]:checked').each(function () {
+                        let row = $(this).closest('tr');
+                        let rowData = $('#tblVentaConC').DataTable().row(row).data();
+                        selectedRows.push(rowData);
+                    });
+
+                    if (selectedRows.length > 0) {
+                        let dataToSend = [{
+                            "query": "envioapi",
+                            "detalles": selectedRows
+                        }];
+
+                        let jsonn = JSON.stringify(dataToSend);
+
+                        fetch("https://app.femaco.com.pe/mantenimiento/Beetrack/SubidaBeetrackV2.php", {
+                            mode: 'no-cors',
+                            method: 'post',
+                            body: jsonn,
+                            headers: { 'Content-Type': 'application/json' }
+                        }).then(function (resp) {
+                            if (resp.ok) {
+                                return resp.json();
+                            } else {
+                                console.log('Ocurrio algún error');
+                            }
+                        }).then(function (json) {
+                            Swal.close();
+                            Swal.fire('¡Éxito!', 'Los datos fueron enviados correctamente.', 'success').then(() => {
+                                window.location.href = '/Home/ConsultasEnviadas';
+                            });
+                        }).catch(err => {
+                            Swal.close();
+                            Swal.fire('Error', 'Hubo un problema al enviar los datos. Intenta nuevamente.', 'error');
+                        }).finally(() => {
+                        });
+                    } else {
+                        Swal.close();
+                        Swal.fire('Advertencia', 'No se seleccionaron registros para enviar.', 'warning');
+                    }
+                } else {
+                    Swal.close();
+                }
+            });
+        }
+
+        // btnEnviar.onclick = e => {
+        //     Swal.fire({
+        //         title: '¿Estás seguro?',
+        //         text: "Esta acción enviará los datos seleccionados al servidor. ¿Quieres continuar?",
+        //         icon: 'warning',
+        //         showCancelButton: true,
+        //         confirmButtonText: 'Sí, continuar',
+        //         cancelButtonText: 'No, cancelar',
+        //         reverseButtons: true
+        //     }).then((result) => {
+        //         if (result.isConfirmed) {
+        //             Swal.fire({
+        //                 title: 'Enviando...',
+        //                 text: 'Estamos procesando tu solicitud.',
+        //                 allowOutsideClick: false,
+        //                 didOpen: () => {
+        //                     Swal.showLoading();
+        //                 }
+        //             });
+
+        //             let selectedRows = [];
+        //             $('#tblVentaConC tbody input[type="checkbox"]:checked').each(function () {
+        //                 let row = $(this).closest('tr');
+        //                 let rowData = $('#tblVentaConC').DataTable().row(row).data();
+        //                 selectedRows.push(rowData);
+        //             });
+
+        //             if (selectedRows.length > 0) {
+        //                 let dataToSend = [{
+        //                     "query": "envioapi",
+        //                     "detalles": selectedRows
+        //                 }];
+
+        //                 let jsonn = JSON.stringify(dataToSend);
+
+        //                 let form = document.createElement('form');
+        //                 form.method = 'POST';
+        //                 form.action = 'https:app.femaco.com.pe/mantenimiento/Beetrack/SubidaBeetrackV2.php';
+
+        //                 let input = document.createElement('input');
+        //                 input.type = 'hidden';
+        //                 input.name = 'jsondata';
+        //                 input.value = jsonn;
+        //                 form.appendChild(input);
+
+        //                 document.body.appendChild(form);
+        //                 form.submit();
+
+        //                 Swal.close();
+        //             } else {
+        //                 Swal.close();
+        //                 Swal.fire('Advertencia', 'No se seleccionaron registros para enviar.', 'warning');
+        //             }
+        //         } else {
+        //             Swal.close();
+        //         }
+        //     });
+        // }
+
+
+        const cargarPlacas = async () => {
+            try {
+                const response = await fetch('/Home/CargarPlacas');
+                const personal = await response.json();
+
+                let selectplacasOptions = `<option value="0">Elije una Placa</option>`;
+                personal.forEach(tipo => {
+                    selectplacasOptions += `<option value="${tipo.code}" data-peso="${tipo.peso}">${tipo.code} Capacidad: ${tipo.peso}</option>`;
+                });
+
+                $("#selectplacas").html('').append(selectplacasOptions);
+
+
+                new TomSelect('#selectplacas', {
+                    plugins: {
+                        'checkbox_options': {
+                            'checkedClassNames': ['ts-checked'],
+                            'uncheckedClassNames': ['ts-unchecked'],
+                        }
+                    },
+                });
+            } catch (e) {
+                console.error(e);
+                Swal.fire('Error', 'Ocurrió un error al cargar las placas', 'info');
+            }
+        };
+
+        document.getElementById('selectplacas').addEventListener('change', function () {
+            const selectedOption = this.options[this.selectedIndex];
+            const capacidad = selectedOption.getAttribute('data-peso');
+
+            document.getElementById('inputcapacidad').value = capacidad || '';
+            let cargatotal = document.getElementById('inputcargatotal').value;
+            let diferencia = capacidad - cargatotal;
+
+            document.getElementById('inputdiferencia').value = diferencia.toFixed(3);
+
+            if (diferencia < 0) {
+                document.getElementById('inputdiferencia').style.backgroundColor = '#BC7C7C';
+            } else {
+                document.getElementById('inputdiferencia').style.backgroundColor = '#A5B68D';
+            }
+
+        });
+
+        var fechaActual = new Date();
+        fechaActual.setDate(fechaActual.getDate() + 1);
+        document.getElementById('hastavenc').valueAsDate = fechaActual;
+
+        new TomSelect('#selereparto', {
+            plugins: {
+                'checkbox_options': {
+                    'checkedClassNames': ['ts-checked'],
+                    'uncheckedClassNames': ['ts-unchecked'],
+                }
+            },
+            maxOptions: Infinity,
+            loadThreshold: 0,
+        });
+        new TomSelect('#territorio', {
+            plugins: {
+                'checkbox_options': {
+                    'checkedClassNames': ['ts-checked'],
+                    'uncheckedClassNames': ['ts-unchecked'],
+                }
+            },
+        });
+        new TomSelect('#zonarep', {
+            plugins: {
+                'checkbox_options': {
+                    'checkedClassNames': ['ts-checked'],
+                    'uncheckedClassNames': ['ts-unchecked'],
+                }
+            },
+        });
+    </script>
+}

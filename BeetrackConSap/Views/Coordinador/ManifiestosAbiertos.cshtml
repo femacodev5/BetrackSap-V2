@@ -1,0 +1,107 @@
+﻿@{
+    ViewData["Title"] = "Manifiestos Abiertos";
+}
+
+<div class="container">
+    <h1>Manifiestos Abiertos</h1>
+
+    <div class="row mb-3">
+        <div class="col-md-6">
+            <input type="text" id="searchInput" class="form-control" placeholder="Buscar manifiesto..." onkeyup="filtrarTabla()">
+        </div>
+
+        <div class="col-md-6 d-flex">
+            <input type="date" id="dateFilter" class="form-control me-2">
+            <button class="btn btn-primary" onclick="filtrarPorFecha()">Buscar</button>
+        </div>
+    </div>
+    <div class="table-responsive">
+        <table class="table" id="manifiestosTable">
+            <thead>
+                <tr>
+                    <th>DocEntry</th>
+                    <th>Placa</th>
+                    <th>Transporte</th>
+                    <th>Conductor</th>
+                    <th>Almacen</th>
+                    <th>Acción</th>
+                </tr>
+            </thead>
+            <tbody id="manifiestos-body">
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        const obtenerManifiestos = async (fecha) => {
+            try {
+                const url = `/Coordinador/ObtenerManifiestoAbiertos${fecha ? '?fecha=' + fecha : ''}`;
+                const response = await fetch(url);
+                const data = await response.json();
+
+                const $manifiestosBody = $('#manifiestos-body');
+                $manifiestosBody.empty();
+
+                if (data.length === 0) {
+                    $manifiestosBody.append('<tr><td colspan="6">No se encontraron manifiestos abiertos.</td></tr>');
+                } else {
+                    data.forEach((manifiesto) => {
+                        $manifiestosBody.append(`
+                                    <tr>
+                                        <td>${manifiesto.u_EXP_FECH}</td>
+                                        <td>${manifiesto.docEntry}</td>
+                                        <td>${manifiesto.u_EXP_PLVE}</td>
+                                        <td>${manifiesto.u_EXP_TRAN}</td>
+                                        <td>${manifiesto.u_EXP_COND}</td>
+                                        <td>${manifiesto.u_EXP_CODSEDE}</td>
+                                        <td><button class="btn btn-info" onclick="verDetallesManifiesto('${manifiesto.docEntry}')">Ver Detalles</button></td>
+                                    </tr>
+                                `);
+                    });
+                }
+            } catch (error) {
+                console.error('Error al cargar los manifiestos abiertos:', error);
+                $('#manifiestos-body').html('<tr><td colspan="6">Error al cargar los datos.</td></tr>');
+            }
+        };
+
+        function verDetallesManifiesto(docEntry) {
+            window.location.href = `/Coordinador/LastMileVista?docEntry=${docEntry}`;
+        }
+
+        function filtrarTabla() {
+            const input = document.getElementById('searchInput');
+            const filter = input.value.toLowerCase();
+            const table = document.getElementById('manifiestosTable');
+            const rows = table.getElementsByTagName('tr');
+
+            for (let i = 1; i < rows.length; i++) {
+                const cells = rows[i].getElementsByTagName('td');
+                let matchFound = false;
+
+                for (let j = 0; j < cells.length; j++) {
+                    const cell = cells[j];
+                    if (cell) {
+                        if (cell.textContent.toLowerCase().includes(filter)) {
+                            matchFound = true;
+                            break;
+                        }
+                    }
+                }
+
+                rows[i].style.display = matchFound ? '' : 'none';
+            }
+        }
+
+        function filtrarPorFecha() {
+            const dateFilter = document.getElementById('dateFilter').value;
+            if (dateFilter) {
+                obtenerManifiestos(dateFilter);
+            } else {
+                alert("Por favor, selecciona una fecha.");
+            }
+        }
+    </script>
+}

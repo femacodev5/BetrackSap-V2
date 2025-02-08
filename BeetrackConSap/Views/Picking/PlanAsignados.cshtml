@@ -1,0 +1,290 @@
+﻿@{
+    ViewData["Title"] = "Productos del Plan";
+}
+
+<div class="container d-flex justify-content-center align-items-center min-vh-100">
+    <div class="card" style="width: 100%; max-width: 900px;">
+        <div class="card-body">
+            <h1 class="text-center mb-4">Productos del Plan <span id="plan-id"></span></h1>
+            <table class="table text-center">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Descripcion</th>
+                        <th>Fabricante</th>
+                        <th>MedidaBase</th>
+                        <th>Cantidad</th>
+                        <th>Pickador</th>
+                    </tr>
+                </thead>
+                <tbody id="productos-asignados-body">
+                    <tr>
+                        <td colspan="6">Cargando productos asignados...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+
+<div class="modal fade" id="modal-asignar" tabindex="-1" role="dialog" aria-labelledby="modalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalLabel">Asignar Pickeador</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="select-pickeador">Seleccionar Pickeador</label>
+                    <select id="select-pickeador" class="form-control">
+                        <option value="">Seleccione un pickeador</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" id="guardar-asignacion" class="btn btn-primary">Guardar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(() => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const idPlan = urlParams.get('id');
+            $('#plan-id').text(idPlan);
+            //cargarProductos(idPlan);
+            cargarPersonal();
+            cargarProductosAsignados(idPlan);
+
+            $('#btn-asignar').click(() => {
+                $('#modal-asignar').modal('show');
+            });
+            $('#guardar-asignacion').click(() => {
+                const selectedProductos = [];
+                $('#productos-body input[type="checkbox"]:checked').each(function () {
+                    const productoId = String($(this).data('id'));
+                    const cantidad = $(this).closest('tr').find('td:nth-child(6)').text();
+                    selectedProductos.push({ id: productoId, cantidad: cantidad });
+                });
+
+                const pickeadorId = $('#select-pickeador').val();
+                const idPlan = urlParams.get('id');
+
+                if (selectedProductos.length > 0 && pickeadorId) {
+                    guardarProductosAsignados(selectedProductos, pickeadorId, idPlan);
+                } else {
+                    alert('Por favor, seleccione al menos un producto y un pickeador.');
+                }
+            });
+        });
+
+
+
+        const cargarProductos = async (idPlan) => {
+            try {
+                const response = await fetch(`/Picking/ObtenerProductoPlan?ID=${idPlan}`);
+                const data = await response.json();
+
+                const $productosBody = $('#productos-body');
+                $productosBody.empty();
+
+                const groupedProducts = data.reduce((acc, producto) => {
+                    const pesado = producto.pesado ? 'Pesado' : 'Liviano';
+                    if (!acc[pesado]) {
+                        acc[pesado] = {};
+                    }
+                    if (!acc[pesado][producto.fabricante]) {
+                        acc[pesado][producto.fabricante] = [];
+                    }
+                    acc[pesado][producto.fabricante].push(producto);
+                    return acc;
+                }, {});
+
+                let productCounter = 0;
+
+                for (const [pesado, fabricantes] of Object.entries(groupedProducts)) {
+                    $productosBody.append(`
+                                <tr>
+                                    <td colspan="6"><strong>${pesado}</strong> <input type="checkbox" class="check-all" data-pesado="${pesado}"></td>
+                                </tr>
+                            `);
+
+                    for (const [fabricante, productos] of Object.entries(fabricantes)) {
+                        $productosBody.append(`
+                                    <tr>
+                                        <td colspan="5"><strong>${fabricante}</strong> <input type="checkbox" class="check-all-fabricante" data-pesado="${pesado}" data-fabricante="${fabricante}"></td>
+                                    </tr>
+                                `);
+
+                        productos.forEach(producto => {
+                            productCounter++;
+                            $productosBody.append(`
+                                        <tr>
+                                            <td><input type="checkbox" data-id="${producto.idProducto}" class="producto-checkbox" data-pesado="${pesado}" data-fabricante="${fabricante}"></td>
+                                            <td>${productCounter}</td>
+                                            <td>${producto.idProducto}</td>
+                                            <td>${producto.descripcion}</td>
+                                            <td>${producto.medidaBase}</td>
+                                            <td>${producto.totalCantidad}</td>
+                                        </tr>
+                                    `);
+                        });
+                    }
+                }
+
+                $('.check-all').change(function () {
+                    const pesado = $(this).data('pesado');
+                    const isChecked = $(this).is(':checked');
+                    $productosBody.find(`.check-all-fabricante[data-pesado="${pesado}"]`).prop('checked', isChecked);
+                    $productosBody.find(`.producto-checkbox[data-pesado="${pesado}"]`).prop('checked', isChecked);
+
+                    const hasCheckedItems = $productosBody.find('.producto-checkbox:checked').length > 0;
+                    if (hasCheckedItems) {
+                        $('#btn-asignar').prop('disabled', false);
+                    } else {
+                        $('#btn-asignar').prop('disabled', true);
+                    }
+                });
+
+                $('.check-all-fabricante').change(function () {
+                    const fabricante = $(this).data('fabricante');
+                    const pesado = $(this).data('pesado');
+                    const isChecked = $(this).is(':checked');
+                    $productosBody.find(`.producto-checkbox[data-pesado="${pesado}"][data-fabricante="${fabricante}"]`).prop('checked', isChecked);
+                
+                    const hasCheckedItems = $productosBody.find('.producto-checkbox:checked').length > 0;
+                    if (hasCheckedItems) {
+                        $('#btn-asignar').prop('disabled', false);
+                    } else {
+                        $('#btn-asignar').prop('disabled', true);
+                    }
+                });
+
+            } catch (error) {
+                console.error('Error al cargar los productos:', error);
+                $('#productos-body').html('<tr><td colspan="4">Error al cargar los productos.</td></tr>');
+            }
+        };
+
+        // const cargarProductos = async (idPlan) => {
+        //     try {
+        //         const response = await fetch(`/Picking/ObtenerProductoPlan?ID=${idPlan}`);
+        //         const data = await response.json();
+
+        //         const $productosBody = $('#productos-body');
+        //         $productosBody.empty();
+
+        //         const groupedProducts = data.reduce((acc, producto) => {
+        //             const fabricante = producto.fabricante;
+        //             if (!acc[fabricante]) {
+        //                 acc[fabricante] = [];
+        //             }
+        //             acc[fabricante].push(producto);
+        //             return acc;
+        //         }, {});
+        //         let productCounter = 0;
+        //         for (const [fabricante, productos] of Object.entries(groupedProducts)) {
+        //             $productosBody.append(`
+        //                 <tr>
+        //                             <td colspan="5"><strong>${fabricante}</strong> <input type="checkbox" class="check-all" data-fabricante="${fabricante}"></td>
+        //                 </tr>
+        //             `);
+
+        //             productos.forEach(producto => {
+        //                 productCounter++;
+        //                 $productosBody.append(`
+        //                     <tr>
+        //                         <td><input type="checkbox" data-id="${producto.idProducto}" class="producto-checkbox" data-fabricante="${fabricante}"></td>
+        //                         <td>${productCounter}</td>
+        //                         <td>${producto.idProducto}</td>
+        //                         <td>${producto.descripcion}</td>
+        //                         <td>${producto.medidaBase}</td>
+        //                         <td>${producto.totalCantidad}</td>
+        //                     </tr>
+        //                 `);
+        //             });
+        //         }
+
+        //         $('.check-all').change(function () {
+        //             const fabricante = $(this).data('fabricante');
+        //             const isChecked = $(this).is(':checked');
+        //             $productosBody.find(`.producto-checkbox[data-fabricante="${fabricante}"]`).prop('checked', isChecked);
+        //         });
+
+        //     } catch (error) {
+        //         console.error('Error al cargar los productos:', error);
+        //         $('#productos-body').html('<tr><td colspan="4">Error al cargar los productos.</td></tr>');
+        //     }
+        // };
+
+
+        const cargarProductosAsignados = async (idPlan) => {
+            try {
+                const response = await fetch(`/Picking/ObtenerProductoAsignado?ID=${idPlan}`);
+                const data = await response.json();
+
+                const $productosAsignadosBody = $('#productos-asignados-body');
+                $productosAsignadosBody.empty();
+                data.forEach(producto => {
+                    $productosAsignadosBody.append(`
+                                        <tr>
+                                            <td>${producto.idProducto}</td>
+                                            <td>${producto.descripcion}</td>
+                                            <td>${producto.fabricante}</td>
+                                            <td>${producto.medidaBase}</td>
+                                            <td>${producto.totalCantidad}</td>
+                                            <td>${producto.nombre}</td>
+                                        </tr>
+                                    `);
+                });
+            } catch (error) {
+                console.error('Error al cargar los productos asignados:', error);
+                $('#productos-asignados-body').html('<tr><td colspan="3">Error al cargar los productos asignados.</td></tr>');
+            }
+        };
+
+        const guardarProductosAsignados = async (productos, pickeadorId, idPlan) => {
+            try {
+                const response = await fetch('/Picking/GuardarProductosAsignados', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ productos, pickeadorId, idPlan }),
+                });
+                const result = await response.json();
+                if (result.success) {
+                    $('#modal-asignar').modal('hide');
+                    cargarProductos(idPlan);
+                    cargarProductosAsignados(idPlan);
+                } else {
+                    alert('Error al guardar la asignación.');
+                }
+            } catch (error) {
+                console.error('Error al guardar los productos asignados:', error);
+            }
+        };
+
+        const cargarPersonal = async () => {
+            try {
+                const response = await fetch('/Picking/CargarPersonalPickeo');
+                const personal = await response.json();
+
+                let selectpersonalOptions = `<option value="0">Elije un Pickeador</option>`;
+                personal.forEach(tipo => {
+                    selectpersonalOptions += `<option value="${tipo.IDPP}">${tipo.Nombre}</option>`;
+                });
+
+                $("#select-pickeador").html('').append(selectpersonalOptions);
+            } catch (e) {
+                console.error(e);
+                Swal.fire('Error', 'Ocurrió un error al cargar el personal', 'info');
+            }
+        };
+    </script>
+}

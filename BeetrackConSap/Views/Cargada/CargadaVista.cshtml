@@ -1,0 +1,75 @@
+﻿@{
+    ViewData["Title"] = "Cargada Vista";
+}
+<div class="container">
+    <h1>Placas a Cargar <span id="plan-id"></span></h1>
+
+    <div class="card border-0">
+        <div class="card-body">
+            <table class="table" style="text-align:center">
+                <thead>
+                    <tr>
+                        <th>N°</th>
+                        <th>Placa</th>
+                        <th>Acción</th>
+                    </tr>
+                </thead>
+                <tbody id="placas-body">
+                    <tr>
+                        <td colspan="3">Cargando productos...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(() => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const idPlan = urlParams.get('id');
+            $('#plan-id').text(idPlan);
+            cargarPlacas(idPlan);
+        });
+
+        const cargarPlacas = async (idPlan) => {
+            try {
+                const response = await fetch(`/Cargada/ObtenerPlacaPlan`);
+                const data = await response.json();
+
+                const $placasBody = $('#placas-body');
+                $placasBody.empty();
+                data.forEach((pla, index) => {
+                    const buttonClass = pla.cargar === 1 ? 'btn-warning' : 'btn-secondary';
+                    const buttonText = pla.cargar === 1 ? 'Pendiente Cargada' : 'Falta Enviar';
+                    const buttonDisabled = pla.cargar === 0 ? 'disabled' : '';
+                    const boton = pla.cargado === 1
+                        ? `<button class="btn btn-success">Cargado</button>`
+                        : `<button class="btn ${buttonClass} detalles-btn" data-id="${pla.idPlanPla}" ${buttonDisabled}><i class='bx bx-search'></i> ${buttonText}</button>`;
+
+                    $placasBody.append(`
+                                        <tr>
+                                            <td>${index + 1}</td>
+                                            <td>${pla.placa}</td>
+                                            <td>${boton}</td>
+                                        </tr>
+                                    `);
+                });
+
+                $('.detalles-btn').click(function () {
+                    const idPlan = $(this).data('id');
+                    window.location.href = `/Cargada/CargadaProductos?id=${idPlan}`;
+                });
+                $('.cargaincom-btn').click(function () {
+                    const idPlan = $(this).data('id');
+                    window.location.href = `/Cargada/CargadaProductos?id=${idPlan}`;
+                });
+
+            } catch (error) {
+                console.error('Error al cargar los productos:', error);
+                $('#placas-body').html('<tr><td colspan="3">Error al cargar los productos.</td></tr>');
+            }
+        };
+    </script>
+}

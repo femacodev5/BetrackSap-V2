@@ -1,0 +1,410 @@
+﻿@{
+    ViewData["Title"] = "Placas del Plan";
+}
+<div class="container">
+    <h1>Placas del Plan <span id="plan-id"></span></h1>
+
+    <div class="row justify-content-center">
+        <div class="col-12 col-md-8">
+            <div class="card border-0">
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table" style="text-align:center">
+                            <thead>
+                                <tr>
+                                    <th>N°</th>
+                                    <th>Placa</th>
+                                    <th>Jefe de Grupo</th>
+                                    <th>Asignar</th>
+                                    <th>Accion</th>
+                                </tr>
+                            </thead>
+                            <tbody id="placas-body">
+                                <tr>
+                                    <td colspan="3">Cargando productos...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="coordinadorModal" tabindex="-1" role="dialog" aria-labelledby="coordinadorModalLabel" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="coordinadorModalLabel">Detalles de la Placa</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <table class="table" id="detalles-table">
+                        <thead>
+                            <tr>
+                                <th>Descripción</th>
+                                <th>Cantidad</th>
+                                <th>Cantida Picada</th>
+                                <th>Diferencia</th>
+                            </tr>
+                        </thead>
+                        <tbody id="detalles-body">
+                            <tr>
+                                <td colspan="4">Cargando detalles...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="confirmar-envio">Enviar a Coordinador</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="modal fade" id="jefeDeGrupoModal" tabindex="-1" role="dialog" aria-labelledby="jefeDeGrupoModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="jefeDeGrupoModalLabel">Asignar Jefe de Grupo</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <label for="select-pickeador">Seleccione un Jefe de grupo:</label>
+                <select id="select-pickeador" class="form-control"></select>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="guardar-jefe">Guardar Jefe</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="detallesModal" tabindex="-1" aria-labelledby="detallesModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="detallesModalLabel">Detalles del Subregistro</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="modal-body-detalles">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(() => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const idPlan = urlParams.get('id');
+            $('#plan-id').text(idPlan);
+            cargarPlacas(idPlan);
+        });
+
+        const cargarPlacas = async (idPlan) => {
+            try {
+                const response = await fetch(`/Picking/ObtenerPlacaPlan?ID=${idPlan}`);
+                const data = await response.json();
+
+                const $placasBody = $('#placas-body');
+                $placasBody.empty();
+
+                const groupedData = data.reduce((acc, pla) => {
+                    if (!acc[pla.placa]) {
+                        acc[pla.placa] = [];
+                    }
+                    acc[pla.placa].push(pla);
+                    return acc;
+                }, {});
+
+                Object.entries(groupedData).forEach(([placa, registros], index) => {
+                    const primeraPlaca = registros[0];
+                    const buttoncolor = primeraPlaca.idPick === 0 ? 'secondary' : (primeraPlaca.pendientes === 0 ? 'success': 'warning');
+
+                    const enviarBoton = primeraPlaca.items === primeraPlaca.finalizados && primeraPlaca.items > 0 && primeraPlaca.usuario
+                        ? `<button class="btn btn-success enviar-btn" data-id="${primeraPlaca.idPlanPla}" hidden>Enviar a Coordinador</button>`
+                        : '';
+
+                    const asignarBtn = primeraPlaca.usuario
+                        ? `<button class="btn btn-${buttoncolor} planificar-btn" data-id="${primeraPlaca.idPlanPla}"><i class='bx bx-search'></i> Asignar</button>
+                           <button class="btn btn-${buttoncolor} asignados-btn" data-id="${primeraPlaca.idPlanPla}"><i class='bx bx-search'></i> Asignados</button>
+                           <button class="btn btn-${buttoncolor} detalles-btn" data-id="${primeraPlaca.idPlanPla}" hidden><i class='bx bx-search'></i> Detalle</button>`
+                        : '';
+
+                    const asignarJefeBoton = (!primeraPlaca.usuario || primeraPlaca.usuario.trim() === '')
+                        ? `<button class="btn btn-secondary asignar-jefe-btn" data-id="${primeraPlaca.idPlanPla}">Asignar Jefe de Grupo</button>`
+                        : (primeraPlaca.idPick === 0? `<button class="btn btn-success asignar-jefe-btn" data-id="${primeraPlaca.idPlanPla}">Editar Jefe de Grupo</button>`: '');
+
+                    const enviado = primeraPlaca.enviado === 0
+                        ? `<td>${asignarBtn}</td>
+                           <td>${enviarBoton} ${asignarJefeBoton}</td>`
+                        : `<td></td>
+                           <td><button class="btn btn-secondary">En Coordinador</button></td>`;
+
+                    const jefe = primeraPlaca.jefe === null ? 'Falta Asignar' : primeraPlaca.jefe;
+                    const $mainRow = $(`
+                        <tr class="main-row" style="cursor: pointer;">
+                            <td>${index + 1}</td>
+                            <td>${placa}</td>
+                            <td>${jefe}</td>
+                            ${enviado}
+                        </tr>
+                    `);
+
+                    $placasBody.append($mainRow);
+
+                    if (registros.length > 0) {
+                        const $subTable = $(`
+                            <tr class="subtable" style="display: none;">
+                                <td colspan="5">
+                                    <table class="table">
+                                        <thead>
+                                        </thead>
+                                        <tbody></tbody>
+                                    </table>
+                                </td>
+                            </tr>
+                        `);
+                        const $subTableBody = $subTable.find('tbody');
+
+                        registros.forEach((reg) => {
+                            if (reg.nombre === null){
+                                reg.nombre = "Ninguno";
+                            }
+                            const estadodetalle = reg.contados === 0 ? 'secondary' : (reg.acontar === reg.contados ? 'success':'warning');
+                            $subTableBody.append(`
+                                <tr>
+                                    <td colspan="4">${reg.nombre}</td>
+                                    <td><button class="btn btn-${estadodetalle} detalles-subregistro-btn" data-id="${reg.idPick}" data-plan="${reg.idPlanPla}">Detalles</button></td>
+                                </tr>`);
+                        });
+
+                        $placasBody.append($subTable);
+
+                        $mainRow.click(() => {
+                            $subTable.toggle();
+                        });
+                    }
+
+                });
+
+                $('.planificar-btn').click(function () {
+                    const idPlan = $(this).data('id');
+                    window.location.href = `/Picking/PlanProductos?id=${idPlan}`;
+                });
+
+                $('.asignados-btn').click(function () {
+                    const idPlan = $(this).data('id');
+                    window.location.href = `/Picking/PlanAsignados?id=${idPlan}`;
+                });
+
+                $('.detalles-subregistro-btn').click(async function () {
+                    const idPick = $(this).data('id');
+                    const idPlan = $(this).data('plan');
+                    await mostrarDetallespick(idPick, idPlan);
+                });
+
+
+                $('.detalles-btn').click(function () {
+                    const idPlan = $(this).data('id');
+                    window.location.href = `/Picking/PickDetalles?id=${idPlan}`;
+                });
+
+                $('.asignar-jefe-btn').click(async function () {
+                    const idPlanPla = $(this).data('id');
+                    await cargarPersonal();
+                    $('#jefeDeGrupoModal').data('id', idPlanPla).modal('show');
+                });
+
+                $('.enviar-btn').click(async function () {
+                    const idPlanPla = $(this).data('id');
+                    await mostrarDetalles(idPlanPla);
+                });
+
+            } catch (error) {
+                console.error('Error al cargar los productos:', error);
+                $('#placas-body').html('<tr><td colspan="4">Error al cargar los productos.</td></tr>');
+            }
+        };
+
+        const mostrarDetallespick = async (idPick, idPlan) => {
+            try {
+                const response = await fetch(`/Picking/ConsultarDetallePickeador?idPick=${idPick}&Plan=${idPlan}`);
+                const data = await response.json();
+
+                const $modalBody = $('#modal-body-detalles'); 
+                $modalBody.empty();
+
+                const $table = $('<table class="table"></table>');
+                const $thead = $('<thead><th>N°</th><th>Código</th><th>Producto</th><th>Cantidad</th><th>Cantidad Contada</th><th>Cantidad Pendiente</th></thead>');
+                const $tbody = $('<tbody></tbody>');
+
+                data.forEach((prod, index) => {
+                    const cantidadPendiente = prod.cantidad - (prod.cantidadContada || 0);
+                    const rowClass = (prod.cantidadContada < prod.cantidad) ? 'table-danger' :
+                        (prod.cantidadContada > prod.cantidad) ? 'table-success' : '';
+
+                    $tbody.append(`
+                        <tr class="${rowClass}" style="text-align:center">
+                            <td>${index + 1}</td>
+                            <td>${prod.idProducto}</td>
+                            <td>${prod.descripcion}</td>
+                            <td>${prod.cantidad}</td>
+                            <td>${prod.cantidadContada || 0}</td>
+                            <td>${cantidadPendiente}</td>
+                        </tr>
+                    `);
+                });
+
+                $table.append($thead).append($tbody);
+                $modalBody.append($table);
+
+                $('#detallesModal').modal('show');
+
+            } catch (error) {
+                console.error('Error al consultar los detalles del pickeador:', error);
+            }
+        };
+
+
+        const mostrarDetalles = async (idPlanPla) => {
+            try {
+                const response = await fetch(`/Picking/ObtenerDataPickeado?id=${idPlanPla}`);
+                const detalles = await response.json();
+
+                const $detallesBody = $('#detalles-body');
+                $detallesBody.empty();
+
+                const groupedData = detalles.reduce((acc, detalle) => {
+                    if (!acc[detalle.nombre]) {
+                        acc[detalle.nombre] = [];
+                    }
+                    acc[detalle.nombre].push(detalle);
+                    return acc;
+                }, {});
+
+                for (const nombre in groupedData) {
+                    const items = groupedData[nombre];
+                    const totalCantidad = items.reduce((sum, item) => sum + item.cantidad, 0);
+                    const totalCantidaPicada = items.reduce((sum, item) => sum + item.cantidadPicada, 0);
+                    const totalDiferencia = totalCantidad - totalCantidaPicada;
+
+                    $detallesBody.append(`
+                        <tr>
+                            <td colspan="2" class="font-weight-bold">${nombre}</td>
+                            <td colspan="2" class="font-weight-bold">${totalDiferencia}</td>
+                        </tr>
+                    `);
+
+                    items.forEach(detalle => {
+                        const rowClass = detalle.diferencia === 0 ? 'table-success' : 'table-danger';
+
+                        $detallesBody.append(`
+                            <tr class="${rowClass}">
+                                <td>${detalle.descripcion}</td>
+                                <td>${detalle.cantidad}</td>
+                                <td>${detalle.cantidadPicada}</td>
+                                <td>${detalle.diferencia}</td>
+                            </tr>
+                        `);
+                    });
+                }
+
+                $('#coordinadorModal').modal('show');
+                $('#confirmar-envio').data('id', idPlanPla);
+
+            } catch (error) {
+                console.error('Error al cargar los detalles:', error);
+                $('#detalles-body').html('<tr><td colspan="4">Error al cargar los detalles.</td></tr>');
+            }
+        };
+
+
+
+        $('#confirmar-envio').click(async function () {
+            const idPlanPla = $(this).data('id');
+            const confirm = await Swal.fire({
+                title: '¿Está seguro?',
+                text: "¿Desea enviar la placa al coordinador?",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Sí, enviar',
+                cancelButtonText: 'Cancelar'
+            });
+
+            if (confirm.isConfirmed) {
+                await enviarACoordinador(idPlanPla);
+            }
+        });
+
+        $('#guardar-jefe').click(async function () {
+            const idPlanPla = $('#jefeDeGrupoModal').data('id'); 
+            const idPickeador = $('#select-pickeador').val(); 
+
+            if (idPickeador === '0') {
+                Swal.fire('Advertencia', 'Por favor elija un Jefe de grupo.', 'warning');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/Picking/GuardarJefePlaca?idPlanPla=${idPlanPla}&idPickeador=${idPickeador}`, {
+                    method: 'POST'
+                });
+
+                if (response.ok) {
+                    Swal.fire('Éxito', 'Jefe de Grupo asignado correctamente.', 'success');
+                    const idPlan = new URLSearchParams(window.location.search).get('id');
+                    cargarPlacas(idPlan); 
+                    $('#jefeDeGrupoModal').modal('hide'); 
+                } else {
+                    throw new Error('Error al guardar el jefe de placa.');
+                }
+            } catch (error) {
+                console.error('Error al guardar el jefe de placa:', error);
+                Swal.fire('Error', 'Error al guardar el jefe de placa.', 'error');
+            }
+        });
+
+        const enviarACoordinador = async (idPlanPla) => {
+            try {
+                const response = await fetch(`/Picking/EnviarACoordinador?idPlanPla=${idPlanPla}`, {
+                    method: 'POST'
+                });
+
+                if (response.ok) {
+                    Swal.fire('Éxito', 'Placa enviada al coordinador.', 'success');
+                    const idPlan = new URLSearchParams(window.location.search).get('id');
+                    cargarPlacas(idPlan);
+                    $('#coordinadorModal').modal('hide'); 
+                } else {
+                    throw new Error('Error al enviar la placa al coordinador.');
+                }
+            } catch (error) {
+                console.error('Error al enviar la placa al coordinador:', error);
+                Swal.fire('Error', 'Error al enviar la placa al coordinador.', 'error');
+            }
+        };
+        const cargarPersonal = async () => {
+            try {
+                const response = await fetch('/Picking/CargarPersonalJefes');
+                const personal = await response.json();
+
+                let selectpersonalOptions = `<option value="0">Elije un Pickeador</option>`;
+                personal.forEach(tipo => {
+                    selectpersonalOptions += `<option value="${tipo.IDPP}">${tipo.Nombre}</option>`;
+                });
+
+                $("#select-pickeador").html('').append(selectpersonalOptions);
+            } catch (e) {
+                console.error(e);
+                Swal.fire('Error', 'Ocurrió un error al cargar el personal', 'info');
+            }
+        };
+    </script>
+}
