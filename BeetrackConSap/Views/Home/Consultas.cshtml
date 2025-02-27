@@ -23,6 +23,7 @@
 </style>
 
 <div class="container mt-4">
+
     <div class="row">
         <div class="col-md-6">
             <div class="mb-3">
@@ -63,12 +64,28 @@
         <div class="col-md-6">
             <div class="mb-3">
                 <label for="territorio" class="form-label">Territorio:</label>
+                <span id="identifalmacen" style="display:none;">@User.Identity.Name @User.FindFirst("Almacen")?.Value</span>
                 <select class="form-select" name="territorio" id="territorio" autocomplete="off" multiple>
-
                     @foreach (var territorio in ViewBag.Territorios) {
-                        <option value="@territorio.Value">@territorio.Text </option>
+                        @if (User.FindFirst("Almacen")?.Value == "MQGCNT") {
+                            if (territorio.Text == "T. MOQUEGUA" || territorio.Text == "T. TACNA") {
+                                <option value="@territorio.Value">@territorio.Text</option>
+                            }
+                        } else if (User.FindFirst("Almacen")?.Value == "CENTRAL") {
+                            if (territorio.Text == "T. AREQUIPA CITY" || territorio.Text == "T. AREQUIPA PROV" || territorio.Text == "T. PUNO") {
+                                <option value="@territorio.Value">@territorio.Text</option>
+                            }
+                        } else if (User.FindFirst("Almacen")?.Value == "ALMCUSCO") {
+                            if (territorio.Text == "T. CUSCO" || territorio.Text == "T. MADRE DE DIOS") {
+                                <option value="@territorio.Value">@territorio.Text</option>
+                            }
+                        } else {
+                            <option value="@territorio.Value">@territorio.Text</option>
+                        }
                     }
                 </select>
+
+
             </div>
             <div class="mb-3">
                 <label for="zonarep" class="form-label">Zona de Reparto:</label>
@@ -100,8 +117,9 @@
     </div>
 
     <div class="d-flex justify-content-center mt-4">
-        <button class="btn btn-success mx-2" id="btnEnviar" hidden><i class="bx bx-send"></i> Enviar a Planner</button>
         <button class="btn btn-primary mx-2" id="btnBuscar"><i class="bx bx-search"></i> Cargar Pedidos SAP</button>
+        <button class="btn btn-success mx-2" id="btnEnviar" hidden><i class="bx bx-send"></i> Enviar a Planner</button>
+
         <button class="btn btn-secondary mx-2" id="btnProvincia" hidden><i class="bx bx-shield-plus"></i> Planificar Provincia</button>
     </div>
 
@@ -436,9 +454,9 @@
                     document.getElementById('inputdiferencia').value = diferencia.toFixed(3);
 
                     if (diferencia < 0) {
-                        document.getElementById('inputdiferencia').style.backgroundColor = '#BC7C7C'; //Peso Placa acumulado
+                        document.getElementById('inputdiferencia').style.backgroundColor = '#BC7C7C'; 
                     } else {
-                        document.getElementById('inputdiferencia').style.backgroundColor = '#A5B68D'; //Peso Placa acumulado
+                        document.getElementById('inputdiferencia').style.backgroundColor = '#A5B68D'; 
                     }
 
                     let allMatch = d.every(item => item.fechamaxentrega === formattedHastavenc);
@@ -525,10 +543,7 @@
             let alerts = parseInt(document.getElementById("inputalerta").value) || 0;
             function checkButtonVisibility() {
                 const sumatoriaValue = parseFloat(sumatoriaPes.textContent) || 0;
-                console.log("--->", alerts);
-                console.log("--->", sumatoriaValue);
-                console.log("--->", selectPlacas.value);
-                console.log("----------------------------");
+
 
 
                 if (alerts === 0) {
@@ -543,7 +558,6 @@
                         } else {
                             btnEnviar.hidden = true;
                             btnProvincia.hidden = false;
-                            console.log("planner ");
                         }
                     }
                 }
@@ -610,7 +624,7 @@
                         Capacidad: $(`#selectplacas option[value="${placaSeleccionada}"]`).data("peso").toString(),
                         Pedidos: selectedRows
                     };
-
+                    console.log("datos para enviar", datos);
                     fetch('/Home/GenerarPlanificacionProvincia', {
                         method: 'POST',
                         headers: {

@@ -10,11 +10,13 @@ using Newtonsoft.Json;
 using System.Security.Claims;
 using NPOI.SS.Formula.Functions;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
+using MySqlX.XDevAPI.Common;
+using System.Numerics;
 
 
 namespace BeetrackConSap.Controllers {
     public class PickingController : Controller {
-        
+
         private string usuario;
         private string clave;
         private string puesto;
@@ -408,7 +410,7 @@ namespace BeetrackConSap.Controllers {
             }
         }
 
-     
+
         [HttpGet]
         public async Task<IActionResult> ObtenerProductoAsignado(int ID) {
             using (var connection = new SqlConnection(_connectionString)) {
@@ -440,11 +442,28 @@ namespace BeetrackConSap.Controllers {
                 return Ok(result);
             }
         }
-         
+
         [HttpGet]
         public async Task<IActionResult> ConsultarDetallePickeador(int idPick, int Plan) {
-            using (var connection = new SqlConnection(_connectionString)) {
+            /////////
+            var result2 = "";
+
+            using (var connection1 = new SqlConnection(_connectionString)) {
                 string query = @"
+                        SELECT T1.Tipo 
+                        FROM PlanificacionTraslado T0 
+                        INNER JOIN CodigosBeetrack T1 ON T0.IDPlanTraslado = T1.IDPlan 
+                        INNER JOIN PlanificacionPlacaTransferencia T2 ON T2.IDPlan = T1.IDPlan 
+                        WHERE T2.IDPlanPla = @Plan"
+                ;
+
+                var parameters = new { Plan = Plan };
+                result2 = await connection1.QueryFirstOrDefaultAsync<string>(query, parameters);
+
+            }
+            if (result2 == "Transferencia") {
+                using (var connection = new SqlConnection(_connectionString)) {
+                    string query = @"
                     SELECT 
                     T0.IDProducto,
                     T0.IDPProducto,
@@ -463,7 +482,7 @@ namespace BeetrackConSap.Controllers {
                     T0.Aceptado
                     FROM PickeoProducto T0
                     INNER JOIN PickeoPersonal T1 ON T1.IDPP = T0.IDPick
-                    LEFT JOIN PlacaPedido T2 ON T2.IDProducto = T0.IDProducto
+                    LEFT JOIN PlacaPedidoTransferencia T2 ON T2.IDProducto = T0.IDProducto AND T0.IDPlaca = T2.IDPlanPla
                     WHERE 
                     T0.IDPlaca = @Plan
                     AND T0.IDPick = @idPick
@@ -481,10 +500,56 @@ namespace BeetrackConSap.Controllers {
                     T0.Reconteo,
                     T0.Aceptado";
 
-                var parameters = new { idPick, Plan };
-                var result = await connection.QueryAsync<ProductosContador>(query, parameters);
-                return Ok(result);
+                    var parameters = new { idPick, Plan };
+                    var result = await connection.QueryAsync<ProductosContador>(query, parameters);
+                    return Ok(result);
+                }
+            } else {
+                using (var connection = new SqlConnection(_connectionString)) {
+                    string query = @"
+                    SELECT 
+                    T0.IDProducto,
+                    T0.IDPProducto,
+                    T0.Cantidad AS Cantidad, 
+                    MAX(T2.Descripcion) AS Descripcion,
+                    T2.SL1Code,
+                    T2.SL2Code,
+                    T2.SL3Code,
+                    T2.SL4Code,
+                    T2.Fabricante,
+                    T2.StockActual AS StockAct,
+                    (SELECT SUM(P1.Cantidad*P1.Factor) FROM PickeoProductoIngresado P1 WHERE P1.IDPProducto = T0.IDPProducto) AS CantidadContada,
+                    (SELECT COUNT(P2.IDPIngresado) FROM PickeoProductoIngresado P2 WHERE P2.IDPProducto = T0.IDPProducto) AS Iniciado,
+                    T0.Finalizado,
+                    T0.Reconteo,
+                    T0.Aceptado
+                    FROM PickeoProducto T0
+                    INNER JOIN PickeoPersonal T1 ON T1.IDPP = T0.IDPick
+                    LEFT JOIN PlacaPedido T2 ON T2.IDProducto = T0.IDProducto AND T0.IDPlaca = T2.IDPlanPla
+                    WHERE 
+                    T0.IDPlaca = @Plan
+                    AND T0.IDPick = @idPick
+                    GROUP BY 
+                    T0.IDProducto,
+                    T0.IDPProducto,
+                    T0.Cantidad,
+                    T2.SL1Code,
+                    T2.SL2Code,
+                    T2.SL3Code,
+                    T2.SL4Code,
+                    T2.StockActual,
+                    T2.Fabricante,
+                    T0.Finalizado,
+                    T0.Reconteo,
+                    T0.Aceptado";
+
+                    var parameters = new { idPick, Plan };
+                    var result = await connection.QueryAsync<ProductosContador>(query, parameters);
+                    return Ok(result);
+                }
             }
+
+
         }
 
         [HttpGet]
@@ -625,24 +690,145 @@ namespace BeetrackConSap.Controllers {
 
         [HttpGet]
         public async Task<IActionResult> ObtenerProductosContador(int idContador, int idPlan) {
-            using (var connection = new SqlConnection(_connectionString)) {
+            ////////
+            var result2 = "";
 
-                string almacenQuery = @"
+            using (var connection1 = new SqlConnection(_connectionString)) {
+                string query = @"
+                        SELECT T1.Tipo 
+                        FROM PlanificacionTraslado T0 
+                        INNER JOIN CodigosBeetrack T1 ON T0.IDPlanTraslado = T1.IDPlan 
+                        INNER JOIN PlanificacionPlacaTransferencia T2 ON T2.IDPlan = T1.IDPlan 
+                        WHERE T2.IDPlanPla = @idPlan"
+                ;
+
+                var parameters = new { idPlan = idPlan };
+
+                result2 = await connection1.QueryFirstOrDefaultAsync<string>(query, parameters);
+
+            }
+            if (result2 == "Transferencia") {
+                using (var connection = new SqlConnection(_connectionString)) {
+
+                    string almacenQuery = @"
+SELECT TOP 1 T0.AlmacenTraslado 
+FROM PlanificacionTraslado T0 
+INNER JOIN PlanificacionPlacaTransferencia T1 ON T1.IDPlan = T0.IDPlanTraslado 
+WHERE IDPlanPla = @idPlan";
+
+                    var almacenParam = new { idPlan };
+                    var almacenResult = await connection.QuerySingleOrDefaultAsync<string>(almacenQuery, almacenParam);
+
+                    if (almacenResult == null) {
+                        return BadRequest("No se encontró el almacén para el IDPlan proporcionado.");
+                    }
+
+                    string almacen = almacenResult;
+
+                    string query = @"
+                    SELECT 
+                    T0.IDProducto,
+                    T0.IDPProducto,
+                    T0.Cantidad AS Cantidad, 
+                    T0.Finalizado,
+                    MAX(T2.Descripcion) AS Descripcion,
+                    T2.SL1Code,
+                    T2.SL2Code,
+                    T2.SL3Code,
+                    T2.SL4Code,
+                    T2.CodigoFabricante,
+                    T2.AbsEntry,
+                    T2.Ubicacion,
+                    T2.StockActual AS StockGuardado,
+                    (SELECT SUM(P1.Cantidad*P1.Factor) FROM PickeoProductoIngresado P1 WHERE P1.IDPProducto = T0.IDPProducto) AS CantidadContada,
+                    (SELECT COUNT(P2.IDPIngresado) FROM PickeoProductoIngresado P2 WHERE P2.IDPProducto = T0.IDPProducto) AS Iniciado,
+                    T2.MedidaBase
+                    FROM PickeoProducto T0
+                    INNER JOIN PickeoPersonal T1 ON T1.IDPP = T0.IDPick
+                    LEFT JOIN PlacaPedidoTransferencia T2 ON T2.IDProducto = T0.IDProducto AND T2.IDPlanPla = T0.IDPlaca
+                    WHERE 
+                    T0.IDPlaca = @idPlan
+                    AND T0.IDPick = @idContador
+                    GROUP BY 
+                    T0.IDProducto,
+                    T0.IDPProducto,
+                    T0.Cantidad,
+                    T0.Finalizado,
+                    T2.SL1Code,
+                    T2.SL2Code,
+                    T2.SL3Code,
+                    T2.SL4Code,
+                    T2.CodigoFabricante,
+                    T2.AbsEntry,
+                    T2.StockActual,
+                    T2.Ubicacion,
+                    T2.MedidaBase
+                    ORDER BY T2.SL1Code,T2.SL2Code, T2.SL3Code, T2.SL4Code";
+
+                    var parameters = new { idContador, idPlan };
+                    var productos = await connection.QueryAsync<ProductosContador>(query, parameters);
+
+                    HanaConnection hanaConnection = new(_hanaConnectionString);
+
+                    try {
+                        await hanaConnection.OpenAsync();
+
+                        foreach (var producto in productos) {
+                            string hanaQuery = """
+                             SELECT T0."OnHand", T1."IWeight1"
+                             FROM OITW T0
+                             INNER JOIN OITM T1 ON T0."ItemCode" = T1."ItemCode"
+                             WHERE T0."ItemCode" = '
+                             """
+                                 + producto.IDProducto +
+                                 """
+                             ' 
+                             AND T0."WhsCode" = '
+                             """
+                                 + almacen +
+                                 """
+                             ' 
+                             """;
+
+                            var result = await hanaConnection.QuerySingleOrDefaultAsync<(decimal? OnHand, decimal? IWeight1)>(hanaQuery);
+
+                            if (result.OnHand.HasValue) {
+                                producto.StockGuardado = result.OnHand.Value;
+                            }
+
+                            if (result.IWeight1.HasValue) {
+                                producto.PesoUnidad = result.IWeight1.Value;
+                            }
+                        }
+
+                        return Ok(productos);
+                    } catch (Exception ex) {
+                        return BadRequest($"Error al consultar Hana: {ex.Message}");
+                    } finally {
+                        if (hanaConnection.State == System.Data.ConnectionState.Open) {
+                            hanaConnection.Close();
+                        }
+                    }
+                }
+            } else {
+                using (var connection = new SqlConnection(_connectionString)) {
+
+                    string almacenQuery = @"
                     SELECT TOP 1 T0.Almacen 
                     FROM Planificacion T0 
                     INNER JOIN PlanificacionPlaca T1 ON T1.IDPlan = T0.IDPlan 
                     WHERE IDPlanPla = @idPlan";
 
-                var almacenParam = new { idPlan };
-                var almacenResult = await connection.QuerySingleOrDefaultAsync<string>(almacenQuery, almacenParam);
+                    var almacenParam = new { idPlan };
+                    var almacenResult = await connection.QuerySingleOrDefaultAsync<string>(almacenQuery, almacenParam);
 
-                if (almacenResult == null) {
-                    return BadRequest("No se encontró el almacén para el IDPlan proporcionado.");
-                }
+                    if (almacenResult == null) {
+                        return BadRequest("No se encontró el almacén para el IDPlan proporcionado.");
+                    }
 
-                string almacen = almacenResult;
+                    string almacen = almacenResult;
 
-                string query = @"
+                    string query = @"
                     SELECT 
                     T0.IDProducto,
                     T0.IDPProducto,
@@ -682,52 +868,55 @@ namespace BeetrackConSap.Controllers {
                     T2.MedidaBase
                     ORDER BY T2.SL1Code,T2.SL2Code, T2.SL3Code, T2.SL4Code";
 
-                var parameters = new { idContador, idPlan };
-                var productos = await connection.QueryAsync<ProductosContador>(query, parameters);
+                    var parameters = new { idContador, idPlan };
+                    var productos = await connection.QueryAsync<ProductosContador>(query, parameters);
 
-                HanaConnection hanaConnection = new(_hanaConnectionString);
+                    HanaConnection hanaConnection = new(_hanaConnectionString);
 
-                try {
-                    await hanaConnection.OpenAsync();
+                    try {
+                        await hanaConnection.OpenAsync();
 
-                    foreach (var producto in productos) {
-                        string hanaQuery = """
+                        foreach (var producto in productos) {
+                            string hanaQuery = """
                              SELECT T0."OnHand", T1."IWeight1"
                              FROM OITW T0
                              INNER JOIN OITM T1 ON T0."ItemCode" = T1."ItemCode"
                              WHERE T0."ItemCode" = '
                              """
-                             + producto.IDProducto +
-                             """
+                                 + producto.IDProducto +
+                                 """
                              ' 
                              AND T0."WhsCode" = '
                              """
-                             + almacen +
-                             """
+                                 + almacen +
+                                 """
                              ' 
                              """;
 
-                        var result = await hanaConnection.QuerySingleOrDefaultAsync<(decimal? OnHand, decimal? IWeight1)>(hanaQuery);
+                            var result = await hanaConnection.QuerySingleOrDefaultAsync<(decimal? OnHand, decimal? IWeight1)>(hanaQuery);
 
-                        if (result.OnHand.HasValue) {
-                            producto.StockGuardado = result.OnHand.Value;
+                            if (result.OnHand.HasValue) {
+                                producto.StockGuardado = result.OnHand.Value;
+                            }
+
+                            if (result.IWeight1.HasValue) {
+                                producto.PesoUnidad = result.IWeight1.Value;
+                            }
                         }
 
-                        if (result.IWeight1.HasValue) {
-                            producto.PesoUnidad = result.IWeight1.Value;
+                        return Ok(productos);
+                    } catch (Exception ex) {
+                        return BadRequest($"Error al consultar Hana: {ex.Message}");
+                    } finally {
+                        if (hanaConnection.State == System.Data.ConnectionState.Open) {
+                            hanaConnection.Close();
                         }
-                    }
-
-                    return Ok(productos);
-                } catch (Exception ex) {
-                    return BadRequest($"Error al consultar Hana: {ex.Message}");
-                } finally {
-                    if (hanaConnection.State == System.Data.ConnectionState.Open) {
-                        hanaConnection.Close();
                     }
                 }
             }
         }
+
+
 
         [HttpGet]
         public async Task<IActionResult> ObtenerProductosVerificar(int idPlan) {
@@ -798,7 +987,7 @@ namespace BeetrackConSap.Controllers {
                         IDPProducto = g.FirstOrDefault()?.IDPProducto,
                         Cantidad = g.FirstOrDefault()?.Cantidad ?? 0,
                         Finalizado = g.FirstOrDefault()?.Finalizado ?? 0,
-                        Aceptado= g.FirstOrDefault()?.Aceptado?? 0,
+                        Aceptado = g.FirstOrDefault()?.Aceptado ?? 0,
                         Cargado = g.FirstOrDefault()?.Cargado ?? 0,
                         Verificado = g.FirstOrDefault()?.Verificado ?? 0,
                         CantidadContada = g.FirstOrDefault()?.CantidadContada ?? 0,
@@ -824,8 +1013,126 @@ namespace BeetrackConSap.Controllers {
 
         [HttpGet]
         public async Task<IActionResult> ObtenerProductosVerificarPickador(int idPlan, int idpick) {
-            using (var connection = new SqlConnection(_connectionString)) {
+            var result2 = "";
+
+            using (var connection1 = new SqlConnection(_connectionString)) {
                 string query = @"
+                        SELECT T1.Tipo 
+                        FROM PlanificacionTraslado T0 
+                        INNER JOIN CodigosBeetrack T1 ON T0.IDPlanTraslado = T1.IDPlan 
+                        INNER JOIN PlanificacionPlacaTransferencia T2 ON T2.IDPlan = T1.IDPlan 
+                        WHERE T2.IDPlanPla = @idPlan"
+                ;
+
+                var parameters = new { idPlan = idPlan };
+
+                result2 = await connection1.QueryFirstOrDefaultAsync<string>(query, parameters);
+
+            }
+
+            if (result2 == "Transferencia") {
+                using (var connection = new SqlConnection(_connectionString)) {
+                    string query = @"
+                    SELECT 
+                        T0.IDProducto,
+                        T0.IDPProducto,
+                        T0.Reconteo,
+                        T0.Cantidad AS Cantidad, 
+                        T0.Marcado,
+                        COALESCE(T0.Verificado,0) AS Verificado,
+                        T0.Finalizado,
+                        T0.Aceptado,
+                        MAX(T2.Descripcion) AS Descripcion,
+                        T2.SL1Code,
+                        T2.SL2Code,
+                        T2.SL3Code,
+                        T2.SL4Code,
+                        T2.CodigoFabricante,
+                        T2.Fabricante,
+                        T2.AbsEntry,
+                        T2.CodigoBarras,
+	                    T2.MedidaBase,
+                        (SELECT SUM(P1.Cantidad*P1.Factor) FROM PickeoProductoIngresado P1 WHERE P1.IDPProducto = T0.IDPProducto) AS CantidadContada,
+                        (SELECT COUNT(P2.IDPIngresado) FROM PickeoProductoIngresado P2 WHERE P2.IDPProducto = T0.IDPProducto) AS Iniciado,
+                        COALESCE(T3.Factor,0) AS Factor,
+                        COALESCE(T3.Medidad, 'NA') AS Medidad,
+                        (SELECT COALESCE(SUM(P3.Cantidad),0) FROM PickeoProductoIngresado P3 WHERE P3.IDPProducto = T3.IDPProducto AND P3.Factor = T3.Factor) AS CantidadPaquete
+                    FROM PickeoProducto T0
+                    INNER JOIN PickeoPersonal T1 ON T1.IDPP = T0.IDPick
+                    LEFT JOIN PlacaPedidoTransferencia T2 ON T2.IDProducto = T0.IDProducto AND T0.IDPlaca = T2.IDPlanPla
+                    LEFT JOIN PickeoProductoIngresado T3 ON T0.IDPProducto = T3.IDPProducto AND T3.Cantidad != 0
+                    WHERE 
+                        T0.IDPlaca = @idPlan
+                        AND T0.IDPick = @idpick
+                    GROUP BY 
+                        T0.IDProducto,
+                        T0.IDPProducto,
+                        T0.Reconteo,
+                        T0.Cantidad,
+                        T0.Marcado,
+                        T0.Verificado,
+                        T0.Finalizado,
+                        T0.Aceptado,
+                        T2.SL1Code,
+                        T2.SL2Code,
+                        T2.SL3Code,
+                        T2.SL4Code,
+                        T2.CodigoFabricante,
+                        T2.Fabricante,
+                        T2.AbsEntry,
+	                    T2.MedidaBase,
+                        T2.CodigoBarras,
+                        T3.Factor,
+                        T3.Medidad,
+                        T3.IDPProducto
+	                    ";
+
+                    var parameters = new { idPlan, idpick };
+                    var result = await connection.QueryAsync<ProductosContador, PaqueteInfo, ProductosContador>(
+                        query,
+                        (productosContador, paqueteInfo) => {
+                            productosContador.Paquetes.Add(paqueteInfo);
+                            return productosContador;
+                        },
+                        parameters,
+                        splitOn: "CantidadPaquete,Factor"
+                    );
+
+                    var groupedResult = result
+                        .GroupBy(p => p.IDProducto)
+                        .Select(g => new ProductosContador {
+                            IDProducto = g.Key,
+                            IDPProducto = g.FirstOrDefault()?.IDPProducto,
+                            Cantidad = g.FirstOrDefault()?.Cantidad ?? 0,
+                            Marcado = g.FirstOrDefault()?.Marcado ?? 0,
+                            Finalizado = g.FirstOrDefault()?.Finalizado ?? 0,
+                            Aceptado = g.FirstOrDefault()?.Aceptado ?? 0,
+                            Cargado = g.FirstOrDefault()?.Cargado ?? 0,
+                            Verificado = g.FirstOrDefault()?.Verificado ?? 0,
+                            CantidadContada = g.FirstOrDefault()?.CantidadContada ?? 0,
+                            Descripcion = g.FirstOrDefault()?.Descripcion,
+                            Ubicacion = g.FirstOrDefault()?.Ubicacion,
+                            SL1Code = g.FirstOrDefault()?.SL1Code,
+                            SL2Code = g.FirstOrDefault()?.SL2Code,
+                            SL3Code = g.FirstOrDefault()?.SL3Code,
+                            SL4Code = g.FirstOrDefault()?.SL4Code,
+                            MedidaBase = g.FirstOrDefault()?.MedidaBase,
+                            Fabricante = g.FirstOrDefault()?.Fabricante,
+                            Iniciado = g.FirstOrDefault()?.Iniciado,
+                            Estado = g.FirstOrDefault()?.Estado ?? 0,
+                            CodigoFabricante = g.FirstOrDefault()?.CodigoFabricante,
+                            AbsEntry = g.FirstOrDefault()?.AbsEntry ?? 0,
+                            CodigoBarras = g.FirstOrDefault()?.CodigoBarras,
+                            Reconteo = g.FirstOrDefault()?.Reconteo ?? 0,
+                            Paquetes = g.SelectMany(p => p.Paquetes).ToList()
+                        })
+                        .ToList();
+
+                    return Ok(groupedResult);    //Verificar Nombre, Marca, Fabricante, Factor 
+                }
+            } else {
+                using (var connection = new SqlConnection(_connectionString)) {
+                    string query = @"
                     SELECT 
                         T0.IDProducto,
                         T0.IDPProducto,
@@ -880,49 +1187,54 @@ namespace BeetrackConSap.Controllers {
                         T3.IDPProducto
 	                    ";
 
-                var parameters = new { idPlan, idpick };
-                var result = await connection.QueryAsync<ProductosContador, PaqueteInfo, ProductosContador>(
-                    query,
-                    (productosContador, paqueteInfo) => {
-                        productosContador.Paquetes.Add(paqueteInfo);
-                        return productosContador;
-                    },
-                    parameters,
-                    splitOn: "CantidadPaquete,Factor"
-                );
+                    var parameters = new { idPlan, idpick };
+                    var result = await connection.QueryAsync<ProductosContador, PaqueteInfo, ProductosContador>(
+                        query,
+                        (productosContador, paqueteInfo) => {
+                            productosContador.Paquetes.Add(paqueteInfo);
+                            return productosContador;
+                        },
+                        parameters,
+                        splitOn: "CantidadPaquete,Factor"
+                    );
 
-                var groupedResult = result
-                    .GroupBy(p => p.IDProducto)
-                    .Select(g => new ProductosContador {
-                        IDProducto = g.Key,
-                        IDPProducto = g.FirstOrDefault()?.IDPProducto,
-                        Cantidad = g.FirstOrDefault()?.Cantidad ?? 0,
-                        Marcado = g.FirstOrDefault()?.Marcado ?? 0,
-                        Finalizado = g.FirstOrDefault()?.Finalizado ?? 0,
-                        Aceptado = g.FirstOrDefault()?.Aceptado ?? 0,
-                        Cargado = g.FirstOrDefault()?.Cargado ?? 0,
-                        Verificado = g.FirstOrDefault()?.Verificado ?? 0,
-                        CantidadContada = g.FirstOrDefault()?.CantidadContada ?? 0,
-                        Descripcion = g.FirstOrDefault()?.Descripcion,
-                        Ubicacion = g.FirstOrDefault()?.Ubicacion,
-                        SL1Code = g.FirstOrDefault()?.SL1Code,
-                        SL2Code = g.FirstOrDefault()?.SL2Code,
-                        SL3Code = g.FirstOrDefault()?.SL3Code,
-                        SL4Code = g.FirstOrDefault()?.SL4Code,
-                        MedidaBase = g.FirstOrDefault()?.MedidaBase,
-                        Fabricante = g.FirstOrDefault()?.Fabricante,
-                        Iniciado = g.FirstOrDefault()?.Iniciado,
-                        Estado = g.FirstOrDefault()?.Estado ?? 0,
-                        CodigoFabricante = g.FirstOrDefault()?.CodigoFabricante,
-                        AbsEntry = g.FirstOrDefault()?.AbsEntry ?? 0,
-                        CodigoBarras = g.FirstOrDefault()?.CodigoBarras,
-                        Reconteo = g.FirstOrDefault()?.Reconteo ?? 0,
-                        Paquetes = g.SelectMany(p => p.Paquetes).ToList()
-                    })
-                    .ToList();
+                    var groupedResult = result
+                        .GroupBy(p => p.IDProducto)
+                        .Select(g => new ProductosContador {
+                            IDProducto = g.Key,
+                            IDPProducto = g.FirstOrDefault()?.IDPProducto,
+                            Cantidad = g.FirstOrDefault()?.Cantidad ?? 0,
+                            Marcado = g.FirstOrDefault()?.Marcado ?? 0,
+                            Finalizado = g.FirstOrDefault()?.Finalizado ?? 0,
+                            Aceptado = g.FirstOrDefault()?.Aceptado ?? 0,
+                            Cargado = g.FirstOrDefault()?.Cargado ?? 0,
+                            Verificado = g.FirstOrDefault()?.Verificado ?? 0,
+                            CantidadContada = g.FirstOrDefault()?.CantidadContada ?? 0,
+                            Descripcion = g.FirstOrDefault()?.Descripcion,
+                            Ubicacion = g.FirstOrDefault()?.Ubicacion,
+                            SL1Code = g.FirstOrDefault()?.SL1Code,
+                            SL2Code = g.FirstOrDefault()?.SL2Code,
+                            SL3Code = g.FirstOrDefault()?.SL3Code,
+                            SL4Code = g.FirstOrDefault()?.SL4Code,
+                            MedidaBase = g.FirstOrDefault()?.MedidaBase,
+                            Fabricante = g.FirstOrDefault()?.Fabricante,
+                            Iniciado = g.FirstOrDefault()?.Iniciado,
+                            Estado = g.FirstOrDefault()?.Estado ?? 0,
+                            CodigoFabricante = g.FirstOrDefault()?.CodigoFabricante,
+                            AbsEntry = g.FirstOrDefault()?.AbsEntry ?? 0,
+                            CodigoBarras = g.FirstOrDefault()?.CodigoBarras,
+                            Reconteo = g.FirstOrDefault()?.Reconteo ?? 0,
+                            Paquetes = g.SelectMany(p => p.Paquetes).ToList()
+                        })
+                        .ToList();
 
-                return Ok(groupedResult);
+                    return Ok(groupedResult);
+                }
             }
+
+
+
+
         }
 
         [HttpGet]
@@ -1040,6 +1352,78 @@ namespace BeetrackConSap.Controllers {
 
         [HttpGet]
         public async Task<IActionResult> ObtenerPickeadorPlacas(int idpp) {
+            var result2 = "";
+
+            using (var connection1 = new SqlConnection(_connectionString)) {
+                string query = @"
+                        SELECT T1.Tipo 
+                        FROM PlanificacionTraslado T0 
+                        INNER JOIN CodigosBeetrack T1 ON T0.IDPlanTraslado = T1.IDPlan 
+                        INNER JOIN PlanificacionPlacaTransferencia T2 ON T2.IDPlan = T1.IDPlan 
+                        WHERE T2.IDPlanPla = @idpp"
+                ;
+
+                var parameters = new { idpp = idpp };
+
+                result2 = await connection1.QueryFirstOrDefaultAsync<string>(query, parameters);
+
+            }
+            if (result2 == "Transferencia") {
+                using (var connection = new SqlConnection(_connectionString)) {
+                    string query = @"
+                    SELECT 
+                        T1.Placa, 
+                        T1.IDPlanPla,
+                        T1.Usuario,
+                        MAX(CAST(T0.Finalizado AS INT)) AS MaxFinalizado,
+                        MIN(CAST(T0.Finalizado AS INT)) AS MinFinalizado,
+
+                        (SELECT MIN(P1.FechaCre) FROM PickeoProducto P1 WHERE P1.IDPlaca = T1.IDPlanPla AND P1.IDPick = T0.IDPick) AS FechaInicio       
+                    FROM PickeoProducto T0 
+                    INNER JOIN PlanificacionPlacaTransferencia T1 ON T1.IDPlanPla = T0.IDPlaca 
+                    WHERE 
+                        T0.IDPick = @IDPlaca and (T0.Finalizado is NULL or T0.Reconteo is not null) 
+                    GROUP BY
+                        T1.Placa, 
+                        T1.IDPlanPla,
+                        T0.IDPick,
+                    T1.Usuario";
+
+                    var parameters = new { IDPlaca = idpp };
+                    var result = await connection.QueryAsync<PlacaPlan>(query, parameters);
+                    return Ok(result);
+                }
+            } else {
+                using (var connection = new SqlConnection(_connectionString)) {
+                    string query = @"
+                    SELECT 
+                        T1.Placa, 
+                        T1.IDPlanPla,
+                        T1.Usuario,
+                        MAX(CAST(T0.Finalizado AS INT)) AS MaxFinalizado,
+                        MIN(CAST(T0.Finalizado AS INT)) AS MinFinalizado,
+
+                        (SELECT MIN(P1.FechaCre) FROM PickeoProducto P1 WHERE P1.IDPlaca = T1.IDPlanPla AND P1.IDPick = T0.IDPick) AS FechaInicio       
+                    FROM PickeoProducto T0 
+                    INNER JOIN PlanificacionPlaca T1 ON T1.IDPlanPla = T0.IDPlaca 
+                    WHERE 
+                        T0.IDPick = @IDPlaca and (T0.Finalizado is NULL or T0.Reconteo is not null) 
+                    GROUP BY
+                        T1.Placa, 
+                        T1.IDPlanPla,
+                        T0.IDPick,
+                    T1.Usuario";
+
+                    var parameters = new { IDPlaca = idpp };
+                    var result = await connection.QueryAsync<PlacaPlan>(query, parameters);
+                    return Ok(result);
+                }
+
+                
+            }
+        }
+        [HttpGet]
+        public async Task<IActionResult> ObtenerPickeadorPlacasTransferencias(int idpp) {
             using (var connection = new SqlConnection(_connectionString)) {
                 string query = @"
                     SELECT 
@@ -1048,11 +1432,12 @@ namespace BeetrackConSap.Controllers {
                         T1.Usuario,
                         MAX(CAST(T0.Finalizado AS INT)) AS MaxFinalizado,
                         MIN(CAST(T0.Finalizado AS INT)) AS MinFinalizado,
+
                         (SELECT MIN(P1.FechaCre) FROM PickeoProducto P1 WHERE P1.IDPlaca = T1.IDPlanPla AND P1.IDPick = T0.IDPick) AS FechaInicio       
                     FROM PickeoProducto T0 
-                    INNER JOIN PlanificacionPlaca T1 ON T1.IDPlanPla = T0.IDPlaca 
+                    INNER JOIN PlanificacionPlacaTransferencia T1 ON T1.IDPlanPla = T0.IDPlaca 
                     WHERE 
-                        T0.IDPick = @IDPlaca and (T0.Finalizado is NULL or T0.Reconteo is not null)
+                        T0.IDPick = @IDPlaca and (T0.Finalizado is NULL or T0.Reconteo is not null) 
                     GROUP BY
                         T1.Placa, 
                         T1.IDPlanPla,
@@ -1069,13 +1454,187 @@ namespace BeetrackConSap.Controllers {
 
 
 
-
         [HttpGet]
         public async Task<IActionResult> GuardarTodoPicking(int id, int plan) {
             try {
-                List<ProductoDetallesDto> productosDetalles = new List<ProductoDetallesDto>();
+                var result = "";
 
-                string sqlQuery = @"
+                using (var connection1 = new SqlConnection(_connectionString)) {
+                    string query = @"
+                        SELECT T1.Tipo 
+                        FROM PlanificacionTraslado T0 
+                        INNER JOIN CodigosBeetrack T1 ON T0.IDPlanTraslado = T1.IDPlan 
+                        INNER JOIN PlanificacionPlacaTransferencia T2 ON T2.IDPlan = T1.IDPlan 
+                        WHERE T2.IDPlanPla = @plan";
+
+                    var parameters = new { plan = plan };
+
+                    result = await connection1.QueryFirstOrDefaultAsync<string>(query, parameters);
+
+                }
+
+
+                if (result == "Transferencia") {
+                    List<ProductoDetallesDto> productosDetalles = new List<ProductoDetallesDto>();
+
+                    string sqlQuery = @"
+                    SELECT 
+    T3.IDProducto,
+    SUM(T3.Cantidad) AS TotalCantidad,
+    T3.Descripcion,
+    T3.MedidaBase,
+    T3.Fabricante,
+    T3.CodigoFabricante,
+    T3.AbsEntry,
+    T3.Pesado,
+    T3.SL1Code,
+    T3.SL2Code,
+    T3.SL3Code,
+    T3.SL4Code,
+    (SELECT SUM(P1.Peso*P1.Cantidad) FROM PlacaPedido P1 WHERE P1.IDPlanPla = T1.IDPlanPla AND P1.IDProducto = T3.IDProducto) AS PesoTotal,
+    T3.Ubicacion,
+    T4.IDPProducto
+FROM PlanificacionTraslado T0
+INNER JOIN PlanificacionPlacaTransferencia T1 ON T0.IDPlanTraslado = T1.IDPlan
+INNER JOIN PlacaManifiestoTransferencia T2 ON T1.IDPlanPla = T2.IDPlanPla
+INNER JOIN PlacaPedidoTransferencia T3 ON T2.IDPlanMan = T3.IDPlanMan
+LEFT JOIN PickeoProducto T4 ON T4.IDProducto = T3.IDProducto AND T4.IDPlaca = T1.IDPlanPla
+LEFT JOIN PickeoProductoIngresado T5 ON T5.IDPProducto = T4.IDPProducto
+WHERE 
+                        T1.IDPlanPla = @plan
+                        AND T4.IDPick = @id
+                        AND T5.IDPProducto IS NULL
+                    GROUP BY 
+                        T1.IDPlanPla,
+                        T3.IDProducto,
+                        T3.Descripcion,
+                        T3.MedidaBase,
+                        T3.CodigoFabricante,
+                        T3.AbsEntry,
+                        T3.Fabricante,
+                        T3.Pesado,
+                        T3.SL1Code,
+                        T3.SL2Code,
+                        T3.SL3Code,
+                        T3.SL4Code,
+                        T3.Ubicacion,
+                        T4.IDPProducto
+                    ORDER BY Pesado, SL1Code, SL2Code, SL3Code, SL4Code";
+
+                    using (var connection = new SqlConnection(_connectionString)) {
+                        await connection.OpenAsync();
+
+                        using (var command = new SqlCommand(sqlQuery, connection)) {
+                            command.Parameters.AddWithValue("@id", id);
+                            command.Parameters.AddWithValue("@plan", plan);
+
+                            using (var reader = await command.ExecuteReaderAsync()) {
+                                while (await reader.ReadAsync()) {
+                                    var producto = new ProductoDetallesDto {
+                                        IDProducto = reader.IsDBNull(reader.GetOrdinal("IDProducto")) ? null : reader.GetString(reader.GetOrdinal("IDProducto")),
+                                        TotalCantidad = reader.IsDBNull(reader.GetOrdinal("TotalCantidad")) ? 0 : reader.GetDecimal(reader.GetOrdinal("TotalCantidad")),
+                                        Descripcion = reader.IsDBNull(reader.GetOrdinal("Descripcion")) ? null : reader.GetString(reader.GetOrdinal("Descripcion")),
+                                        MedidaBase = reader.IsDBNull(reader.GetOrdinal("MedidaBase")) ? null : reader.GetString(reader.GetOrdinal("MedidaBase")),
+                                        Fabricante = reader.IsDBNull(reader.GetOrdinal("Fabricante")) ? null : reader.GetString(reader.GetOrdinal("Fabricante")),
+                                        CodigoFabricante = reader.IsDBNull(reader.GetOrdinal("CodigoFabricante")) ? null : reader.GetString(reader.GetOrdinal("CodigoFabricante")),
+                                        AbsEntry = reader.IsDBNull(reader.GetOrdinal("AbsEntry")) ? null : reader.GetString(reader.GetOrdinal("AbsEntry")),
+                                        Pesado = reader.IsDBNull(reader.GetOrdinal("Pesado")) ? 0 : (reader.GetBoolean(reader.GetOrdinal("Pesado")) ? 1 : 0),
+                                        SL1Code = reader.IsDBNull(reader.GetOrdinal("SL1Code")) ? null : reader.GetString(reader.GetOrdinal("SL1Code")),
+                                        SL2Code = reader.IsDBNull(reader.GetOrdinal("SL2Code")) ? null : reader.GetString(reader.GetOrdinal("SL2Code")),
+                                        SL3Code = reader.IsDBNull(reader.GetOrdinal("SL3Code")) ? null : reader.GetString(reader.GetOrdinal("SL3Code")),
+                                        SL4Code = reader.IsDBNull(reader.GetOrdinal("SL4Code")) ? null : reader.GetString(reader.GetOrdinal("SL4Code")),
+                                        PesoTotal = reader.IsDBNull(reader.GetOrdinal("PesoTotal")) ? 0 : reader.GetDecimal(reader.GetOrdinal("PesoTotal")),
+                                        Ubicacion = reader.IsDBNull(reader.GetOrdinal("Ubicacion")) ? null : reader.GetString(reader.GetOrdinal("Ubicacion")),
+                                        IDPProducto = reader.IsDBNull(reader.GetOrdinal("IDPProducto")) ? 0 : reader.GetInt32(reader.GetOrdinal("IDPProducto"))
+                                    };
+
+
+                                    using (var hanaConnection = new HanaConnection(_hanaConnectionString)) {
+                                        await hanaConnection.OpenAsync();
+
+                                        string sapQuery = $@"
+                                    SELECT DISTINCT T1.""UomName"" AS Medida, T1.""UomCode"" AS IdMedida, 1.0 AS Factor, T2.""OnHand"" AS Stock
+                                    FROM ITM1 T0
+                                    INNER JOIN OUOM T1 ON T1.""UomEntry"" = T0.""UomEntry""
+                                    INNER JOIN OITW T2 ON T2.""ItemCode"" = T0.""ItemCode"" AND T2.""WhsCode"" = 'CENTRAL'
+                                    WHERE T0.""ItemCode"" = '{producto.IDProducto}'
+                                    UNION ALL
+                                    SELECT DISTINCT T1.""UomName"" AS Medida, T1.""UomCode"" AS IdMedida, T2.""BaseQty"" AS Factor, T3.""OnHand"" AS Stock
+                                    FROM ITM9 T0
+                                    INNER JOIN OUOM T1 ON T1.""UomEntry"" = T0.""UomEntry""
+                                    INNER JOIN UGP1 T2 ON T2.""UomEntry"" = T1.""UomEntry""
+                                    INNER JOIN OITW T3 ON T3.""ItemCode"" = T0.""ItemCode"" AND T3.""WhsCode"" = 'CENTRAL'
+                                    WHERE T0.""ItemCode"" = '{producto.IDProducto}'
+                                    ORDER BY Factor";
+
+                                        using (var hanaCommand = new HanaCommand(sapQuery, hanaConnection))
+                                        using (var hanaReader = await hanaCommand.ExecuteReaderAsync()) {
+                                            while (await hanaReader.ReadAsync()) {
+                                                var medida = new MedidaProductoDto {
+                                                    Medida = hanaReader.GetString(hanaReader.GetOrdinal("Medida")),
+                                                    IdMedida = hanaReader.GetString(hanaReader.GetOrdinal("IdMedida")),
+                                                    Factor = hanaReader.GetDecimal(hanaReader.GetOrdinal("Factor")),
+                                                    Stock = hanaReader.GetDecimal(hanaReader.GetOrdinal("Stock"))
+                                                };
+
+
+                                                using (var sqlConnection = new SqlConnection(_connectionString)) {
+                                                    await sqlConnection.OpenAsync();
+
+                                                    string sqlsubQuery = @"
+                                                    SELECT SUM(Cantidad) AS CantidadPedida 
+                                                    FROM PlacaPedidoTransferencia 
+                                                    WHERE IDProducto = @idProducto 
+                                                    AND IDPlanPla = @Plan 
+                                                    AND Factor = @factor";
+
+                                                    using (var sqlCommand = new SqlCommand(sqlsubQuery, sqlConnection)) {
+                                                        sqlCommand.Parameters.AddWithValue("@idProducto", producto.IDProducto);
+                                                        sqlCommand.Parameters.AddWithValue("@Plan", plan);
+                                                        sqlCommand.Parameters.AddWithValue("@factor", medida.Factor);
+
+                                                        var cantidadPedida = await sqlCommand.ExecuteScalarAsync();
+                                                        medida.CantidadPedida = cantidadPedida != DBNull.Value ? Convert.ToDecimal(cantidadPedida) / medida.Factor : 0;
+                                                    }
+                                                    producto.Medidas.Add(medida);
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    productosDetalles.Add(producto);
+                                }
+                            }
+                        }
+                    }
+
+                    using (var sqlConnection = new SqlConnection(_connectionString)) {
+                        await sqlConnection.OpenAsync();
+
+                        foreach (var producto in productosDetalles) {
+                            foreach (var medida in producto.Medidas) {
+                                string insertQuery = @"
+                                INSERT INTO PickeoProductoIngresado (IDPProducto, Factor, Medidad, Cantidad, FechaCre, AbsEntry, UbiAbs, StockGuardado)
+                                VALUES (@IDPProducto, @Factor, @Medidad, @Cantidad, GETDATE(), @AbsEntry, @UbiAbs, @StockGuardado)";
+
+                                using (var sqlCommand = new SqlCommand(insertQuery, sqlConnection)) {
+                                    sqlCommand.Parameters.AddWithValue("@IDPProducto", producto.IDPProducto);
+                                    sqlCommand.Parameters.AddWithValue("@Factor", medida.Factor);
+                                    sqlCommand.Parameters.AddWithValue("@Medidad", medida.Medida);
+                                    sqlCommand.Parameters.AddWithValue("@Cantidad", medida.CantidadPedida);
+                                    sqlCommand.Parameters.AddWithValue("@AbsEntry", producto.AbsEntry);
+                                    sqlCommand.Parameters.AddWithValue("@UbiAbs", producto.Ubicacion);
+                                    sqlCommand.Parameters.AddWithValue("@StockGuardado", medida.Stock);
+
+                                    await sqlCommand.ExecuteNonQueryAsync();
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    List<ProductoDetallesDto> productosDetalles = new List<ProductoDetallesDto>();
+
+                    string sqlQuery = @"
                     SELECT 
                         T3.IDProducto,
                         SUM(T3.Cantidad) AS TotalCantidad,
@@ -1119,37 +1678,37 @@ namespace BeetrackConSap.Controllers {
                         T4.IDPProducto
                     ORDER BY Pesado, SL1Code, SL2Code, SL3Code, SL4Code";
 
-                using (var connection = new SqlConnection(_connectionString)) {
-                    await connection.OpenAsync();
+                    using (var connection = new SqlConnection(_connectionString)) {
+                        await connection.OpenAsync();
 
-                    using (var command = new SqlCommand(sqlQuery, connection)) {
-                        command.Parameters.AddWithValue("@id", id);
-                        command.Parameters.AddWithValue("@plan", plan);
+                        using (var command = new SqlCommand(sqlQuery, connection)) {
+                            command.Parameters.AddWithValue("@id", id);
+                            command.Parameters.AddWithValue("@plan", plan);
 
-                        using (var reader = await command.ExecuteReaderAsync()) {
-                            while (await reader.ReadAsync()) {
-                                var producto = new ProductoDetallesDto {
-                                    IDProducto = reader.GetString(reader.GetOrdinal("IDProducto")),
-                                    TotalCantidad = reader.GetDecimal(reader.GetOrdinal("TotalCantidad")),
-                                    Descripcion = reader.GetString(reader.GetOrdinal("Descripcion")),
-                                    MedidaBase = reader.GetString(reader.GetOrdinal("MedidaBase")),
-                                    Fabricante = reader.GetString(reader.GetOrdinal("Fabricante")),
-                                    CodigoFabricante = reader.GetString(reader.GetOrdinal("CodigoFabricante")),
-                                    AbsEntry = reader.GetString(reader.GetOrdinal("AbsEntry")),
-                                    Pesado = reader.GetBoolean(reader.GetOrdinal("Pesado")) ? 1 : 0,
-                                    SL1Code = reader.GetString(reader.GetOrdinal("SL1Code")),
-                                    SL2Code = reader.GetString(reader.GetOrdinal("SL2Code")),
-                                    SL3Code = reader.GetString(reader.GetOrdinal("SL3Code")),
-                                    SL4Code = reader.GetString(reader.GetOrdinal("SL4Code")),
-                                    PesoTotal = reader.GetDecimal(reader.GetOrdinal("PesoTotal")),
-                                    Ubicacion = reader.GetString(reader.GetOrdinal("Ubicacion")),
-                                    IDPProducto = reader.GetInt32(reader.GetOrdinal("IDPProducto"))
-                                };
+                            using (var reader = await command.ExecuteReaderAsync()) {
+                                while (await reader.ReadAsync()) {
+                                    var producto = new ProductoDetallesDto {
+                                        IDProducto = reader.GetString(reader.GetOrdinal("IDProducto")),
+                                        TotalCantidad = reader.GetDecimal(reader.GetOrdinal("TotalCantidad")),
+                                        Descripcion = reader.GetString(reader.GetOrdinal("Descripcion")),
+                                        MedidaBase = reader.GetString(reader.GetOrdinal("MedidaBase")),
+                                        Fabricante = reader.GetString(reader.GetOrdinal("Fabricante")),
+                                        CodigoFabricante = reader.GetString(reader.GetOrdinal("CodigoFabricante")),
+                                        AbsEntry = reader.GetString(reader.GetOrdinal("AbsEntry")),
+                                        Pesado = reader.GetBoolean(reader.GetOrdinal("Pesado")) ? 1 : 0,
+                                        SL1Code = reader.GetString(reader.GetOrdinal("SL1Code")),
+                                        SL2Code = reader.GetString(reader.GetOrdinal("SL2Code")),
+                                        SL3Code = reader.GetString(reader.GetOrdinal("SL3Code")),
+                                        SL4Code = reader.GetString(reader.GetOrdinal("SL4Code")),
+                                        PesoTotal = reader.GetDecimal(reader.GetOrdinal("PesoTotal")),
+                                        Ubicacion = reader.GetString(reader.GetOrdinal("Ubicacion")),
+                                        IDPProducto = reader.GetInt32(reader.GetOrdinal("IDPProducto"))
+                                    };
 
-                                using (var hanaConnection = new HanaConnection(_hanaConnectionString)) {
-                                    await hanaConnection.OpenAsync();
+                                    using (var hanaConnection = new HanaConnection(_hanaConnectionString)) {
+                                        await hanaConnection.OpenAsync();
 
-                                    string sapQuery = $@"
+                                        string sapQuery = $@"
                                     SELECT DISTINCT T1.""UomName"" AS Medida, T1.""UomCode"" AS IdMedida, 1.0 AS Factor, T2.""OnHand"" AS Stock
                                     FROM ITM1 T0
                                     INNER JOIN OUOM T1 ON T1.""UomEntry"" = T0.""UomEntry""
@@ -1164,72 +1723,74 @@ namespace BeetrackConSap.Controllers {
                                     WHERE T0.""ItemCode"" = '{producto.IDProducto}'
                                     ORDER BY Factor";
 
-                                    using (var hanaCommand = new HanaCommand(sapQuery, hanaConnection))
-                                    using (var hanaReader = await hanaCommand.ExecuteReaderAsync()) {
-                                        while (await hanaReader.ReadAsync()) {
-                                            var medida = new MedidaProductoDto {
-                                                Medida = hanaReader.GetString(hanaReader.GetOrdinal("Medida")),
-                                                IdMedida = hanaReader.GetString(hanaReader.GetOrdinal("IdMedida")),
-                                                Factor = hanaReader.GetDecimal(hanaReader.GetOrdinal("Factor")),
-                                                Stock = hanaReader.GetDecimal(hanaReader.GetOrdinal("Stock"))
-                                            };
+                                        using (var hanaCommand = new HanaCommand(sapQuery, hanaConnection))
+                                        using (var hanaReader = await hanaCommand.ExecuteReaderAsync()) {
+                                            while (await hanaReader.ReadAsync()) {
+                                                var medida = new MedidaProductoDto {
+                                                    Medida = hanaReader.GetString(hanaReader.GetOrdinal("Medida")),
+                                                    IdMedida = hanaReader.GetString(hanaReader.GetOrdinal("IdMedida")),
+                                                    Factor = hanaReader.GetDecimal(hanaReader.GetOrdinal("Factor")),
+                                                    Stock = hanaReader.GetDecimal(hanaReader.GetOrdinal("Stock"))
+                                                };
 
 
-                                            using (var sqlConnection = new SqlConnection(_connectionString)) {
-                                                await sqlConnection.OpenAsync();
+                                                using (var sqlConnection = new SqlConnection(_connectionString)) {
+                                                    await sqlConnection.OpenAsync();
 
-                                                string sqlsubQuery = @"
+                                                    string sqlsubQuery = @"
                                                     SELECT SUM(Cantidad) AS CantidadPedida 
                                                     FROM PlacaPedido 
                                                     WHERE IDProducto = @idProducto 
                                                     AND IDPlanPla = @Plan 
                                                     AND Factor = @factor";
 
-                                                using (var sqlCommand = new SqlCommand(sqlsubQuery, sqlConnection)) {
-                                                    sqlCommand.Parameters.AddWithValue("@idProducto", producto.IDProducto);
-                                                    sqlCommand.Parameters.AddWithValue("@Plan", plan); 
-                                                    sqlCommand.Parameters.AddWithValue("@factor", medida.Factor);
+                                                    using (var sqlCommand = new SqlCommand(sqlsubQuery, sqlConnection)) {
+                                                        sqlCommand.Parameters.AddWithValue("@idProducto", producto.IDProducto);
+                                                        sqlCommand.Parameters.AddWithValue("@Plan", plan);
+                                                        sqlCommand.Parameters.AddWithValue("@factor", medida.Factor);
 
-                                                    var cantidadPedida = await sqlCommand.ExecuteScalarAsync();
-                                                    medida.CantidadPedida = cantidadPedida != DBNull.Value ? Convert.ToDecimal(cantidadPedida)/medida.Factor : 0;
+                                                        var cantidadPedida = await sqlCommand.ExecuteScalarAsync();
+                                                        medida.CantidadPedida = cantidadPedida != DBNull.Value ? Convert.ToDecimal(cantidadPedida) / medida.Factor : 0;
+                                                    }
+                                                    producto.Medidas.Add(medida);
                                                 }
-                                                producto.Medidas.Add(medida);
                                             }
                                         }
                                     }
-                                }
 
-                                productosDetalles.Add(producto);
+                                    productosDetalles.Add(producto);
+                                }
                             }
                         }
                     }
-                }
 
-                using (var sqlConnection = new SqlConnection(_connectionString)) {
-                    await sqlConnection.OpenAsync();
+                    using (var sqlConnection = new SqlConnection(_connectionString)) {
+                        await sqlConnection.OpenAsync();
 
-                    foreach (var producto in productosDetalles) {
-                        foreach (var medida in producto.Medidas) {
-                            string insertQuery = @"
+                        foreach (var producto in productosDetalles) {
+                            foreach (var medida in producto.Medidas) {
+                                string insertQuery = @"
                                 INSERT INTO PickeoProductoIngresado (IDPProducto, Factor, Medidad, Cantidad, FechaCre, AbsEntry, UbiAbs, StockGuardado)
                                 VALUES (@IDPProducto, @Factor, @Medidad, @Cantidad, GETDATE(), @AbsEntry, @UbiAbs, @StockGuardado)";
 
-                            using (var sqlCommand = new SqlCommand(insertQuery, sqlConnection)) {
-                                sqlCommand.Parameters.AddWithValue("@IDPProducto", producto.IDPProducto);
-                                sqlCommand.Parameters.AddWithValue("@Factor", medida.Factor);
-                                sqlCommand.Parameters.AddWithValue("@Medidad", medida.Medida);
-                                sqlCommand.Parameters.AddWithValue("@Cantidad", medida.CantidadPedida);  
-                                sqlCommand.Parameters.AddWithValue("@AbsEntry", producto.AbsEntry);     
-                                sqlCommand.Parameters.AddWithValue("@UbiAbs", producto.Ubicacion);      
-                                sqlCommand.Parameters.AddWithValue("@StockGuardado", medida.Stock);    
+                                using (var sqlCommand = new SqlCommand(insertQuery, sqlConnection)) {
+                                    sqlCommand.Parameters.AddWithValue("@IDPProducto", producto.IDPProducto);
+                                    sqlCommand.Parameters.AddWithValue("@Factor", medida.Factor);
+                                    sqlCommand.Parameters.AddWithValue("@Medidad", medida.Medida);
+                                    sqlCommand.Parameters.AddWithValue("@Cantidad", medida.CantidadPedida);
+                                    sqlCommand.Parameters.AddWithValue("@AbsEntry", producto.AbsEntry);
+                                    sqlCommand.Parameters.AddWithValue("@UbiAbs", producto.Ubicacion);
+                                    sqlCommand.Parameters.AddWithValue("@StockGuardado", medida.Stock);
 
-                                await sqlCommand.ExecuteNonQueryAsync();
+                                    await sqlCommand.ExecuteNonQueryAsync();
+                                }
                             }
                         }
                     }
-                }
 
+                }
                 return Ok(new { message = "Proceso completado exitosamente." });
+
                 //return Ok(productosDetalles);
             } catch (Exception ex) {
                 return StatusCode(500, new { message = "Ocurrió un error al obtener los detalles de picking.", error = ex.Message });
@@ -1245,12 +1806,42 @@ namespace BeetrackConSap.Controllers {
             HanaConnection hanaConnection = new(_hanaConnectionString);
             try {
                 await hanaConnection.OpenAsync();
+                string almacenResult = null;
+                var result2 = "";
 
-                string sapQuery = $@"
+                using (var connection1 = new SqlConnection(_connectionString)) {
+                    string query = @"
+                        SELECT T1.Tipo 
+                        FROM PlanificacionTraslado T0 
+                        INNER JOIN CodigosBeetrack T1 ON T0.IDPlanTraslado = T1.IDPlan 
+                        INNER JOIN PlanificacionPlacaTransferencia T2 ON T2.IDPlan = T1.IDPlan 
+                        WHERE T2.IDPlanPla = @Plan"
+                    ;
+
+                    var parameters = new { Plan = Plan };
+
+                    result2 = await connection1.QueryFirstOrDefaultAsync<string>(query, parameters);
+
+                }
+                if (result2 == "Transferencia") {
+
+                    using (var connection = new SqlConnection(_connectionString)) {
+                        string almacenQuery = @"
+                        SELECT TOP 1 T0.AlmacenTraslado 
+FROM PlanificacionTraslado T0 
+INNER JOIN PlanificacionPlacaTransferencia T1 ON T1.IDPlan = T0.IDPlanTraslado 
+                        WHERE IDPlanPla = @Plan";
+
+                        var almacenParam = new { Plan = Plan };
+                        almacenResult = await connection.QuerySingleOrDefaultAsync<string>(almacenQuery, almacenParam);
+
+                    }
+
+                    string sapQuery = $@"
                     SELECT DISTINCT T1.""UomName"" AS Medida, T1.""UomCode"" AS IdMedida, 1 AS Factor, T2.""OnHand"" AS Stock
                     FROM ITM1 T0
                     INNER JOIN OUOM T1 ON T1.""UomEntry"" = T0.""UomEntry""
-                    INNER JOIN OITW T2 ON T2.""ItemCode"" = T0.""ItemCode"" AND T2.""WhsCode"" = 'CENTRAL'
+                    INNER JOIN OITW T2 ON T2.""ItemCode"" = T0.""ItemCode"" AND T2.""WhsCode"" = '{almacenResult}'
                     --INNER JOIN UGP1 T4 ON T4.""UomEntry"" = T1.""UomEntry""
                     WHERE T0.""ItemCode"" = '{idProducto}'
                     UNION ALL
@@ -1258,33 +1849,58 @@ namespace BeetrackConSap.Controllers {
                     FROM ITM9 T0
                     INNER JOIN OUOM T1 ON T1.""UomEntry"" = T0.""UomEntry""
                     INNER JOIN UGP1 T2 ON T2.""UomEntry"" = T1.""UomEntry""
-                    INNER JOIN OITW T3 ON T3.""ItemCode"" = T0.""ItemCode"" AND T3.""WhsCode"" = 'CENTRAL'
+                    INNER JOIN OITW T3 ON T3.""ItemCode"" = T0.""ItemCode"" AND T3.""WhsCode"" = '{almacenResult}'
                     WHERE  T0.""ItemCode""  not in ('227002','227001') and  T0.""ItemCode"" = '{idProducto}'
                     ORDER BY Factor";
 
-                var paqueterias = await hanaConnection.QueryAsync<PaqueteriasProducto>(sapQuery);
+                    var paqueterias = await hanaConnection.QueryAsync<PaqueteriasProducto>(sapQuery);
 
-                bool hayRegistros = false;
-                List<int> absEntries = new List<int>();
+                    bool hayRegistros = false;
+                    List<int> absEntries = new List<int>();
 
-                using (var connection = new SqlConnection(_connectionString)) {
-                    await connection.OpenAsync();
+                    using (var connection = new SqlConnection(_connectionString)) {
+                        await connection.OpenAsync();
 
-                    string queryExisten = "SELECT COUNT(DISTINCT AbsEntry) AS Existen FROM PickeoProductoIngresado WHERE IDPProducto = @idp";
-                    var existenRegistros = await connection.QueryFirstOrDefaultAsync<int>(queryExisten, new { idp });
+                        string queryExisten = "SELECT COUNT(DISTINCT AbsEntry) AS Existen FROM PickeoProductoIngresado WHERE IDPProducto = @idp";
+                        var existenRegistros = await connection.QueryFirstOrDefaultAsync<int>(queryExisten, new { idp });
 
-                    hayRegistros = existenRegistros > 0;
+                        hayRegistros = existenRegistros > 0;
 
-                    if (hayRegistros) {
-                        string queryAbsEntries = "SELECT DISTINCT AbsEntry FROM PickeoProductoIngresado WHERE IDPProducto = @idp";
-                        absEntries = (await connection.QueryAsync<int>(queryAbsEntries, new { idp })).ToList();
-                    }
-
-                    var registrosCombinados = new List<PaqueteriasProducto>();
-
-                    foreach (var paq in paqueterias) {
                         if (hayRegistros) {
-                            foreach (var absEntry in absEntries) {
+                            string queryAbsEntries = "SELECT DISTINCT AbsEntry FROM PickeoProductoIngresado WHERE IDPProducto = @idp";
+                            absEntries = (await connection.QueryAsync<int>(queryAbsEntries, new { idp })).ToList();
+                        }
+
+                        var registrosCombinados = new List<PaqueteriasProducto>();
+
+                        foreach (var paq in paqueterias) {
+                            if (hayRegistros) {
+                                foreach (var absEntry in absEntries) {
+                                    var copiaPaq = new PaqueteriasProducto {
+                                        Medida = paq.Medida,
+                                        IdMedida = paq.IdMedida,
+                                        Factor = paq.Factor,
+                                        Stock = paq.Stock
+                                    };
+
+                                    string sqlQuery = "SELECT Cantidad, StockGuardado, UbiAbs FROM PickeoProductoIngresado WHERE IDPProducto = @idp AND Factor = @factor AND AbsEntry = @AbsEntry";
+                                    var cantidadRegistro = await connection.QueryFirstOrDefaultAsync<dynamic>(sqlQuery, new { idp, factor = paq.Factor, AbsEntry = absEntry });
+                                    copiaPaq.Cantidad = cantidadRegistro?.Cantidad ?? 0;
+                                    copiaPaq.StockGuardado = cantidadRegistro?.StockGuardado ?? 0;
+                                    copiaPaq.UbiAbs = cantidadRegistro?.UbiAbs ?? string.Empty;
+                                    copiaPaq.AbsEntry = absEntry;
+
+                                    string sqlmin = "SELECT SUM(Cantidad) AS CantidadBase FROM PlacaPedidoTransferencia WHERE IDProducto = @idProducto AND IDPlanPla = @Plan AND Factor = @factor";
+                                    var cantidadmin = await connection.QueryFirstOrDefaultAsync<int?>(sqlmin, new { idProducto, Plan, factor = paq.Factor });
+                                    copiaPaq.Base = cantidadmin ?? 0;
+
+                                    string sqlmax = "SELECT MIN(Factor) AS CantidadBase FROM PlacaPedidoTransferencia WHERE IDProducto = @idProducto AND IDPlanPla = @Plan";
+                                    var cantidadmax = await connection.QueryFirstOrDefaultAsync<int?>(sqlmax, new { idProducto, Plan, factor = paq.Factor });
+                                    copiaPaq.CantidadBase = cantidadmax ?? 0;
+
+                                    registrosCombinados.Add(copiaPaq);
+                                }
+                            } else {
                                 var copiaPaq = new PaqueteriasProducto {
                                     Medida = paq.Medida,
                                     IdMedida = paq.IdMedida,
@@ -1292,63 +1908,162 @@ namespace BeetrackConSap.Controllers {
                                     Stock = paq.Stock
                                 };
 
-                                string sqlQuery = "SELECT Cantidad, StockGuardado, UbiAbs FROM PickeoProductoIngresado WHERE IDPProducto = @idp AND Factor = @factor AND AbsEntry = @AbsEntry";
-                                var cantidadRegistro = await connection.QueryFirstOrDefaultAsync<dynamic>(sqlQuery, new { idp, factor = paq.Factor, AbsEntry = absEntry });
+                                string sqlQuery = "SELECT Cantidad, StockGuardado, UbiAbs  FROM PickeoProductoIngresado WHERE IDPProducto = @idp AND Factor = @factor";
+                                var cantidadRegistro = await connection.QueryFirstOrDefaultAsync<dynamic>(sqlQuery, new { idp, factor = paq.Factor });
                                 copiaPaq.Cantidad = cantidadRegistro?.Cantidad ?? 0;
-                                copiaPaq.StockGuardado= cantidadRegistro?.StockGuardado ?? 0;
+                                copiaPaq.StockGuardado = cantidadRegistro?.StockGuardado ?? 0;
                                 copiaPaq.UbiAbs = cantidadRegistro?.UbiAbs ?? string.Empty;
-                                copiaPaq.AbsEntry= absEntry ;
+                                copiaPaq.AbsEntry = 0;
 
-                                string sqlmin = "SELECT SUM(Cantidad) AS CantidadBase FROM PlacaPedido WHERE IDProducto = @idProducto AND IDPlanPla = @Plan AND Factor = @factor";
+                                string sqlmax = "SELECT MIN(Factor) AS CantidadBase FROM PlacaPedidoTransferencia WHERE IDProducto = @idProducto AND IDPlanPla = @Plan";
+                                var cantidadmax = await connection.QueryFirstOrDefaultAsync<int?>(sqlmax, new { idProducto, Plan, factor = paq.Factor });
+                                copiaPaq.CantidadBase = cantidadmax ?? 0;
+
+                                string sqlmin = "SELECT SUM(Cantidad) AS CantidadBase FROM PlacaPedidoTransferencia WHERE IDProducto = @idProducto AND IDPlanPla = @Plan AND Factor = @factor";
                                 var cantidadmin = await connection.QueryFirstOrDefaultAsync<int?>(sqlmin, new { idProducto, Plan, factor = paq.Factor });
                                 copiaPaq.Base = cantidadmin ?? 0;
+
+                                registrosCombinados.Add(copiaPaq);
+                            }
+                        }
+
+                        paqueterias = registrosCombinados;
+                    }
+
+                    string stockQuery = $@"
+                    SELECT ""OnHandQty""
+                    FROM OIBQ 
+                    WHERE ""BinAbs"" = '{abs}' AND ""ItemCode"" = '{idProducto}'";
+                    decimal stockActual = 0;
+                    using (var connection = new HanaConnection(_hanaConnectionString)) {
+                        stockActual = await connection.QueryFirstOrDefaultAsync<decimal>(stockQuery);
+                    }
+                    return Ok(new { paqueterias, hayRegistros, stockActual });
+
+
+                } else {
+                    using (var connection = new SqlConnection(_connectionString)) {
+                        string almacenQuery = @"
+                        SELECT TOP 1 T0.Almacen 
+                        FROM Planificacion T0 
+                        INNER JOIN PlanificacionPlaca T1 ON T1.IDPlan = T0.IDPlan 
+                        WHERE IDPlanPla = @Plan";
+
+                        var almacenParam = new { Plan = Plan };
+                        almacenResult = await connection.QuerySingleOrDefaultAsync<string>(almacenQuery, almacenParam);
+
+                    }
+
+                    string sapQuery = $@"
+                    SELECT DISTINCT T1.""UomName"" AS Medida, T1.""UomCode"" AS IdMedida, 1 AS Factor, T2.""OnHand"" AS Stock
+                    FROM ITM1 T0
+                    INNER JOIN OUOM T1 ON T1.""UomEntry"" = T0.""UomEntry""
+                    INNER JOIN OITW T2 ON T2.""ItemCode"" = T0.""ItemCode"" AND T2.""WhsCode"" = '{almacenResult}'
+                    --INNER JOIN UGP1 T4 ON T4.""UomEntry"" = T1.""UomEntry""
+                    WHERE T0.""ItemCode"" = '{idProducto}'
+                    UNION ALL
+                    SELECT DISTINCT T1.""UomName"" AS Medida, T1.""UomCode"" AS IdMedida, T2.""BaseQty"" AS Factor, T3.""OnHand"" AS Stock
+                    FROM ITM9 T0
+                    INNER JOIN OUOM T1 ON T1.""UomEntry"" = T0.""UomEntry""
+                    INNER JOIN UGP1 T2 ON T2.""UomEntry"" = T1.""UomEntry""
+                    INNER JOIN OITW T3 ON T3.""ItemCode"" = T0.""ItemCode"" AND T3.""WhsCode"" = '{almacenResult}'
+                    WHERE  T0.""ItemCode""  not in ('227002','227001') and  T0.""ItemCode"" = '{idProducto}'
+                    ORDER BY Factor";
+
+                    var paqueterias = await hanaConnection.QueryAsync<PaqueteriasProducto>(sapQuery);
+
+                    bool hayRegistros = false;
+                    List<int> absEntries = new List<int>();
+
+                    using (var connection = new SqlConnection(_connectionString)) {
+                        await connection.OpenAsync();
+
+                        string queryExisten = "SELECT COUNT(DISTINCT AbsEntry) AS Existen FROM PickeoProductoIngresado WHERE IDPProducto = @idp";
+                        var existenRegistros = await connection.QueryFirstOrDefaultAsync<int>(queryExisten, new { idp });
+
+                        hayRegistros = existenRegistros > 0;
+
+                        if (hayRegistros) {
+                            string queryAbsEntries = "SELECT DISTINCT AbsEntry FROM PickeoProductoIngresado WHERE IDPProducto = @idp";
+                            absEntries = (await connection.QueryAsync<int>(queryAbsEntries, new { idp })).ToList();
+                        }
+
+                        var registrosCombinados = new List<PaqueteriasProducto>();
+
+                        foreach (var paq in paqueterias) {
+                            if (hayRegistros) {
+                                foreach (var absEntry in absEntries) {
+                                    var copiaPaq = new PaqueteriasProducto {
+                                        Medida = paq.Medida,
+                                        IdMedida = paq.IdMedida,
+                                        Factor = paq.Factor,
+                                        Stock = paq.Stock
+                                    };
+
+                                    string sqlQuery = "SELECT Cantidad, StockGuardado, UbiAbs FROM PickeoProductoIngresado WHERE IDPProducto = @idp AND Factor = @factor AND AbsEntry = @AbsEntry";
+                                    var cantidadRegistro = await connection.QueryFirstOrDefaultAsync<dynamic>(sqlQuery, new { idp, factor = paq.Factor, AbsEntry = absEntry });
+                                    copiaPaq.Cantidad = cantidadRegistro?.Cantidad ?? 0;
+                                    copiaPaq.StockGuardado = cantidadRegistro?.StockGuardado ?? 0;
+                                    copiaPaq.UbiAbs = cantidadRegistro?.UbiAbs ?? string.Empty;
+                                    copiaPaq.AbsEntry = absEntry;
+
+                                    string sqlmin = "SELECT SUM(Cantidad) AS CantidadBase FROM PlacaPedido WHERE IDProducto = @idProducto AND IDPlanPla = @Plan AND Factor = @factor";
+                                    var cantidadmin = await connection.QueryFirstOrDefaultAsync<int?>(sqlmin, new { idProducto, Plan, factor = paq.Factor });
+                                    copiaPaq.Base = cantidadmin ?? 0;
+
+                                    string sqlmax = "SELECT MIN(Factor) AS CantidadBase FROM PlacaPedido WHERE IDProducto = @idProducto AND IDPlanPla = @Plan";
+                                    var cantidadmax = await connection.QueryFirstOrDefaultAsync<int?>(sqlmax, new { idProducto, Plan, factor = paq.Factor });
+                                    copiaPaq.CantidadBase = cantidadmax ?? 0;
+
+                                    registrosCombinados.Add(copiaPaq);
+                                }
+                            } else {
+                                var copiaPaq = new PaqueteriasProducto {
+                                    Medida = paq.Medida,
+                                    IdMedida = paq.IdMedida,
+                                    Factor = paq.Factor,
+                                    Stock = paq.Stock
+                                };
+
+                                string sqlQuery = "SELECT Cantidad, StockGuardado, UbiAbs  FROM PickeoProductoIngresado WHERE IDPProducto = @idp AND Factor = @factor";
+                                var cantidadRegistro = await connection.QueryFirstOrDefaultAsync<dynamic>(sqlQuery, new { idp, factor = paq.Factor });
+                                copiaPaq.Cantidad = cantidadRegistro?.Cantidad ?? 0;
+                                copiaPaq.StockGuardado = cantidadRegistro?.StockGuardado ?? 0;
+                                copiaPaq.UbiAbs = cantidadRegistro?.UbiAbs ?? string.Empty;
+                                copiaPaq.AbsEntry = 0;
 
                                 string sqlmax = "SELECT MIN(Factor) AS CantidadBase FROM PlacaPedido WHERE IDProducto = @idProducto AND IDPlanPla = @Plan";
                                 var cantidadmax = await connection.QueryFirstOrDefaultAsync<int?>(sqlmax, new { idProducto, Plan, factor = paq.Factor });
                                 copiaPaq.CantidadBase = cantidadmax ?? 0;
 
+                                string sqlmin = "SELECT SUM(Cantidad) AS CantidadBase FROM PlacaPedido WHERE IDProducto = @idProducto AND IDPlanPla = @Plan AND Factor = @factor";
+                                var cantidadmin = await connection.QueryFirstOrDefaultAsync<int?>(sqlmin, new { idProducto, Plan, factor = paq.Factor });
+                                copiaPaq.Base = cantidadmin ?? 0;
+
                                 registrosCombinados.Add(copiaPaq);
                             }
-                        } else {
-                            var copiaPaq = new PaqueteriasProducto {
-                                Medida = paq.Medida,
-                                IdMedida = paq.IdMedida,
-                                Factor = paq.Factor,
-                                Stock = paq.Stock
-                            };
-
-                            string sqlQuery = "SELECT Cantidad, StockGuardado, UbiAbs  FROM PickeoProductoIngresado WHERE IDPProducto = @idp AND Factor = @factor";
-                            var cantidadRegistro = await connection.QueryFirstOrDefaultAsync<dynamic>(sqlQuery, new { idp, factor = paq.Factor });
-                            copiaPaq.Cantidad = cantidadRegistro?.Cantidad ?? 0;
-                            copiaPaq.StockGuardado = cantidadRegistro?.StockGuardado ?? 0;
-                            copiaPaq.UbiAbs = cantidadRegistro?.UbiAbs ?? string.Empty;
-                            copiaPaq.AbsEntry = 0;
-
-                            string sqlmax = "SELECT MIN(Factor) AS CantidadBase FROM PlacaPedido WHERE IDProducto = @idProducto AND IDPlanPla = @Plan";
-                            var cantidadmax = await connection.QueryFirstOrDefaultAsync<int?>(sqlmax, new { idProducto, Plan, factor = paq.Factor });
-                            copiaPaq.CantidadBase = cantidadmax ?? 0;
-
-                            string sqlmin = "SELECT SUM(Cantidad) AS CantidadBase FROM PlacaPedido WHERE IDProducto = @idProducto AND IDPlanPla = @Plan AND Factor = @factor";
-                            var cantidadmin = await connection.QueryFirstOrDefaultAsync<int?>(sqlmin, new { idProducto, Plan, factor = paq.Factor });
-                            copiaPaq.Base = cantidadmin ?? 0;
-
-                            registrosCombinados.Add(copiaPaq);
                         }
+
+                        paqueterias = registrosCombinados;
                     }
 
-                    paqueterias = registrosCombinados;
-                }
-
-                string stockQuery = $@"
+                    string stockQuery = $@"
                     SELECT ""OnHandQty""
                     FROM OIBQ 
                     WHERE ""BinAbs"" = '{abs}' AND ""ItemCode"" = '{idProducto}'";
-                decimal stockActual = 0;
-                using (var connection = new HanaConnection(_hanaConnectionString)) {
-                    stockActual = await connection.QueryFirstOrDefaultAsync<decimal>(stockQuery);
+                    decimal stockActual = 0;
+                    using (var connection = new HanaConnection(_hanaConnectionString)) {
+                        stockActual = await connection.QueryFirstOrDefaultAsync<decimal>(stockQuery);
+                    }
+                    return Ok(new { paqueterias, hayRegistros, stockActual });
+
                 }
 
-                return Ok(new { paqueterias, hayRegistros, stockActual });
+
+
+
+
+
             } catch (Exception ex) {
                 return BadRequest(ex.Message);
             } finally {
@@ -1446,7 +2161,7 @@ namespace BeetrackConSap.Controllers {
                     await connection.ExecuteAsync(query, parameters);
                 }
             }
-            return Ok();                     
+            return Ok();
         }
 
         [HttpPost]
@@ -1529,31 +2244,85 @@ namespace BeetrackConSap.Controllers {
 
         [HttpPost]
         public async Task<IActionResult> EnviarCargadaJefe(int idPlanPla) {
-            try {
-                using (var connection = new SqlConnection(_connectionString)) {
-                    await connection.OpenAsync();
 
-                    string query1 = @"
+            var result2 = "";
+
+            using (var connection1 = new SqlConnection(_connectionString)) {
+                string query = @"
+                        SELECT T1.Tipo 
+                        FROM PlanificacionTraslado T0 
+                        INNER JOIN CodigosBeetrack T1 ON T0.IDPlanTraslado = T1.IDPlan 
+                        INNER JOIN PlanificacionPlacaTransferencia T2 ON T2.IDPlan = T1.IDPlan 
+                        WHERE T2.IDPlanPla = @idPlanPla"
+                ;
+
+                var parameters = new { idPlanPla = idPlanPla };
+
+                result2 = await connection1.QueryFirstOrDefaultAsync<string>(query, parameters);
+
+            }
+            if (result2 == "Transferencia") {
+
+                try {
+                    using (var connection = new SqlConnection(_connectionString)) {
+                        await connection.OpenAsync();
+
+                        string query1 = @"
+                        UPDATE PlacaPedidoTransferencia 
+                        SET CantidadCargar = Cantidad, RevisadoCoor = 1
+                        WHERE IDPlanPla = @IdPlanPla";
+
+                        var parameters1 = new { IdPlanPla = idPlanPla };
+                        await connection.ExecuteAsync(query1, parameters1);
+
+                        string query2 = @"
+                        UPDATE PlanificacionPlacaTransferencia 
+                        SET Enviado = 1, Cargar = 1
+                        WHERE IDPlanPla = @IdPlanPla";
+
+                        var parameters2 = new { IdPlanPla = idPlanPla };
+                        await connection.ExecuteAsync(query2, parameters2);
+                    }
+
+                    return Ok(new { message = "Carga enviada con éxito" });
+                } catch (Exception ex) {
+                    return StatusCode(500, new { message = "Error al procesar la solicitud", error = ex.Message });
+                }
+
+            } else {
+                try {
+                    using (var connection = new SqlConnection(_connectionString)) {
+                        await connection.OpenAsync();
+
+                        string query1 = @"
                         UPDATE PlacaPedido 
                         SET CantidadCargar = Cantidad, RevisadoCoor = 1
                         WHERE IDPlanPla = @IdPlanPla";
 
-                    var parameters1 = new { IdPlanPla = idPlanPla };
-                    await connection.ExecuteAsync(query1, parameters1);
+                        var parameters1 = new { IdPlanPla = idPlanPla };
+                        await connection.ExecuteAsync(query1, parameters1);
 
-                    string query2 = @"
+                        string query2 = @"
                         UPDATE PlanificacionPlaca 
                         SET Enviado = 1, Cargar = 1
                         WHERE IDPlanPla = @IdPlanPla";
 
-                    var parameters2 = new { IdPlanPla = idPlanPla };
-                    await connection.ExecuteAsync(query2, parameters2);
-                }
+                        var parameters2 = new { IdPlanPla = idPlanPla };
+                        await connection.ExecuteAsync(query2, parameters2);
+                    }
 
-                return Ok(new { message = "Carga enviada con éxito" });
-            } catch (Exception ex) {
-                return StatusCode(500, new { message = "Error al procesar la solicitud", error = ex.Message });
+                    return Ok(new { message = "Carga enviada con éxito" });
+                } catch (Exception ex) {
+                    return StatusCode(500, new { message = "Error al procesar la solicitud", error = ex.Message });
+                }
             }
+
+
+
+
+
+
+
         }
 
 
@@ -1565,7 +2334,7 @@ namespace BeetrackConSap.Controllers {
 
                     string query = "UPDATE PlacaPedido SET Ubicacion = @BinCode, AbsEntry = @AbsEntry, SL1Code = @SL1Code, SL2Code = @SL2Code, SL3Code = @SL3Code, SL4Code = @SL4Code  WHERE IDPlanPla = @IDPlan AND IDProducto = @Cod";
                     var parameters = new {
-                        BinCode = bc,   
+                        BinCode = bc,
                         AbsEntry = ae,
                         SL1Code = l1,
                         SL2Code = l2,
@@ -1649,7 +2418,7 @@ namespace BeetrackConSap.Controllers {
         }
 
         [HttpGet]
-        public async Task<IActionResult> CargarPersonalPickeo(string id) {
+        public async Task<IActionResult> CargarPersonalPickeo(string id, string almacenubicacion) {
             using (var connection = new SqlConnection(_connectionString)) {
                 string queryUsuario = @"
                     SELECT Usuario FROM PlanificacionPlaca WHERE IDPlanPla = @id";
@@ -1658,14 +2427,9 @@ namespace BeetrackConSap.Controllers {
                 if (usuario == null) {
                     return NotFound("Usuario no encontrado.");
                 }
+                string queryPickeoPersonal = @"SELECT IDPP, Nombre FROM PickeoPersonal WHERE Almacen = @almacenubicacion";
 
-                string queryPickeoPersonal = @"
-                    SELECT IDPP, Nombre 
-                    FROM PickeoPersonal 
-                    WHERE Puesto = 3 OR IDPP = @usuario";
-
-                var result = await connection.QueryAsync(queryPickeoPersonal, new { usuario });
-
+                var result = await connection.QueryAsync(queryPickeoPersonal, new { usuario, almacenubicacion });
                 return Ok(result);
             }
         }
@@ -1685,14 +2449,19 @@ namespace BeetrackConSap.Controllers {
         }
 
         [HttpGet]
-        public async Task<IActionResult> CargarPersonalJefes() {
+        public async Task<IActionResult> CargarPersonalJefes(string almacen) {
             using (var connection = new SqlConnection(_connectionString)) {
                 string query = @"
-                    SELECT IDPP, Nombre FROM PickeoPersonal WHERE Puesto = 2 ";
-                var result = await connection.QueryAsync(query);
+            SELECT IDPP, Nombre 
+            FROM PickeoPersonal 
+            WHERE Almacen = @Almacen";
+
+                var result = await connection.QueryAsync(query, new { Almacen = almacen });
+
                 return Ok(result);
             }
         }
+
 
         [HttpPost]
         public async Task<IActionResult> GuardarProductosAsignados([FromBody] AsignacionProductosRequest request) {
@@ -1763,7 +2532,7 @@ namespace BeetrackConSap.Controllers {
                                 IDPlan = request.IdPlan,
                                 IDPick = request.IDPick
                             };
-                            await connection.ExecuteAsync(insertQuery, parameters, transaction);                            
+                            await connection.ExecuteAsync(insertQuery, parameters, transaction);
                         }
 
                         await transaction.CommitAsync();
@@ -1795,7 +2564,7 @@ namespace BeetrackConSap.Controllers {
 
                         var updateParameters = new {
                             idm = idm,
-                            idpp = idpp 
+                            idpp = idpp
                         };
 
                         await connection.ExecuteAsync(updateQuery, updateParameters, transaction);
@@ -1845,7 +2614,7 @@ namespace BeetrackConSap.Controllers {
                         var pickeoParameters = new { idpp, idPlan };
                         var resultPickeo = await connection.ExecuteAsync(updatePickeoProductoQuery, pickeoParameters, transaction);
                         ObtenerUsuarioYClave();
-                        if (resultPickeo > 0 ) {
+                        if (resultPickeo > 0) {
                             await transaction.CommitAsync();
                             return Ok(new { success = true, message = "Conteo finalizado exitosamente.", puesto, idpickador });
                         } else {
@@ -1921,7 +2690,7 @@ namespace BeetrackConSap.Controllers {
                     SET FechaVeriIni = GETDATE()
                     WHERE IDPlaca = @idPlan AND IDPick = @idpick AND FechaVeriIni IS NULL";
 
-                var parameterss = new { idPlan, idpick};
+                var parameterss = new { idPlan, idpick };
 
                 var results = await connection.ExecuteAsync(queryupdate, parameterss);
 
@@ -1943,7 +2712,7 @@ namespace BeetrackConSap.Controllers {
         [HttpPost]
         public async Task<IActionResult> GuardarJefePlaca(int idPlanPla, int idPickeador) {
             string query = null;
-            if(idPickeador == 0) {
+            if (idPickeador == 0) {
                 query = @"
                     UPDATE PlanificacionPlaca SET Usuario = NULL, FechaJefe = GETDATE() WHERE IDPlanPla = @idPlanPla";
             } else {
@@ -1966,21 +2735,67 @@ namespace BeetrackConSap.Controllers {
 
         [HttpPost]
         public async Task<IActionResult> EnviarACoordinador(int idPlanPla) {
+            var result2 = "";
+
+            using (var connection1 = new SqlConnection(_connectionString)) {
+                string query = @"
+                        SELECT T1.Tipo 
+                        FROM PlanificacionTraslado T0 
+                        INNER JOIN CodigosBeetrack T1 ON T0.IDPlanTraslado = T1.IDPlan 
+                        INNER JOIN PlanificacionPlacaTransferencia T2 ON T2.IDPlan = T1.IDPlan 
+                        WHERE T2.IDPlanPla = @idPlanPla"
+                ;
+
+                var parameters = new { idPlanPla = idPlanPla };
+
+                result2 = await connection1.QueryFirstOrDefaultAsync<string>(query, parameters);
+
+            }
+
             using (var connection = new SqlConnection(_connectionString)) {
                 await connection.OpenAsync();
-                string query = @"
-                    UPDATE PlanificacionPlaca SET Enviado = 1, FechaEnvio = GETDATE()  WHERE IDPlanPla = @idPlanPla";
-                var parameters = new { idPlanPla };
 
-                var result = await connection.ExecuteAsync(query, parameters);
+                if (result2 == "Transferencia") {
 
-                if (result > 0) {
-                    return Ok(new { success = true, message = "Conteo finalizado exitosamente." });
+                    string query = @"
+                    UPDATE PlanificacionPlacaTransferencia SET Enviado = 1, FechaEnvio = GETDATE()  WHERE IDPlanPla = @idPlanPla";
+                    var parameters = new { idPlanPla };
+
+                    var result = await connection.ExecuteAsync(query, parameters);
+
+                    if (result > 0) {
+                        return Ok(new { success = true, message = "Conteo finalizado exitosamente." });
+                    } else {
+                        return NotFound(new { success = false, message = "No se encontraron registros para actualizar." });
+                    }
+
                 } else {
-                    return NotFound(new { success = false, message = "No se encontraron registros para actualizar." });
+                    string query = @"
+                    UPDATE PlanificacionPlaca SET Enviado = 1, FechaEnvio = GETDATE()  WHERE IDPlanPla = @idPlanPla";
+                    var parameters = new { idPlanPla };
+
+                    var result = await connection.ExecuteAsync(query, parameters);
+
+                    if (result > 0) {
+                        return Ok(new { success = true, message = "Conteo finalizado exitosamente." });
+                    } else {
+                        return NotFound(new { success = false, message = "No se encontraron registros para actualizar." });
+                    }
                 }
+
+
+
+                
             }
         }
+
+
+
+
+
+
+
+
 
     }
 }

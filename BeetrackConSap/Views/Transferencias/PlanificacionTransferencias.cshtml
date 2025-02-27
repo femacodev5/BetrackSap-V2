@@ -1,0 +1,577 @@
+﻿<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,200..1000;1,200..1000&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="~/css/Transferencias.css">
+<style>
+    body {
+        background-color: #edf2f9;
+    }
+
+    html {
+        width: 100vw;
+    }
+
+    .btn {
+        border-radius: 50px;
+    }
+
+
+    .error {
+        border: 2px solid red !important;
+    }
+
+        .error::after {
+            content: "*";
+            color: red;
+            margin-left: 5px;
+        }
+
+    #transferenciasTable {
+        text-align: center;
+    }
+
+    .thead {
+        padding: 80px;
+    }
+
+    tbody, td, tfoot, th, thead, tr {
+        padding: 10px 10px;
+    }
+
+    td {
+        font-weight: 700;
+        font-size: 13px;
+    }
+
+    tr {
+        border-width: 0px 0px 1px 0px;
+        border-color: #e1e1e1;
+    }
+
+        tr:hover {
+            background-color: #e8e8e8;
+        }
+
+    .form-check {
+        padding-left: 50px !important;
+    }
+
+    .table-ctn {
+        display: flex;
+        align-content: center;
+        width: max-content;
+        padding: 20px;
+        border-radius: 15px;
+        margin-top: 25px;
+    }
+
+    .ts-control {
+        font-size: 16px;
+    }
+
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 1;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0,0,0,0.4);
+        padding-top: 60px;
+        overflow: auto;
+    }
+
+    #modalBody {
+        max-height: 400px;
+        overflow-y: auto;
+    }
+
+    .modal-content {
+        background-color: #fefefe;
+        margin: 5% auto;
+        padding: 20px;
+        border: 1px solid #888;
+        width: 80%;
+    }
+
+    .close {
+        color: #aaa;
+        float: right;
+        font-size: 28px;
+        font-weight: bold;
+    }
+
+        .close:hover,
+        .close:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+</style>
+<div class="container">
+
+    <span id="identifalmacen" style="display:none;">@User.Identity.Name @User.FindFirst("Almacen")?.Value</span>
+
+    <div class="form-container">
+        <h1 class="form-title">Planificación de Transferencia</h1>
+        <div class="form-group">
+            <div style="display: flex;">
+                <div class="input-group">
+                    <label for="fecha" class="input-label">Fecha de Entrega:</label>
+                    <input type="date" class="input-field" id="fecha" name="fecha" placeholder="Seleccionar Fecha">
+                </div>
+
+                <div class="input-group">
+                    <label for="selectplacas" class="input-label">Seleccionar Placa:</label>
+                    <select class="input-field select-field" id="selectplacas" name="opciones">
+
+
+                        <option value="0"></option>
+                    </select>
+                </div>
+            </div>
+
+            <div style="width: 100% !important; display: flex; justify-content: center; margin-top:30px;">
+                <button class="submit-btn" id="cargarTransferencias">Obtener Transferencias Pendientes</button>
+                <button class="submit-btn" id="GenerarTransferenciaProvincia" style="display: none; background-color:#28a745">Planificar Transferencia</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+
+
+<div style="width:100vw;display: flex ; justify-content: center;">
+    <div class="table-ctn">
+        <table id="transferenciasTable" style="display:none;">
+            <thead>
+                <tr style="background-color:#d9d9d9; padding: 5px 10px !important;">
+                    <th>Select</th>
+                    <th>Detalle</th>
+                    <th>DocEntry</th>
+                    <th>DocNum</th>
+                    <th>DocDueDate</th>
+                    <th>FromWhsCod</th>
+                    <th>WhsCode</th>
+                    <th>U_MSS_ALMDE</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+</div>
+<div id="modal" class="modal">
+    <div class="modal-content">
+        <span id="closeBtn" class="close">&times;</span>
+        <h2>Detalles de la Transferencia</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>DocNum</th>
+                    <th>DocEntry</th>
+                    <th>Dscription</th>
+                    <th>LineNum</th>
+                    <th>Quantity</th>
+                    <th>ItemCode</th>
+                    <th>DocDueDate</th>
+                    <th>FromWhsCod</th>
+                    <th>WhsCode</th>
+                    <th>U_MSS_ALMDE</th>
+                </tr>
+            </thead>
+            <tbody id="transferenciasDetalle">
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    $(document).ready(() => {
+        cargarPlacas();
+
+
+    });
+
+    let selectedRows = {};
+
+    document.getElementById("cargarTransferencias").onclick = async (e) => {
+        let transferenciasDetallesGlobales = [];
+
+        e.preventDefault();
+
+        const fechaInput = document.getElementById("fecha");
+        const almacennombre = document.getElementById("identifalmacen").textContent;
+        console.log("*****>", almacennombre);
+
+        const fecha = fechaInput.value;
+
+        if (!fecha) {
+            fechaInput.classList.add("error");
+        } else {
+            try {
+                const response = await fetch(`/Transferencias/ObtenerTransferencias?fechaVencimiento=${fecha}&almacen=${almacennombre}`, { method: 'GET' });
+
+                if (response.ok) {
+                    const transferencias = await response.json();
+                    document.getElementById('transferenciasTable').style.display = "block";
+                    const tbody = document.querySelector("#transferenciasTable tbody");
+                    tbody.innerHTML = "";
+
+                    const docNumsProcesados = new Set();
+
+                    transferencias.forEach((transferencia) => {
+                        if (docNumsProcesados.has(transferencia.ndocumento)) {
+                            return;
+                        }
+
+                        docNumsProcesados.add(transferencia.ndocumento);
+
+                        const tr = document.createElement("tr");
+                        const tdSelect = document.createElement("td");
+                        tdSelect.innerHTML = "<div class='form-check form-switch'><input class='form-check-input' type='checkbox'></div>";
+                        const checkbox = tdSelect.querySelector("input");
+
+                        let contador = 0;
+
+                        checkbox.addEventListener('change', async () => {
+                            if (checkbox.checked) {
+                                tr.style.backgroundColor = '#0d6efd33';
+
+                                if (!selectedRows[contador]) {
+                                    selectedRows[contador] = [];
+                                }
+
+                                const alreadySelected = selectedRows[contador].some(item => item.lineNum === transferencia.lineNum);
+
+                                if (!alreadySelected) {
+                                    try {
+                                        const response22 = await fetch(`/Transferencias/ObtenerTransferenciasDetalleEnvio?fechaVencimiento=${fecha}&docnum=${transferencia.ndocumento}`);
+
+                                        if (!response22.ok) {
+                                            throw new Error("Error al obtener datos");
+                                        }
+
+                                        const transferenciasDetalleEnvio = await response22.json();
+
+                                        if (Array.isArray(transferenciasDetalleEnvio) && transferenciasDetalleEnvio.length > 0) {
+                                            selectedRows[contador].push(...transferenciasDetalleEnvio);
+                                        }
+
+                                    } catch (error) {
+                                        console.error("Hubo un problema al obtener los datos:", error);
+                                    }
+                                }
+                                console.log("----->Seelccionados", selectedRows);
+
+                            } else {
+                                tr.style.backgroundColor = 'white';
+
+                                if (Array.isArray(selectedRows[contador])) {
+                                    selectedRows[contador] = selectedRows[contador].filter(item => item.lineNum !== transferencia.lineNum);
+                                    if (selectedRows[contador].length === 0) {
+                                        delete selectedRows[contador];
+                                    }
+                                } else {
+                                    console.warn(`selectedRows[${contador}] no es un array o no está definido.`);
+                                }
+                            }
+
+                            contador++;
+                        });
+
+                        const tdDetalle = document.createElement("td");
+                        tdDetalle.innerHTML = `<div class='btn btn-dark' id='verDetallebtn-${transferencia.ndocumento}' data-id='${transferencia.ndocumento}' data-date='${transferencia.fechamaxentrega}'><i class='bi bi-search'></i></div>`;
+                        const tdDocEntry = document.createElement("td");
+                        tdDocEntry.textContent = transferencia.entry;
+                        const tdDocNum = document.createElement("td");
+                        tdDocNum.textContent = transferencia.ndocumento;
+                        const tdDocDueDate = document.createElement("td");
+                        const date = new Date(transferencia.fechamaxentrega);
+                        const day = String(date.getDate()).padStart(2, '0');
+                        const month = String(date.getMonth() + 1).padStart(2, '0');
+                        const year = date.getFullYear();
+                        tdDocDueDate.textContent = `${day}/${month}/${year}`;
+                        const tdFromWhsCod = document.createElement("td");
+                        tdFromWhsCod.textContent = transferencia.almacen;
+                        const tdWhsCode = document.createElement("td");
+                        tdWhsCode.textContent = transferencia.ctorigen;
+                        const tdU_MSS_ALMDE = document.createElement("td");
+                        tdU_MSS_ALMDE.textContent = transferencia.direccion;
+
+                        tr.appendChild(tdSelect);
+                        tr.appendChild(tdDetalle);
+                        tr.appendChild(tdDocEntry);
+                        tr.appendChild(tdDocNum);
+                        tr.appendChild(tdDocDueDate);
+                        tr.appendChild(tdFromWhsCod);
+                        tr.appendChild(tdWhsCode);
+                        tr.appendChild(tdU_MSS_ALMDE);
+
+                        tbody.appendChild(tr);
+
+                        const verDetalleBtns = document.querySelectorAll('[id^="verDetallebtn-"]');
+
+                        verDetalleBtns.forEach(verDetalleBtn => {
+                            verDetalleBtn.addEventListener('click', async () => {
+                                const docNum = verDetalleBtn.getAttribute('data-id');
+                                const docDate = verDetalleBtn.getAttribute('data-date');
+                                const fecha = new Date(docDate);
+                                const year = fecha.getFullYear();
+                                const month = String(fecha.getMonth() + 1).padStart(2, '0');
+                                const day = String(fecha.getDate()).padStart(2, '0');
+                                const fechaFormateada = `${year}-${month}-${day}`;
+
+                                document.getElementById("modal").style.display = "block";
+
+                                try {
+                                    const responseDetalle = await fetch(`/Transferencias/ObtenerTransferenciasDetalle?fechaVencimiento=${fechaFormateada}&docnum=${docNum}`, {
+                                        method: 'GET'
+                                    });
+
+                                    if (responseDetalle.ok) {
+                                        const detalle = await responseDetalle.json();
+
+                                        let detallesHtml = '';
+                                        detalle.forEach(transferenciaProducto => {
+                                            transferenciasDetallesGlobales.push(transferenciaProducto);
+                                            detallesHtml += `
+                                                    <tr>
+                                                        <td> ${transferenciaProducto.docNum}</td>
+                                                        <td> ${transferenciaProducto.docEntry}</td>
+                                                        <td> ${transferenciaProducto.dscription}</td>
+                                                        <td> ${transferenciaProducto.lineNum}</td>
+                                                        <td> ${parseFloat(transferenciaProducto.quantity).toFixed(2)}</td>
+                                                        <td>${transferenciaProducto.itemCode}</td>
+                                                        <td> ${new Date(transferenciaProducto.docDueDate).toLocaleDateString('es-ES')}</td>
+                                                        <td> ${transferenciaProducto.fromWhsCod}</td>
+                                                        <td> ${transferenciaProducto.whsCode}</td>
+                                                        <td> ${transferenciaProducto.u_MSS_ALMDE}</td>
+                                                    </tr>
+                                                `;
+                                        });
+                                        document.getElementById("transferenciasDetalle").innerHTML = detallesHtml;
+
+                                    } else {
+                                        console.log('Error al obtener los detalles de la transferencia');
+                                    }
+                                } catch (error) {
+                                    console.error('Hubo un error al obtener los detalles:', error);
+                                }
+                            });
+                        });
+
+                        document.getElementById("closeBtn").addEventListener('click', () => {
+                            document.getElementById("modal").style.display = "none";
+                        });
+
+                        window.addEventListener('click', (event) => {
+                            if (event.target === document.getElementById("modal")) {
+                                document.getElementById("modal").style.display = "none";
+                            }
+                        });
+                    });
+                } else {
+                    console.log('Error al obtener los datos');
+                }
+            } catch (error) {
+                console.error('Hubo un error en la solicitud:', error);
+            }
+        }
+    };
+
+    document.getElementById('GenerarTransferenciaProvincia').addEventListener('click', function () {
+        let placaSeleccionada = document.getElementById("selectplacas").value;
+
+
+
+        if (placaSeleccionada === "0") {
+            Swal.fire({
+                icon: 'warning',
+                title: '¡Advertencia!',
+                text: 'Por favor, seleccione una placa.',
+                confirmButtonText: 'OK'
+            });
+            return;
+        }
+
+        if (Object.keys(selectedRows).length === 0) {
+            Swal.fire({
+                icon: 'warning',
+                title: '¡Advertencia!',
+                text: 'No hay transferencias seleccionadas. Por favor, seleccione al menos una transferencia.',
+                confirmButtonText: 'OK'
+            });
+            return;
+        }
+
+        Swal.fire({
+            title: '¿Está seguro?',
+            text: "Una vez generado, no podrá deshacer esta acción.",
+            icon: 'warning',
+            showCancelButton: true,
+            cancelButtonText: 'Cancelar',
+            confirmButtonText: 'Sí, generar'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                Swal.fire({
+                    title: 'Enviando...',
+                    text: 'Estamos procesando tu solicitud.',
+                    allowOutsideClick: false,
+                    didOpen: () => {
+                        Swal.showLoading();
+                    }
+                });
+
+                let datos = {};
+
+                let selectedRowsWithoutIndices = Object.values(selectedRows).flat();
+
+                datos[placaSeleccionada] = {
+                    Capacidad: $(`#selectplacas option[value="${placaSeleccionada}"]`).data("peso").toString(),
+                    Pedidos: selectedRowsWithoutIndices
+                };
+
+                console.log("datos para enviar", datos);
+
+                fetch('/Transferencias/GenerarTransferenciaProvincia', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(datos),
+                })
+                    .then(response => {
+                        if (!response) {
+                            throw new Error("No se recibió respuesta del servidor.");
+                        }
+
+                        if (!response.ok) {
+                            return response.text().then(errorText => {
+                                throw new Error(errorText);
+                            });
+                        }
+
+                        return response.json();
+                    })
+                    .then(data => {
+                        console.log('Respuesta recibida:', data);
+                        Swal.close();
+
+                        $(`#row-${placaSeleccionada}`).remove();
+
+                        Swal.fire('¡Éxito!', 'Los datos fueron enviados correctamente.', 'success').then(() => {
+                            window.location.href = '/Transferencias/EnviadasTransferencias';
+                        });
+                    })
+
+                    .catch(error => {
+                        Swal.close();
+                        Swal.fire({
+                            icon: 'error',
+                            title: '¡Error!',
+                            text: `Ocurrió un error: ${error.message}`,
+                            confirmButtonText: 'OK'
+                        });
+                    });
+
+            }
+        });
+    });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    document.getElementById("fecha").addEventListener("input", function () {
+        const fechaInput = document.getElementById("fecha");
+        if (fechaInput.value) {
+            fechaInput.classList.remove("error");
+        }
+    });
+
+    function tablaTieneFilas() {
+        const tbody = document.querySelector("#transferenciasTable tbody");
+        return tbody.rows.length > 0;
+    }
+
+    document.getElementById("selectplacas").addEventListener("change", () => {
+        const placaSelect = document.getElementById("selectplacas");
+        const cargarBtn = document.getElementById("cargarTransferencias");
+        const planificarBtn = document.getElementById("GenerarTransferenciaProvincia");
+
+        if (placaSelect.value !== "0" && tablaTieneFilas()) {
+            planificarBtn.style.display = "block";
+            cargarBtn.style.display = "none";
+        } else {
+            planificarBtn.style.display = "none";
+            cargarBtn.style.display = "block";
+        }
+    });
+
+
+
+    const cargarPlacas = async () => {
+        try {
+            const response = await fetch('/Home/CargarPlacas');
+            const personal = await response.json();
+
+            let selectplacasOptions = `<option value="0">Elije una Placa </option>`;
+            personal.forEach(tipo => {
+                selectplacasOptions += `<option value="${tipo.code}" data-peso="${tipo.peso}">${tipo.code} Capacidad: ${tipo.peso}</option>`;
+            });
+
+            document.getElementById('selectplacas').innerHTML = selectplacasOptions;
+
+            document.getElementById('selectplacas').addEventListener('change', (e) => {
+                const selectedOption = e.target.selectedOptions[0];
+                const placa = selectedOption.value;
+                const capacidad = selectedOption.getAttribute('data-peso');
+
+
+
+            });
+
+            new TomSelect('#selectplacas', {
+                plugins: {
+                    'checkbox_options': {
+                        'checkedClassNames': ['ts-checked'],
+                        'uncheckedClassNames': ['ts-unchecked'],
+                    }
+                },
+            });
+
+        } catch (e) {
+            console.error(e);
+            Swal.fire('Error', 'Ocurrió un error al cargar las placas', 'info');
+        }
+    };
+
+
+
+</script>

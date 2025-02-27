@@ -1519,7 +1519,7 @@ namespace MorosidadWeb.Controllers {
                                         }
 
 
-                                        if (sl1code != "UBICACIÓN-DE-SISTEMA") {
+                                        if (sl1code != "UBICACIÓN-DE-SsssswerwerwerssISTEMA") {
                                             string queryPlacaPedido = "INSERT INTO PlacaPedido (IDPlanMan, IDPlanPla, IDProducto, Cantidad, Peso, Descripcion, NumeroGuia, DocNum, LineNum, Ubicacion, MedidaBase, Fabricante, AbsEntry, SL1Code, SL2Code, SL3Code, SL4Code, Pesado, CodigoFabricante, Factor, CantidadBase, StockActual, Linea, CodigoBarras) VALUES (@IDPlanMan, @IDPlanPla,@IDProducto, @Cantidad, @Peso, @Descripcion, @NumeroGuia, @DocNum, @LineNum, @Ubicacion, @MedidaBase, @Fabricante, @AbsEntry, @Sl1Code, @Sl2Code, @Sl3Code, @Sl4Code, @TipoPeso, @CodigoFabricante, @Factor, @CantidadBase, @StockActual, @Linea, @CodigoBarras);";
                                             using (SqlCommand cmdPlaPedido = new SqlCommand(queryPlacaPedido, connection)) {
                                                 cmdPlaPedido.Parameters.AddWithValue("@IDPlanMan", idPlanMan);
@@ -1548,7 +1548,6 @@ namespace MorosidadWeb.Controllers {
                                                 cmdPlaPedido.Parameters.AddWithValue("@CodigoBarras", codebars);
                                                 await cmdPlaPedido.ExecuteNonQueryAsync();
                                             }
-                                            Console.WriteLine(pesofinal);
                                         }
                                     }
                                 }
@@ -1637,7 +1636,7 @@ namespace MorosidadWeb.Controllers {
 
 
         [HttpPost]
-        public async Task<IActionResult> GuardarConteo([FromBody] Dictionary<string, List<List<Registro>>> vehiculoDataConEstado, string codigobee) {   //[FromBody] Dictionary<string, List<List<Registro>>> vehiculoDataConEstado            GuardarConteoRequest request
+        public async Task<IActionResult> GuardarConteo([FromBody] Dictionary<string, List<List<Registro>>> vehiculoDataConEstado, string codigobee) {  
             Console.WriteLine(codigobee);
             var connection = new SqlConnection(_connectionString);
             HanaConnection hanaConnection = new(_hanaConnectionString);
@@ -1770,7 +1769,7 @@ namespace MorosidadWeb.Controllers {
                                 INNER JOIN OITM T2 ON T2.""ItemCode"" = T0.""ItemCode""
                                 INNER JOIN OMRC T3 ON T3.""FirmCode"" = T2.""FirmCode""
                                 INNER JOIN OITW T4 ON T4.""ItemCode"" = T0.""ItemCode"" AND T4.""WhsCode"" = '{almacen}'
-                                INNER JOIN ""@EXF_SUBFAM"" T5 ON T5.""Code"" = T2.""U_FEM_SUBFAM""
+                                LEFT JOIN ""@EXF_SUBFAM"" T5 ON T5.""Code"" = T2.""U_FEM_SUBFAM""
                                 WHERE T0.""ItemCode"" = '{idProducto}' AND T0.""WhsCode"" = '{almacen}' AND T0.""OnHandQty""> 0
                                 UNION
                                 SELECT 
@@ -1821,43 +1820,44 @@ namespace MorosidadWeb.Controllers {
                                 Console.WriteLine($"Error al consultar SAP para ItemCode = {idProducto}: {sapEx.Message}");
                                 errores.Add($"Error al consultar SAP: {sapEx.Message}");
                             }
-                            if (sl1code != "UBICACIÓN-DE-SISTEMA") {
+                            if (sl1code != "UBICACIÓN-DE-dfdfdfSIyrtSTEMA") {
                                 string insertPedidoQuery = "INSERT INTO PlacaPedido (IDPlanMan, IDPlanPla, IDProducto, Cantidad, Peso, Descripcion, NumeroGuia, DocNum, LineNum, Ubicacion, MedidaBase, Fabricante, AbsEntry, SL1Code, SL2Code, SL3Code, SL4Code, Pesado, CodigoFabricante, Factor, CantidadBase, StockActual, Linea) VALUES (@IDPlanMan, @IDPlanPla,@IDProducto, @Cantidad, @Peso, @Descripcion, @NumeroGuia, @DocNum, @LineNum, @Ubicacion, @MedidaBase, @Fabricante, @AbsEntry, @Sl1Code, @Sl2Code, @Sl3Code, @Sl4Code, @TipoPeso, @CodigoFabricante, @Factor, @CantidadBase, @StockActual, @Linea);";
 
                                 try {
                                     SqlCommand pedidoCommand = new SqlCommand(insertPedidoQuery, connection);
-                                    pedidoCommand.Parameters.AddWithValue("@IDPlanMan", idPlanMan);
-                                    pedidoCommand.Parameters.AddWithValue("@IDPlanPla", idPlanPla);
-                                    pedidoCommand.Parameters.AddWithValue("@IDProducto", idProducto);
-                                    pedidoCommand.Parameters.AddWithValue("@Cantidad", cantidadFinal);
-                                    pedidoCommand.Parameters.AddWithValue("@Peso", pesofinal);
-                                    pedidoCommand.Parameters.AddWithValue("@Descripcion", descripcion);
-                                    pedidoCommand.Parameters.AddWithValue("@NumeroGuia", registro.numeroguia);
-                                    pedidoCommand.Parameters.AddWithValue("@DocNum", registro.idsap);
-                                    pedidoCommand.Parameters.AddWithValue("@LineNum", lineNum);
-                                    pedidoCommand.Parameters.AddWithValue("@Ubicacion", binCode);
-                                    pedidoCommand.Parameters.AddWithValue("@MedidaBase", invntryUom);
-                                    pedidoCommand.Parameters.AddWithValue("@Fabricante", fabricante);
-                                    pedidoCommand.Parameters.AddWithValue("@AbsEntry", absentry);
-                                    pedidoCommand.Parameters.AddWithValue("@SL1Code", sl1code);
-                                    pedidoCommand.Parameters.AddWithValue("@SL2Code", sl2code);
-                                    pedidoCommand.Parameters.AddWithValue("@SL3Code", sl3code);
-                                    pedidoCommand.Parameters.AddWithValue("@SL4Code", sl4code);
-                                    pedidoCommand.Parameters.AddWithValue("@TipoPeso", tipopeso);
-                                    pedidoCommand.Parameters.AddWithValue("@CodigoFabricante", codigofabricante);
-                                    pedidoCommand.Parameters.AddWithValue("@Factor", factor);
-                                    pedidoCommand.Parameters.AddWithValue("@CantidadBase", registro.cantidad);
-                                    pedidoCommand.Parameters.AddWithValue("@StockActual", stockactual);
-                                    pedidoCommand.Parameters.AddWithValue("@Linea", linea);
+                                    pedidoCommand.Parameters.AddWithValue("@IDPlanMan", idPlanMan != 0 ? (object)idPlanMan : DBNull.Value);
+                                    pedidoCommand.Parameters.AddWithValue("@IDPlanPla", idPlanPla != 0 ? (object)idPlanPla : DBNull.Value);
+                                    pedidoCommand.Parameters.AddWithValue("@IDProducto", idProducto ?? (object)DBNull.Value);
+                                    pedidoCommand.Parameters.AddWithValue("@Cantidad", cantidadFinal != 0 ? (object)cantidadFinal : DBNull.Value);
+                                    pedidoCommand.Parameters.AddWithValue("@Peso", pesofinal != 0 ? (object)pesofinal : DBNull.Value);
+                                    pedidoCommand.Parameters.AddWithValue("@Descripcion", string.IsNullOrEmpty(descripcion) ? DBNull.Value : descripcion);
+                                    pedidoCommand.Parameters.AddWithValue("@NumeroGuia", string.IsNullOrEmpty(registro.numeroguia) ? DBNull.Value : registro.numeroguia);
+                                    pedidoCommand.Parameters.AddWithValue("@DocNum", string.IsNullOrEmpty(registro.idsap) ? DBNull.Value : registro.idsap);
+                                    pedidoCommand.Parameters.AddWithValue("@LineNum", lineNum ?? (object)DBNull.Value);
+                                    pedidoCommand.Parameters.AddWithValue("@Ubicacion", string.IsNullOrEmpty(binCode) ? DBNull.Value : binCode);
+                                    pedidoCommand.Parameters.AddWithValue("@MedidaBase", invntryUom ?? (object)DBNull.Value);
+                                    pedidoCommand.Parameters.AddWithValue("@Fabricante", fabricante ?? (object)DBNull.Value);
+                                    pedidoCommand.Parameters.AddWithValue("@AbsEntry", absentry ?? (object)DBNull.Value);
+                                    pedidoCommand.Parameters.AddWithValue("@SL1Code", sl1code ?? (object)DBNull.Value);
+                                    pedidoCommand.Parameters.AddWithValue("@SL2Code", sl2code ?? (object)DBNull.Value);
+                                    pedidoCommand.Parameters.AddWithValue("@SL3Code", sl3code ?? (object)DBNull.Value);
+                                    pedidoCommand.Parameters.AddWithValue("@SL4Code", sl4code ?? (object)DBNull.Value);
+                                    pedidoCommand.Parameters.AddWithValue("@TipoPeso", tipopeso ?? (object)DBNull.Value);
+                                    pedidoCommand.Parameters.AddWithValue("@CodigoFabricante", codigofabricante ?? (object)DBNull.Value);
+                                    pedidoCommand.Parameters.AddWithValue("@Factor", factor != 0 ? (object)factor : DBNull.Value);
+                                    pedidoCommand.Parameters.AddWithValue("@CantidadBase", registro.cantidad ?? (object)DBNull.Value);
+                                    pedidoCommand.Parameters.AddWithValue("@StockActual", stockactual ?? (object)DBNull.Value);
+                                    pedidoCommand.Parameters.AddWithValue("@Linea", linea ?? (object)DBNull.Value);
+
 
                                     await pedidoCommand.ExecuteNonQueryAsync();
                                     Console.WriteLine($"Pedido insertado: IDPlanMan = {idPlanMan}, IDProducto = {idProducto}, Cantidad = {registro.cantidad}, Peso = {registro.peso}, Ubicacion = {binCode}, MedidaBase = {invntryUom}");
                                 } catch (Exception ex) {
-                                    errores.Add($"Error al insertar en PlacaPedido: {ex.Message}");
+                                //    errores.Add($"Error al insertar en PlacaPedido: {ex.Message}");
                                     Console.WriteLine($"Error al insertar en PlacaPedido: {ex.Message}");
                                 }
                             } else {
-                                Console.WriteLine($"No se realiza el insert porque SL1Code es 'UBICACIÓN-DE-SISTEMA'.");
+                                Console.WriteLine($"No se realiza el insert porque SL1Code es 'UBICACIÓN-DE-SIsdasdsSTEMA'.");
                             }
                         }
                     }
@@ -2031,8 +2031,11 @@ namespace MorosidadWeb.Controllers {
                 R4.IDProducto IS NULL 
                 GROUP BY R1.IDPlanPla) T7 ON T7.IDPlanPla = T3.IDPlanPla
                 LEFT JOIN PickeoProductoIngresado T8 ON T8.IDPProducto = T4.IDPProducto
-                WHERE T1.Almacen = @almacen
-                GROUP BY T1.IDPlan, T1.Tipo, T1.Codigo, T1.Fecha, T1.Totales, T1.Planeados, T1.Libres, T1.ExcelSubido, T1.Almacen, T3.Placa, T3.Capacidad, T3.IDPlanPla, T3.Usuario, T4.IDPick, T5.Nombre, T6.Nombre, T7.Pendientes, T3.Confirmado,T3.CargaIncompleta,T3.Enviado,T3.Cargar,T3.Cargado,T3.Revision,T3.Sap, T3.LastMileCodigo, T3.FechaInicio, T3.FechaFin";
+                WHERE T1.Almacen = @almacen  and ((T1.Tipo='Local' and T3.LastMileCodigo IS NULL)OR(T1.Tipo='Provincia'))
+                GROUP BY T1.IDPlan, T1.Tipo, T1.Codigo, T1.Fecha, T1.Totales, T1.Planeados, T1.Libres,
+                T1.ExcelSubido, T1.Almacen, T3.Placa, T3.Capacidad, T3.IDPlanPla, T3.Usuario, T4.IDPick, T5.Nombre, T6.Nombre,
+                T7.Pendientes, T3.Confirmado,T3.CargaIncompleta,T3.Enviado,T3.Cargar,T3.Cargado,T3.Revision,T3.Sap, T3.LastMileCodigo,
+                T3.FechaInicio, T3.FechaFin ORDER BY Fecha ";
 
             var result = await connection.QueryAsync(query, new { almacen });
             var filteredResult = new List<dynamic>();
@@ -2056,7 +2059,7 @@ namespace MorosidadWeb.Controllers {
                     }
                 }
                 row.Manifiesto = manifiesto;
-                if (row.Manifiesto == "SIN MANIFIESTO") {
+                if ((row.Tipo == "Local" && row.LastMileCodigo == null) || (row.Tipo == "Provincia" && row.Manifiesto== "SIN MANIFIESTO") ) {
                     filteredResult.Add(row);
                 }
                 Console.WriteLine("manifiesto: " + row.Manifiesto);
@@ -2159,11 +2162,11 @@ namespace MorosidadWeb.Controllers {
                 R4.IDProducto IS NULL 
                 GROUP BY R1.IDPlanPla) T7 ON T7.IDPlanPla = T3.IDPlanPla
                 LEFT JOIN PickeoProductoIngresado T8 ON T8.IDPProducto = T4.IDPProducto
-                WHERE T1.Almacen = @almacen  and ((T1.Tipo='Local' and T3.LastMileCodigo IS NULL)OR(T1.Tipo='Provincia'))
+                WHERE T1.Almacen = @almacen 
                 GROUP BY T1.IDPlan, T1.Tipo, T1.Codigo, T1.Fecha, T1.Totales, T1.Planeados, T1.Libres,
                 T1.ExcelSubido, T1.Almacen, T3.Placa, T3.Capacidad, T3.IDPlanPla, T3.Usuario, T4.IDPick, T5.Nombre, T6.Nombre,
                 T7.Pendientes, T3.Confirmado,T3.CargaIncompleta,T3.Enviado,T3.Cargar,T3.Cargado,T3.Revision,T3.Sap, T3.LastMileCodigo,
-                T3.FechaInicio, T3.FechaFin ORDER BY Fecha ";
+                T3.FechaInicio, T3.FechaFin ORDER BY Fecha";
 
             var result = await connection.QueryAsync(query, new { almacen });
             var filteredResult = new List<dynamic>();
@@ -2187,7 +2190,7 @@ namespace MorosidadWeb.Controllers {
                     }
                 }
                 row.Manifiesto = manifiesto;
-                if (row.Manifiesto != "SIN MANIFIESTO") {
+                if ((row.Tipo == "Local" && row.LastMileCodigo != null) || (row.Tipo == "Provincia" && row.Manifiesto != "SIN MANIFIESTO")) {
                     filteredResult.Add(row);
                 }
             }
@@ -2294,11 +2297,28 @@ namespace MorosidadWeb.Controllers {
 
         [HttpGet]
         public async Task<IActionResult> CargarPlacas() {
-            using (var hanaConnection = new HanaConnection(_hanaConnectionString)) {
-                await hanaConnection.OpenAsync();
-                string query = @"
+            var connection = new SqlConnection(_connectionString);
+            HanaConnection hanaConnection = new(_hanaConnectionString);
+
+            await hanaConnection.OpenAsync();
+            await connection.OpenAsync();
+            ObtenerUsuarioYClave();
+            string almacen = null;
+
+            string sappQuery = $@"
+                SELECT ""Warehouse"" FROM OUDG WHERE ""Code"" = '{usuario}' ";
+            using (var hanaCommand = new HanaCommand(sappQuery, hanaConnection)) {
+                using (var reader = await hanaCommand.ExecuteReaderAsync()) {
+                    if (await reader.ReadAsync()) {
+                        almacen = reader["Warehouse"].ToString();
+                    } else {
+                        return StatusCode(500, new { message = "No se encontró el almacén para el usuario" });
+                    }
+                }
+
+                string query = $@"
                     SELECT ""U_EXX_PESVEH"" AS Peso, ""Code""
-                    FROM ""@EXX_VEHICU""";
+                    FROM ""@EXX_VEHICU"" WHERE ""U_FEM_DISBT"" = '{almacen}'";
 
                 var result = await hanaConnection.QueryAsync<VehiculoModel>(query);
 

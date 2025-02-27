@@ -3,7 +3,7 @@
     @if (User.Identity.IsAuthenticated) {
         <li class="nav-item">
             <a class="nav-link">
-                <span>@User.Identity.Name @User.FindFirst("Almacen")?.Value</span>
+                <span id="almacennombre">@User.Identity.Name @User.FindFirst("Almacen")?.Value</span>
             </a>
         </li>
         <li class="nav-item">
@@ -50,6 +50,11 @@
         //almacen.innerHTML = '@User.Identity.Name @User.FindFirst("Almacen")?.Value';
         container.appendChild(nombreUsuario);
         container.appendChild(almacen);
+        var contsdsdsdsdainer = document.getElementById('almacennombre');
+
+            console.log("000000000", contsdsdsdsdainer.textContent); 
+        
+
         body.appendChild(container);
         if (screenWidth <= 768) {
             container.style.display = 'inline-block'; 

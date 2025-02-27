@@ -76,24 +76,22 @@
 
                 $pickeadorBody.empty();
                 data.forEach((item, index) => {
-                    console.log("item", item);
-
-                    console.log("item.idPick", idPP);
-                    console.log("item.idPlanPla", item.idPlanPla);
-                    console.log("idPP", item.usuario);
+                    console.log("----------->",item);
                     const hiddeniniciar = item.fechaInicio === '0001-01-01T00:00:00' ? '' : 'hidden';
 
                     const mostrar = item.fechaInicio === '0001-01-01T00:00:00' ? `<button class="btn btn-secondary" disabled>Esperar confirmacion de inicio</button><br><button class="btn btn-primary iniciarpickador-btn wan" data-id="${idPP}" data-plan="${item.idPlanPla}" data-jefe="${item.usuario}" ${hiddeniniciar}>Iniciar</button>` :
                         (item.maxFinalizado === 1
-                            ? (item.minFinalizado === 1 ? `<button class="btn btn-success resumen-btn" data-id="${item.idPlanPla}">Terminado</button>` : `<button class="btn btn-warning detalles-btn" data-id="${item.idPlanPla}"><i class='bx bx-search'></i> Recontar</button>`)
+                            ? (item.minFinalizado === 1 ? `<button class="btn btn-success resumen-btn" style="" data-id="${item.idPlanPla}">Terminado</button>` : `<button class="btn btn-warning detalles-btn" data-id="${item.idPlanPla}"><i class='bx bx-search'></i> Recontar</button>`)
                             : `<button class="btn btn-warning detalles-btn" data-id="${item.idPlanPla}"><i class='bx bx-search'></i> Detalles</button>`);
-                    $pickeadorBody.append(`
-                                        <tr>
-                                            <td>${index + 1}</td>
-                                            <td>${item.placa}</td>
-                                            <td>${mostrar}</td>
-                                        </tr>
-                                    `);
+                    if (mostrar.includes('btn-warning') || mostrar.includes('btn-primary') || mostrar.includes('btn-secondary')) {
+                        $pickeadorBody.append(`
+                    <tr>
+                        <td>${index + 1}</td>
+                        <td>${item.placa}</td>
+                        <td>${mostrar}</td>
+                    </tr>
+                `);
+                    }
                 });
                 $('.detalles-btn').click(function () {
                     const idPlan = $(this).data('id');

@@ -215,6 +215,7 @@
                 let productosSeleccionados = [];
                 let productosrestantes = 0;
                 data.forEach((prod) => {
+                    console.log("Productos", prod);
                     resultadoFinal *= prod.verificado;
                     const estado = prod.iniciado === '0' ? 'secondary' : (prod.cantidadContada === 0 ? 'danger' : (prod.cantidad === prod.cantidadContada ? 'success' : 'warning'));
                     const disabled = prod.verificado === 1 ? 'disabled' : '';
@@ -235,7 +236,7 @@
                     const checkmarcado = prod.marcado === 1 ? 'checked' : '';
                     $productosBody.append(`
                                                 <div class="m-2 p-2 product-card" style="border: 5px solid #C4E1F6; border-radius: 10px;background-color:${colormarcado}" ${hidden} ${productofinalizado}>
-                                                    <span class="fw-bold text-dark fs-5">${checkbox}${prod.descripcion}</span>
+                                                            <span class="fw-bold text-dark fs-5">${checkbox}${prod.descripcion}</span>
                                                     <span class="fw-bold text-dark fs-5 codigobarras" hidden>${prod.codigoBarras}</span>
                                                     <input type="hidden" class="idpProducto" value="${prod.idpProducto}"/>
                                                     <br>

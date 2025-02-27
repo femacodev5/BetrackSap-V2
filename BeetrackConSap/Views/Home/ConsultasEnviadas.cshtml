@@ -4,6 +4,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,200..1000;1,200..1000&display=swap" rel="stylesheet">
+
 <link rel="stylesheet" href="~/css/JefeConteo.css">
 
 <style>
@@ -11,20 +12,22 @@
         font-family: "Nunito", serif;
     }
 
-    .btn {
-        border-radius: 50px !important;
-    }
+
 
     .backColor {
         background-color: #f5f5f0 !important;
         vertical-align: middle;
     }
 
+    .table td, .table th {
+        padding: .75rem;
+        vertical-align: middle;
+        border-top: 1px solid #dee2e6;
+    }
     .notification-badge {
         background-color: red;
         color: white;
         padding: 2px 10px;
-        border-radius: 50px;
         margin-left: 5px;
     }
 
@@ -69,12 +72,23 @@
 
     .gradient {
         background-image: linear-gradient(to right top, #00ff21, #0fff1d, #19ff18, #20ff13, #26ff0c, #49ff06, #5fff02, #71ff00, #8fff00, #a9ff00, #bfff00, #d3ff00);
-        color: white; /* Para asegurar que el texto sea visible */
-        border: none; /* Opcional, para eliminar el borde */
+        color: white; 
+        border: none;
     }
 
+    .table-success, .table-success > td, .table-success > th {
+        background-color: #d1e7dd;
+        vertical-align:middle;
+        border-color: #c5c5c5;
+    }
+
+    .table-info, .table-info > td, .table-info > th {
+        background-color: #bee5eb24;
+    }
 </style>
 <div class="tab-content">
+    <span id="identifalmacen" style="display:none;">@User.Identity.Name @User.FindFirst("Almacen")?.Value</span>
+
     <div class="tab-pane fade show active" id="tapContado">
         <div class="card border-0">
             <div class="card-body">
@@ -83,7 +97,23 @@
                         <div class="row">
                             <div class="col-12">
                                 <label for="tabla1">Planificaciones Subidas</label>
-
+                                    <button class="btn btn-primary" style="margin:10px;">Transferencias</button>
+                                <div class="modal fade" id="exampleModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+                                    <div class="modal-dialog">
+                                        <div class="modal-content">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title" id="exampleModalLabel">Mensaje</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                Hola
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                                 <div class="table-responsive">
 
                                     <table id="tabla1" class="table table-hover" style="text-align:center; font-size:14px">
@@ -126,7 +156,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
-                <button type="button" class="btn btn-primary" id="analizarBtn">Analizar</button>
+                <button type="button" class="btn btn-primary" id="analizarBtn">Cargar</button>
             </div>
         </div>
     </div>
@@ -389,7 +419,7 @@
     <div class="modal-dialog" role="document">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="modalLabel">Asignar Pickeador</h5>   <!--Que salga el nombre del actual-->
+                <h5 class="modal-title" id="modalLabel">Asignar Pickeador</h5>  
                 <label id="nombrePicker"></label>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
@@ -452,8 +482,12 @@
 
                 Object.entries(groupedData).forEach(([Codigo, placas], index) => {
                     const primeraPlaca = placas[0];
-
-                    const btnexcel = primeraPlaca.ExcelSubido === true ? (primeraPlaca.Tipo === 'Provincia' ? '' : '<button class="btn btn-success">Excel Subido</button>') : `<button class="btn btn-secondary excel-btn" data-id="${primeraPlaca.Codigo}"><i class='bx bx-search'></i> Subir Excel</button>`;
+                    console.log("primeraPlaca", primeraPlaca);
+                    const btnexcel = primeraPlaca.ExcelSubido === true
+                        ? (primeraPlaca.Tipo === 'Provincia' || primeraPlaca.Tipo === 'Local'
+                            ? ''
+                            : '<button class="btn btn-success">Excel Subido</button>')
+                        : `<button class="btn btn-secondary excel-btn" data-id="${primeraPlaca.Codigo}"><i class='bx bx-search'></i> Cargar Excel</button>`;
                     const btnborrar = primeraPlaca.ExcelSubido === true ? (primeraPlaca.Tipo === 'Provincia' && primeraPlaca.Jefe === null ? `<button class="btn btn-danger borrarpro-btn" style="margin-top:5px;" data-id="${primeraPlaca.Codigo}" data-plan="${primeraPlaca.IDPlanPla}"><i class='bx bx-trash'></i> Borrar</button>` : '') : `<button class="btn btn-danger borrar-btn responsivebtn" style="width: 100px;" data-id="${primeraPlaca.Codigo}"><i class='bx bx-trash'></i> Borrar</button>`;
                     hayLibres = primeraPlaca.Libres;
                     const codigoenvio = primeraPlaca.Codigo;
@@ -475,58 +509,57 @@
 
 
 
-
                     const $mainRow = $(`
-                                    <tr class="table-success main-row" style="cursor: pointer; vertical-align: middle; font-weight: 600; line-height: 1.7;">
-                                        <td>${index + 1} <br> <button class="btn btn-primary detalles-btn responsivebtn" style="border-radius:5px !important;" data-id="${primeraPlaca.Codigo}">
-                                            <i class='bx bx-search'></i>
-                                        </button></td>
-                                        <td>
-                                            ${primeraPlaca.Tipo}<br>
-                                            <strong class="${primeraPlaca.Tipo === 'Local' ? 'hidden' : ''}">${primeraPlaca.Placa}</strong>
-                                        </td>
-                                        <td>Codigo:<br> <span style="font-weight:bold;">${primeraPlaca.Codigo}</span><br>
-                                            ${primeraPlaca.Tipo !== 'Local' ? `Capacidad: ${primeraPlaca.Capacidad}<br>Items: ${primeraPlaca.Items}` : ''}
-                                        </td>
-                                        <td>Fecha:<br> <span style="font-weight:bold;">${formatearFecha(fecha)}</span> <br>
-                                            ${primeraPlaca.Tipo !== 'Local' ? `Peso Carga: ${primeraPlaca.PesoCarga} <br> Diferencia: ${new Intl.NumberFormat('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(primeraPlaca.Capacidad - primeraPlaca.PesoCarga)}` : ''}
-                                        </td>
-                                        <td>Pedidos: ${primeraPlaca.Planeados === null ? primeraPlaca.TotalPrev : primeraPlaca.Planeados} <br>
-                                            Planeados: ${primeraPlaca.Totales === null ? '' : primeraPlaca.Totales}
-                                        </td>
-                                        <td>${primeraPlaca.Libres === null ? '' : primeraPlaca.Libres}</td>
-                                        <td>${btnexcel}</td>
+                                            <tr class="table-success main-row" style="cursor: pointer; vertical-align: middle; font-weight: 600; line-height: 1.7;">
+                                                <td>${index + 1} <br> <button class="btn btn-primary detalles-btn responsivebtn" style="border-radius:5px !important;" data-id="${primeraPlaca.Codigo}">
+                                                    <i class='bx bx-search'></i>
+                                                </button></td>
+                                                <td>
+                                                            ${primeraPlaca.Tipo === 'Local' ? 'Beetrack' : primeraPlaca.Tipo}<br>
+                                                    <strong class="${primeraPlaca.Tipo === 'Local' ? 'hidden' : ''}">${primeraPlaca.Placa}</strong>
+                                                </td>
+                                                <td>Codigo:<br> <span style="font-weight:bold;">${primeraPlaca.Codigo}</span><br>
+                                                    ${primeraPlaca.Tipo !== 'Local' ? `Capacidad: ${primeraPlaca.Capacidad}<br>Items: ${primeraPlaca.Items}` : ''}
+                                                </td>
+                                                <td>Fecha:<br> <span style="font-weight:bold;">${formatearFecha(fecha)}</span> <br>
+                                                    ${primeraPlaca.Tipo !== 'Local' ? `Peso Carga: ${primeraPlaca.PesoCarga} <br> Diferencia: ${new Intl.NumberFormat('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(primeraPlaca.Capacidad - primeraPlaca.PesoCarga)}` : ''}
+                                                </td>
+                                                <td>Pedidos: ${primeraPlaca.Planeados === null ? primeraPlaca.TotalPrev : primeraPlaca.Planeados} <br>
+                                                    Planeados: ${primeraPlaca.Totales === null ? '' : primeraPlaca.Totales}
+                                                </td>
+                                                <td>${primeraPlaca.Libres === null ? '' : primeraPlaca.Libres}</td>
+                                                <td>${btnexcel}</td>
 
-                                        ${primeraPlaca.Tipo === 'Provincia' ? (
+                                                ${primeraPlaca.Tipo === 'Provincia' ? (
                             primeraPlaca.Jefe === null
                                 ? '<td style="color:red;">sin Asignar</td>'
                                 : (primeraPlaca.IDPicks === null
                                     ? `<td style="font-weight:bold;">${primeraPlaca.Jefe}</td>`
-                                    : `<td style="font-weight:bold;">${primeraPlaca.Jefe} <br>Lista Pick: ${primeraPlaca.IDPicks}<br>Manifiesto${primeraPlaca.Manifiesto}</td>`
+                                    : `<td style="font-weight:bold;">${primeraPlaca.Jefe} <br>Lista Pick: ${primeraPlaca.IDPicks}<br>Manifiesto: ${primeraPlaca.Manifiesto}</td>`
                                 )
                         ) : '<td></td>'}
 
-                                        ${primeraPlaca.Tipo === 'Provincia' ? (() => {
+                                                ${primeraPlaca.Tipo === 'Provincia' ? (() => {
                             let buttonHTML = '';
                             if (primeraPlaca.Nombre === null && primeraPlaca.Jefe === null) {
                                 buttonHTML = `<td><button class="btn btn-light asignar-jefe-btn" data-id="${primeraPlaca.IDPlanPla}" style="border-radius:50px;font-weight: bold;">Asignar Jefe de Grupo</button><br>${btnborrar}</td>`;
                             }
 
-                            
+
 
                             else if (primeraPlaca.Enviado === true && primeraPlaca.Cargar === true && primeraPlaca.Cargado === null && primeraPlaca.Revision === null && primeraPlaca.Sap === null) {
                                 buttonHTML = `<td><button class="btn btn-success" disabled><i class="bx bx-search"></i> Carga en proceso</button></td>`;
-                                 if (primeraPlaca.Acontar !== null && primeraPlaca.Contados !== null) {
+                                if (primeraPlaca.Acontar !== null && primeraPlaca.Contados !== null) {
                                     buttonHTML = `<td><button class="btn btn-warning detallescarga-btn" data-id="${primeraPlaca.IDPlanPla}"> <i class="bx bx-search"></i>Pendiente Confirmacion</button></td>`
-                                    ;
-                            }
+                                        ;
+                                }
                             }
                             else if (primeraPlaca.Nombre === null) {
                                 buttonHTML = `<td><button class="btn btn-info planificar-btn" data-id="${primeraPlaca.IDPlanPla}" style="border-radius:50px !important;font-weight:bold;"><i class='bx bx-search'></i> Asignar Pickador</button><br><button class="btn btn-light asignar-jefe-btn" style="margin-top: 5px; --bs-btn-bg: #8d8d8d00 !important; --bs-btn-border-color: #007fff00; text-decoration: underline; font-weight: 500; color: black;" data-id="${primeraPlaca.IDPlanPla}">Editar Jefe de Grupo</button></td>`;
                             } else if (primeraPlaca.Nombre !== null && primeraPlaca.Jefe !== null && primeraPlaca.IDPick !== 0 && primeraPlaca.Sap !== true && primeraPlaca.Pendientes !== null) {
                                 buttonHTML = `<td><button class="btn btn-warning planificar-btn" style="position: relative; font-weight: bold; padding: 3px;  display: flex ; align-items: center; justify-content: center; margin: 0px auto;" data-id="${primeraPlaca.IDPlanPla}">
-                                                       Asignar   <span class="notification-badge">  ${primeraPlaca.Pendientes} <span style="margin-left:5px;">Pendiente</span></span>
-                                             </button></td>`;
+                                                               Asignar   <span class="notification-badge">  ${primeraPlaca.Pendientes} <span style="margin-left:5px;">Pendiente</span></span>
+                                                     </button></td>`;
                             } else if (primeraPlaca.Sap === true) {
                                 buttonHTML = `<td><button class="btn btn-danger">Falta Manifiesto</button></td>`;
                             } else if (primeraPlaca.Nombre !== null && primeraPlaca.Jefe !== null && primeraPlaca.IDPicks === null && primeraPlaca.Enviado === true && primeraPlaca.Cargar === true && primeraPlaca.Cargado === true && primeraPlaca.Revision === true && primeraPlaca.Sap === null) {
@@ -535,8 +568,8 @@
 
                             else if (primeraPlaca.Enviado === true) {
                                 buttonHTML = `<td><button class="btn btn-warning  detallespicking-btn" data-id="${primeraPlaca.IDPlanPla}">
-                                                                <i class='bx bx-search'></i> Picking Finalizado
-                                                    </button></td>`
+                                                                        <i class='bx bx-search'></i> Picking Finalizado
+                                                            </button></td>`
                                     ;
 
                             }
@@ -547,13 +580,13 @@
 
                             }
 
-                           
+
 
 
                             return buttonHTML;
                         })() : ''}
 
-                                        ${primeraPlaca.Tipo === 'Local' ? (() => {
+                                                ${primeraPlaca.Tipo === 'Local' ? (() => {
                             let buttonHTML = '<td></td>';
 
                             if (primeraPlaca.Acontar !== null) {
@@ -563,8 +596,8 @@
                             return buttonHTML;
                         })() : ''}
 
-                                    </tr>
-                                `);
+                                            </tr>
+                                        `);
 
 
 
@@ -576,15 +609,15 @@
 
                     if (placas.length > 0) {
                         const $subTable = $(`
-                                                                                                             <tr class="subtable" style="display: none;" >
-                                                                                                                 <td colspan="9">
-                                                                                                                             <table class="table table-hover" >
-                                                                                                                         <thead></thead>
-                                                                                                                         <tbody></tbody>
-                                                                                                                     </table>
-                                                                                                                 </td>
-                                                                                                             </tr>
-                                                                                                         `);
+                                                                                                                     <tr class="subtable" style="display: none;" >
+                                                                                                                         <td colspan="9">
+                                                                                                                                     <table class="table table-hover" >
+                                                                                                                                 <thead></thead>
+                                                                                                                                 <tbody></tbody>
+                                                                                                                             </table>
+                                                                                                                         </td>
+                                                                                                                     </tr>
+                                                                                                                 `);
 
                         $mainRow.after($subTable);
 
@@ -609,8 +642,8 @@
                         }, {});
 
                         Object.entries(groupedByPlaca).forEach(([placa, subregs]) => {
-
                             const regs = subregs[0];
+                            console.log("regs", regs);
 
                             const buttoncolor = regs.IDPick === null ?
                                 `` :
@@ -618,9 +651,9 @@
                                     (regs.FechaInicio !== null && regs.FechaTermino !== null ?
                                         `<button class="btn btn-warning" style="position:relative;">Pendiente de Carga</button>` :
                                         `<button class="btn btn-success" style="position:relative;">Picking Planificado</button>`) :
-                                    `<button class="btn btn-warning planificar-btn" style="position: relative; font-weight: bold; padding: 3px; display: flex; align-items: center; justify-content: center; margin: 0px auto;" data-id="${primeraPlaca.IDPlanPla}">
-                                            Asignar   <span class="notification-badge"> ${primeraPlaca.Pendientes} <span style="margin-left:5px;">Pendiente</span></span>
-                                        </button>`
+                                    `<button class="btn btn-warning planificar-btn" style="position: relative; font-weight: bold; padding: 3px; display: flex; align-items: center; justify-content: center; margin: 0px auto;" data-id="${regs.IDPlanPla}">
+                                                            Asignar   <span class="notification-badge"> ${regs.Pendientes} <span style="margin-left:5px;">Pendiente</span></span>
+                                                </button>`
                                 );
 
 
@@ -636,10 +669,10 @@
                             let botonHTML = '';
                             if (regs.Enviado === null && regs.Cargar === null && regs.Cargado === null && regs.Revision === null && regs.Sap === null) {
                                 botonHTML = `
-                                                                                                                    <button class="btn btn-secondary" disabled>
-                                                                                                                        <i class='bx bx-search'></i> Falta Enviar
-                                                                                                                    </button>
-                                                                                                                `;
+                                                                                                                            <button class="btn btn-secondary" disabled>
+                                                                                                                                <i class='bx bx-search'></i> Falta Enviar
+                                                                                                                            </button>
+                                                                                                                        `;
                             }
                             else if (regs.Enviado === true && regs.Cargar === null && regs.Cargado === null && regs.Revision === null && regs.Sap === null) {
                                 const btnpicking = regs.TotalPick === regs.PickadosReal ? 'success' : 'warning';
@@ -648,14 +681,14 @@
 
                                 botonHTML = regs.TotalPick === regs.PickadosReal
                                     ? `
-                                                                                                                    <button class="btn btn-${colorevi} fincargada-btn" data-id="${regs.IDPlanPla}">
-                                                                                                                        <i class='bx bx-search'></i> ${textrevi}
-                                                                                                                    </button>
-                                                                                                                `: `
-                                                                                                                    <button class="btn btn-${colorevi} detallespicking-btn" data-id="${regs.IDPlanPla}">
-                                                                                                                        <i class='bx bx-search'></i> ${textrevi}
-                                                                                                                    </button>
-                                                                                                                `;
+                                                                                                                            <button class="btn btn-${colorevi} fincargada-btn" data-id="${regs.IDPlanPla}">
+                                                                                                                                <i class='bx bx-search'></i> ${textrevi}
+                                                                                                                            </button>
+                                                                                                                        `: `
+                                                                                                                            <button class="btn btn-${colorevi} detallespicking-btn" data-id="${regs.IDPlanPla}">
+                                                                                                                                <i class='bx bx-search'></i> ${textrevi}
+                                                                                                                            </button>
+                                                                                                                        `;
 
                             } else if (regs.Enviado === true && regs.Cargar === true && regs.Cargado === null && regs.Revision === null && regs.Sap === null) {
                                 botonHTML = regs.CargaIncompleta === true ?
@@ -663,73 +696,73 @@
                                     : '<button class="btn btn-success" disabled><i class="bx bx-search"></i> Carga en proceso</button>';
                             } else if (regs.Enviado === true && regs.Cargar === true && regs.Cargado === true && regs.Revision === null && regs.Sap === null) {
                                 botonHTML = `
-                                                                                                                    <button class="btn btn-warning cargaincom-btn" data-id="${regs.IDPlanPla}">
-                                                                                                                        <i class='bx bx-search'></i> Revisar carga
-                                                                                                                    </button>
-                                                                                                                `;
+                                                                                                                            <button class="btn btn-warning cargaincom-btn" data-id="${regs.IDPlanPla}">
+                                                                                                                                <i class='bx bx-search'></i> Revisar carga
+                                                                                                                            </button>
+                                                                                                                        `;
                             } else if (regs.Enviado === true && regs.Cargar === true && regs.Cargado === true && regs.Revision === true && regs.Sap === null) {
                                 botonHTML = `
-                                                                                                                    <button class="btn btn-primary picking-btn" data-id="${regs.IDPlanPla}">
-                                                                                                                        <i class='bx bx-search'></i> Generar Picking Sap1
-                                                                                                                    </button>
-                                                                                                                `;
+                                                                                                                            <button class="btn btn-primary picking-btn" data-id="${regs.IDPlanPla}">
+                                                                                                                                <i class='bx bx-search'></i> Generar Picking Sap
+                                                                                                                            </button>
+                                                                                                                        `;
                             }
                             else if (regs.Enviado === true && regs.Cargar === true && regs.Cargado === true && regs.Revision === true && regs.Sap === true) {
 
                                 const btnLastMiles = regs.Manifiesto === 'SIN MANIFIESTO' ? `` : `<button class="btn btn-primary lastenvio-btn" data-id="${regs.Manifiesto}" data-plan="${regs.IDPlanPla}">
-                                                                                                                                <i class='bx bx-send'></i> Enviar a Last Miles
-                                                                                                                            </button>`;
+                                                                                                                                        <i class='bx bx-send'></i> Enviar a Last Miles
+                                                                                                                                    </button>`;
                                 botonHTML = regs.LastMileCodigo === null ? `
-                                                                                                                    <button class="btn btn-primary detectar-btn" data-id="${regs.IDPicks}" data-plan="${regs.IDPlanPla}" hidden>
-                                                                                                                        <i class='bx bx-search'></i> Detectar Manifiesto
-                                                                                                                    </button>${btnLastMiles}
+                                                                                                                            <button class="btn btn-primary detectar-btn" data-id="${regs.IDPicks}" data-plan="${regs.IDPlanPla}" hidden>
+                                                                                                                                <i class='bx bx-search'></i> Detectar Manifiesto
+                                                                                                                            </button>${btnLastMiles}
 
-                                                                                                                        `: `<button class="btn btn-primary">Validar LastMile: ${regs.LastMileCodigo}</button>`;
+                                                                                                                                `: `<button class="btn btn-primary">Validar LastMile: ${regs.LastMileCodigo}</button>`;
 
                             }
-                            console.log("-----------------------------------------");
-                            console.log(regs.Tipo);
-                            console.log("-------->primeraPlaca.IDPlanPla", primeraPlaca.IDPlanPla);
-                            console.log("-------->Rregs.IDPlanPla:correcto", regs.IDPlanPla);
-                            console.log("-----------------------------------------");
+                          
 
                             //MODIFICANDO
                             if (regs.IDPicks !== null && regs.Enviado === true && regs.Cargar === true && regs.Cargado === true && regs.Revision === true && regs.Sap === true) {
                                 let btnLastMiles;
-                                
+
 
 
                                 if (regs.Tipo === 'Local') {
-                                    btnLastMiles = `<button class="btn btn-primary"><i class='bx bx-send'></i> Enviar a Last Mile</button>`;
+                                    btnLastMiles = `<button class="btn btn-primary lastenvio-btn" data-id="${regs.Manifiesto}" data-plan="${regs.IDPlanPla}"><i class='bx bx-send'></i> Enviar a Last Mile</button>`;
                                 } else {
                                     btnLastMiles = `<button class="btn btn-warning lastenvio-btn" data-id="${regs.Manifiesto}" data-plan="${regs.IDPlanPla}">
-                                                            Finalizado
-                                                        </button>`;
+                                                                    Finalizado
+                                                                </button>`;
                                 }
 
                                 botonHTML = regs.LastMileCodigo === null ? `
-                                                            <button class="btn btn-primary detectar-btn" data-id="${regs.IDPicks}" data-plan="${regs.IDPlanPla}" hidden>
-                                                                <i class='bx bx-search'></i> Detectar Manifiesto
-                                                            </button>${btnLastMiles}` : `<button class="btn btn-primary">Validar LastMile: ${regs.LastMileCodigo}</button>`;
+                                                                    <button class="btn btn-primary detectar-btn" data-id="${regs.IDPicks}" data-plan="${regs.IDPlanPla}" hidden>
+                                                                        <i class='bx bx-search'></i> Detectar Manifiesto
+                                                                    </button>${btnLastMiles}` : `<button class="btn btn-primary">Validar LastMile: ${regs.LastMileCodigo}</button>`;
 
-                            } else if (regs.Enviado == true && regs.Sap == null) {
+                            } else if (regs.Enviado == true && regs.Sap == null && regs.FechaFi == null && regs.FechaTermino == null ) {
                                 botonHTML = `<button class="btn btn-warning  detallespicking-btn" data-id="${regs.IDPlanPla}"> Picking Finalizado </button > `;
                             }
 
                             /////////////////////
                             const numpick = (regs.IDPicks === null && regs.FechaFi !== null)
-                                ? `<button class="btn btn-primary picking-btn" data-id="${regs.IDPlanPla}">
-                                                            <i class='bx bx-search'></i> Generar Picking Sap2
-                                                          </button>`
+                                ? ``
                                 : (regs.IDPicks !== null ? `<strong>Lista Pick: ${regs.IDPicks}</strong><br>` : '');
                             const nummani = regs.Manifiesto === 'SIN MANIFIESTO' ? '' : `<strong>Manifiesto : ${regs.Manifiesto}</strong>`;
                             const enviado = regs.Enviado === null
                                 ? `<td>${asignarBtn}</td>
-                                                                                                                   <td>${asignarJefeBoton}</td>`
+                                                                                                                           <td>${asignarJefeBoton}</td>`
                                 : `<td>${numpick} ${nummani}</td>
-                                                                                                                   <td>${botonHTML}</td>`;
+                                                                                                                           <td>${botonHTML}</td>`;
 
-                            const jefe = regs.ExcelSubido === null ? `<button class="btn btn-danger borrarpro-btn" style="margin-top:5px;" data-id="${regs.Codigo}" data-plan="${regs.IDPlanPla}"><i class='bx bx-trash'></i> Borrar</button><br>` : (regs.Jefe === null ? `<button class="btn btn-light asignar-jefe-btn" data-id="${regs.IDPlanPla}" style="border-radius:50px;font-weight: bold;" ${regs.Acontar === null ? '' : ''}>Asignar Jefe de Grupo</button><br> <button class="btn btn-danger borrarpro-btn" style="margin-top:5px;" data-id="${regs.Codigo}" data-plan="${regs.IDPlanPla}"> <i class='bx bx-trash'></i> Borrar </button>` : regs.Jefe);
+                            const jefe = regs.Jefe === null
+                                ? `<button class="btn btn-light asignar-jefe-btn" data-id="${regs.IDPlanPla}" style="border-radius:50px;font-weight: bold;" ${regs.Acontar === null ? '' : ''}>Asignar Jefe de Grupo</button><br>
+             <button class="btn btn-danger borrarpro-btn" style="margin-top:5px;" data-id="${regs.Codigo}" data-plan="${regs.IDPlanPla}">
+               <i class='bx bx-trash'></i> Borrar
+             </button><br>`
+                                : regs.Jefe;
+
                             const plac = regs.Placa === null ? 'Ninguno' : regs.Placa;
                             const vacio = plac === 'Ninguno' ? '' : enviado;
 
@@ -765,33 +798,33 @@
                             }
 
                             const subregRow = $(`
-                                                                                                        <tr class="backColor"  id="row-${regs.IDPlanPla}" style="${displayStyle2}">
-                                                                                            <td colspan="2">
-                                                                                                    <strong> ${plac}</strong>
-                                                                                                            <div>
-                                                                    <button class="btn btn-outline-primary border-2 pedidosplaca-btn" style="margin-bottom:3px;" data-id="${regs.IDPlanPla}">
-                                                                        <i class="bx bx-search"></i>
-                                                                    </button>
-                                                                </div>
+                                                                                                                <tr class="backColor"  id="row-${regs.IDPlanPla}" style="${displayStyle2}">
+                                                                                                    <td colspan="2">
+                                                                                                            <strong> ${plac}</strong>
+                                                                                                                    <div>
+                                                                            <button class="btn btn-outline-primary border-2 pedidosplaca-btn" style="margin-bottom:3px;" data-id="${regs.IDPlanPla}">
+                                                                                <i class="bx bx-search"></i>
+                                                                            </button>
+                                                                        </div>
 
-                                                                                            </td>
-                                                                                            <td>Capacidad: ${regs.Capacidad}<br>Items: ${regs.TotalItems}</td>
-                                                                                                            <td style="color:${colorcarga};font-weight:400">Peso Carga: ${regs.PesoCarga}</td>
-                                                                                                    <td style="color:${colorcarga};font-weight:400">Diferencia: ${(regs.Capacidad - regs.PesoCarga).toFixed(2)}</td>
-                                                                                            <td style="color:${colorcarga}"></td>
-                                                                                            <td>
-                                                                                                <button class="clickable-button" id="timeButton-${regs.IDPlanPla}" onclick="mostrarInicioFin('${regs.IDPlanPla}')">
-                                                                                                            <strong id="tiempo-${regs.IDPlanPla}">Duracion: ${diferenciatiempoplaca}</strong> <span>🔽</span>
-                                                                                                </button>
-                                                                                                <div id="extraInfo-${regs.IDPlanPla}" class="additional-info" style="display: none;">
-                                                                                                            <strong id="inicio-${regs.IDPlanPla}">Inicio: ${inicioplaca1}</strong>
-                                                                                                            <strong id="fin-${regs.IDPlanPla}">Fin: ${terminoplaca1}</strong>
-                                                                                                </div>
-                                                                                            </td>
-                                                                                            <td colspan="3">${jefe}</td>
-                                                                                            ${vacio}
-                                                                                        </tr>
-                                                                                    `);
+                                                                                                    </td>
+                                                                                                    <td>Capacidad: ${regs.Capacidad}<br>Items: ${regs.TotalItems}</td>
+                                                                                                                    <td style="color:${colorcarga};font-weight:400">Peso Carga: ${regs.PesoCarga}</td>
+                                                                                                            <td style="color:${colorcarga};font-weight:400">Diferencia: ${(regs.Capacidad - regs.PesoCarga).toFixed(2)}</td>
+                                                                                                    <td style="color:${colorcarga}"></td>
+                                                                                                    <td>
+                                                                                                        <button class="clickable-button" id="timeButton-${regs.IDPlanPla}" onclick="mostrarInicioFin('${regs.IDPlanPla}')">
+                                                                                                                    <strong id="tiempo-${regs.IDPlanPla}">Duracion: ${diferenciatiempoplaca}</strong> <span>🔽</span>
+                                                                                                        </button>
+                                                                                                        <div id="extraInfo-${regs.IDPlanPla}" class="additional-info" style="display: none;">
+                                                                                                                    <strong id="inicio-${regs.IDPlanPla}">Inicio: ${inicioplaca1}</strong>
+                                                                                                                    <strong id="fin-${regs.IDPlanPla}">Fin: ${terminoplaca1}</strong>
+                                                                                                        </div>
+                                                                                                    </td>
+                                                                                                    <td colspan="3">${jefe}</td>
+                                                                                                    ${vacio}
+                                                                                                </tr>
+                                                                                            `);
 
                             $subTableBody.append(subregRow);
 
@@ -802,14 +835,14 @@
                             }
 
                             const $subsubTable = $(`
-                                    <tr class="subsubtable" style="${displayStyle}">
-                                        <td colspan="12">
-                                            <table class="table table-hover">
-                                                <tbody style="vertical-align: middle;"></tbody>
-                                            </table>
-                                        </td>
-                                    </tr>
-                                `);
+                                            <tr class="subsubtable" style="${displayStyle}">
+                                                <td colspan="12">
+                                                    <table class="table table-hover">
+                                                        <tbody style="vertical-align: middle;"></tbody>
+                                                    </table>
+                                                </td>
+                                            </tr>
+                                        `);
 
 
 
@@ -822,6 +855,7 @@
                             let totalItemsPickSum = 0;
                             let totalPesoPickSum = 0;
                             subregs.forEach((subreg) => {
+
                                 var hiddenpick = '';
                                 if (subreg.Nombre === null) {
                                     subreg.Nombre = "Ninguno";
@@ -840,13 +874,13 @@
                                 if (textodetalle == 'Pendiente de carga') {
                                     newestadodetalle = 'warning';
                                 }
-                                //ajustar
-                                if (textodetalle == 'Finalizado') {
+                                if (textodetalle == 'Finalizado' && (subreg.Acontar - subreg.Contados == 0)) {
                                     newestadodetalle = 'success';
                                 }
-                                if (textodetalle == 'Finalizado' && subreg.Recontad == 1) {
+                                if (textodetalle == 'Finalizado' && (subreg.Acontar - subreg.Contados != 0)) {
                                     newestadodetalle = 'warning';
                                 }
+
 
                                 const inicio = subreg.FechaInicio === null ? '' : subreg.FechaInicio.slice(11, 16);
                                 const termino = subreg.FechaTermino === null ? '' : subreg.FechaTermino.slice(11, 16);
@@ -854,21 +888,21 @@
 
                                 const btnborrarpickeador = subreg.FechaInicio === null
                                     ? `<button class="btn btn-danger borrarpickador-btn" style="width: 105px;padding: 6px 0px; margin:0px 5px" data-id="${subreg.IDPick}" data-plan="${subreg.IDPlanPla}"><i class="bx bx-trash"></i> Borrar</button>
-                                                                           <button class="btn btn-secondary cambiarpickador-btn" style="width: 105px;padding: 6px 0px; margin:0px 5px" data-id="${subreg.IDPick}" data-plan="${subreg.IDPlanPla}"><i class="bx bx-edit"></i> Cambiar</button>
-                                                                           <button class="btn btn-primary quitarpickador-btn" style="width: 105px;padding: 6px 0px; margin:0px 5px" data-id="${subreg.IDPick}" data-plan="${subreg.IDPlanPla}"><i class="bx bx-filter"></i> Quitar</button>` : '';
+                                                                                   <button class="btn btn-secondary cambiarpickador-btn" style="width: 105px;padding: 6px 0px; margin:0px 5px" data-id="${subreg.IDPick}" data-plan="${subreg.IDPlanPla}"><i class="bx bx-edit"></i> Cambiar</button>
+                                                                                   <button class="btn btn-primary quitarpickador-btn" style="width: 105px;padding: 6px 0px; margin:0px 5px" data-id="${subreg.IDPick}" data-plan="${subreg.IDPlanPla}"><i class="bx bx-filter"></i> Quitar</button>` : '';
 
                                 if (subreg.Nombre !== "Ninguno") {
 
                                     $subsubTableBody.append(`
-                                                                    <tr class="table-info">
-                                                                        <td colspan="4">${subreg.Nombre} <br><strong>Peso:${subreg.PesoTotalPick}</strong><br><strong>Items:${subreg.TotalItemsPick}</strong></td>
-                                                                        <td><button class="btn btn-${newestadodetalle} detalles-subregistro-btn" data-id="${subreg.IDPick}" data-plan="${subreg.IDPlanPla}" ${hiddenpick}>${textodetalle}</button></td>
-                                                                        <td>${btnborrarpickeador}</td>
-                                                                        <td>Inicio: ${inicio}</td>
-                                                                        <td>Termino: ${termino}</td>
-                                                                        <td style="color:red"><strong>Tiempo: ${diferenciatiempo}</strong></td>
-                                                                        <td><button class="btn btn-success exportar-btn" data-id="${subreg.IDPick}" data-plan="${subreg.IDPlanPla}" ><i class="bx bx-cloud-download"></i> Exportar</button></td>
-                                                                    </tr>`);
+                                                                            <tr class="table-info">
+                                                                                <td colspan="4">${subreg.Nombre} <br><strong>Peso:${subreg.PesoTotalPick}</strong><br><strong>Items:${subreg.TotalItemsPick}</strong></td>
+                                                                                <td><button class="btn btn-${newestadodetalle} detalles-subregistro-btn" data-id="${subreg.IDPick}" data-plan="${subreg.IDPlanPla}" ${hiddenpick}>${textodetalle}</button></td>
+                                                                                <td>${btnborrarpickeador}</td>
+                                                                                <td>Inicio: ${inicio}</td>
+                                                                                <td>Termino: ${termino}</td>
+                                                                                <td style="color:red"><strong>Tiempo: ${diferenciatiempo}</strong></td>
+                                                                                <td><button class="btn btn-success exportar-btn" data-id="${subreg.IDPick}" data-plan="${subreg.IDPlanPla}" ><i class="bx bx-cloud-download"></i> Exportar</button></td>
+                                                                            </tr>`);
                                 }
 
 
@@ -886,11 +920,11 @@
 
                         if (hayLibres != 0 && hayLibres != null) {
                             const libreRow = $(`
-                                                                                                                        <tr colspan="12">
-                                                                                                                    <td colspan="4">Ninguno</td>
-                                                                                                                    <td colspan="4">Pedidos Sin Planificar</td>
-                                                                                                                    <td colspan="4"><button class="btn btn-secondary detallessin-btn" data-id="${codigoenvio}">Detalles</button></td>
-                                                                                                                </tr>`);
+                                                                                                                                <tr colspan="12">
+                                                                                                                            <td colspan="4">Ninguno</td>
+                                                                                                                            <td colspan="4">Pedidos Sin Planificar</td>
+                                                                                                                            <td colspan="4"><button class="btn btn-secondary detallessin-btn" data-id="${codigoenvio}">Detalles</button></td>
+                                                                                                                        </tr>`);
 
                             $subTableBody.append(libreRow);
                         }
@@ -1060,10 +1094,10 @@
                             let rowColor = '#BC7C7C';
                             stockHtml +=
                                 `<tr style="background-color: ${rowColor};">
-                                                <td style="padding: 8px;">${producto.idProducto}</td>
-                                                <td style="padding: 8px;">${producto.CantidadSolicitada}</td>
-                                                <td style="padding: 8px;">${producto.StockDisponible}</td>
-                                            </tr>`;
+                                                        <td style="padding: 8px;">${producto.idProducto}</td>
+                                                        <td style="padding: 8px;">${producto.CantidadSolicitada}</td>
+                                                        <td style="padding: 8px;">${producto.StockDisponible}</td>
+                                                    </tr>`;
                             hasProducts = true;
                         }
                     });
@@ -1072,8 +1106,8 @@
                         stockHtml +=
                             '<table><tbody>' +
                             `<tr style="background-color: #D0E8C5;">
-                                                    <td colspan="3" style="text-align: center; padding: 8px;width: 900px;">Stock Completo</td>
-                                        </tr>`;
+                                                            <td colspan="3" style="text-align: center; padding: 8px;width: 900px;">Stock Completo</td>
+                                                </tr>`;
                     }
 
                     stockHtml += '</tbody></table>';
@@ -1345,6 +1379,8 @@
 
         const envioFinalLast = async (idPick, idPlan) => {
             try {
+                console.log("n° manifiesto", idPick);
+
                 const response = await fetch(`/Coordinador/ObtenerManifiestoNumero?numeroManifiesto=${idPick}`);
 
                 if (response.ok) {
@@ -1432,20 +1468,20 @@
 
                         manifiestos.forEach(mani => {
                             tableContent += `
-                                                                                                                <tr>
-                                                                                                                    <td>${mani.docEntry}</td>
-                                                                                                                    <td>${mani.u_EXP_FECH}</td>
-                                                                                                                    <td>${mani.u_EXP_PLVE}</td>
-                                                                                                                    <td>${mani.u_EXP_TRAN}</td>
-                                                                                                                    <td>${mani.u_EXP_COND}</td>
-                                                                                                                    <td>${mani.u_EXP_CODSEDE}</td>
-                                                                                                                    <td>
-                                                                                                                        <button class="btn btn-primary detallesmani-btn" data-docentry="${mani.docEntry}" data-planman="${idPlan}">
-                                                                                                                            <i class="bx bx-search"></i>
-                                                                                                                        </button>
-                                                                                                                    </td>
-                                                                                                                </tr>
-                                                                                                            `;
+                                                                                                                        <tr>
+                                                                                                                            <td>${mani.docEntry}</td>
+                                                                                                                            <td>${mani.u_EXP_FECH}</td>
+                                                                                                                            <td>${mani.u_EXP_PLVE}</td>
+                                                                                                                            <td>${mani.u_EXP_TRAN}</td>
+                                                                                                                            <td>${mani.u_EXP_COND}</td>
+                                                                                                                            <td>${mani.u_EXP_CODSEDE}</td>
+                                                                                                                            <td>
+                                                                                                                                <button class="btn btn-primary detallesmani-btn" data-docentry="${mani.docEntry}" data-planman="${idPlan}">
+                                                                                                                                    <i class="bx bx-search"></i>
+                                                                                                                                </button>
+                                                                                                                            </td>
+                                                                                                                        </tr>
+                                                                                                                    `;
                         });
 
                         $('#manisModal .modal-body table tbody').html(tableContent);
@@ -1498,25 +1534,25 @@
                 } else {
                     data.forEach((manifiesto) => {
                         $manifiestosBody.append(`
-                                                                                                            <tr>
-                                                                                                                <td>${manifiesto.u_EXP_PLACA}</td>
-                                                                                                                <td>${manifiesto.docNum}</td>
-                                                                                                                <td>${manifiesto.cardName}</td>
-                                                                                                                <td>${manifiesto.address}</td>
-                                                                                                                <td>${manifiesto.phone1}</td>
-                                                                                                                <td>${manifiesto.cardCode}</td>
-                                                                                                                <td>${manifiesto.e_Mail}</td>
-                                                                                                                <td hidden>${manifiesto.u_XM_LatitudS}</td>
-                                                                                                                <td hidden>${manifiesto.u_XM_LongitudS}</td>
-                                                                                                                <td hidden>${manifiesto.dscription}</td>
-                                                                                                                <td hidden>${manifiesto.itemCode}</td>
-                                                                                                                <td hidden>${manifiesto.unitPrice}</td>
-                                                                                                                <td hidden>${manifiesto.quantity}</td>
-                                                                                                                <td hidden>${manifiesto.numPerMsr}</td>
-                                                                                                                <td hidden>${manifiesto.pickQtty}</td>
-                                                                                                                <td hidden>${manifiesto.unitMsr}</td>
-                                                                                                            </tr>
-                                                                                                        `);
+                                                                                                                    <tr>
+                                                                                                                        <td>${manifiesto.u_EXP_PLACA}</td>
+                                                                                                                        <td>${manifiesto.docNum}</td>
+                                                                                                                        <td>${manifiesto.cardName}</td>
+                                                                                                                        <td>${manifiesto.address}</td>
+                                                                                                                        <td>${manifiesto.phone1}</td>
+                                                                                                                        <td>${manifiesto.cardCode}</td>
+                                                                                                                        <td>${manifiesto.e_Mail}</td>
+                                                                                                                        <td hidden>${manifiesto.u_XM_LatitudS}</td>
+                                                                                                                        <td hidden>${manifiesto.u_XM_LongitudS}</td>
+                                                                                                                        <td hidden>${manifiesto.dscription}</td>
+                                                                                                                        <td hidden>${manifiesto.itemCode}</td>
+                                                                                                                        <td hidden>${manifiesto.unitPrice}</td>
+                                                                                                                        <td hidden>${manifiesto.quantity}</td>
+                                                                                                                        <td hidden>${manifiesto.numPerMsr}</td>
+                                                                                                                        <td hidden>${manifiesto.pickQtty}</td>
+                                                                                                                        <td hidden>${manifiesto.unitMsr}</td>
+                                                                                                                    </tr>
+                                                                                                                `);
                     });
                     $('#enviarlastBtn').show();
                 }
@@ -1613,21 +1649,20 @@
 
                 data.forEach((prod, index) => {
 
-
                     const cantidadPendiente = prod.cantidad - (prod.cantidadContada || 0);
                     const rowClass = (prod.cantidadContada < prod.cantidad) ? 'table-danger' :
                         (prod.cantidadContada > prod.cantidad) ? 'table-success' : '';
 
                     $tbody.append(`
-                                                                                                                <tr class="${rowClass}" style="text-align:center">
-                                                                                                                    <td>${index + 1}</td>
-                                                                                                                    <td>${prod.idProducto}</td>
-                                                                                                                    <td>${prod.descripcion}</td>
-                                                                                                                    <td>${prod.cantidad}</td>
-                                                                                                                    <td>${prod.cantidadContada || 0}</td>
-                                                                                                                    <td>${cantidadPendiente}</td>
-                                                                                                                </tr>
-                                                                                                            `);
+                                                                                                                        <tr class="${rowClass}" style="text-align:center">
+                                                                                                                            <td>${index + 1}</td>
+                                                                                                                            <td>${prod.idProducto}</td>
+                                                                                                                            <td>${prod.descripcion}</td>
+                                                                                                                            <td>${prod.cantidad}</td>
+                                                                                                                            <td>${prod.cantidadContada || 0}</td>
+                                                                                                                            <td>${cantidadPendiente}</td>
+                                                                                                                        </tr>
+                                                                                                                    `);
                 });
 
                 $table.append($thead).append($tbody);
@@ -1755,13 +1790,13 @@
 
                 data.forEach(item => {
                     $tablaDetalles.append(`
-                                                                                                        <tr>
-                                                                                                            <td>${item.Codigo}</td>
-                                                                                                            <td>${item.Planeado === true ? 'Si' : 'No'}</td>
-                                                                                                            <td>${item.Cliente}</td>
-                                                                                                            <td>${item.Direccion}</td>
-                                                                                                        </tr>
-                                                                                                    `);
+                                                                                                                <tr>
+                                                                                                                    <td>${item.Codigo}</td>
+                                                                                                                    <td>${item.Planeado === true ? 'Si' : 'No'}</td>
+                                                                                                                    <td>${item.Cliente}</td>
+                                                                                                                    <td>${item.Direccion}</td>
+                                                                                                                </tr>
+                                                                                                            `);
                 });
 
                 $('#modalDetalles').modal('show');
@@ -1788,12 +1823,12 @@
 
                 data.forEach(item => {
                     $tablaDetalles.append(`
-                                                                                                                <tr>
-                                                                                                                    <td>${item.Codigo}</td>
-                                                                                                                    <td>${item.Cliente}</td>
-                                                                                                                    <td>${item.Direccion}</td>
-                                                                                                                </tr>
-                                                                                                            `);
+                                                                                                                        <tr>
+                                                                                                                            <td>${item.Codigo}</td>
+                                                                                                                            <td>${item.Cliente}</td>
+                                                                                                                            <td>${item.Direccion}</td>
+                                                                                                                        </tr>
+                                                                                                                    `);
                 });
 
                 $('#modalSinDetalles').modal('show');
@@ -1819,14 +1854,14 @@
 
                 data.forEach(item => {
                     $tablaDetalles.append(`
-                                                                                                                <tr>
-                                                                                                                    <td>${item.NumeroGuia}</td>
-                                                                                                                    <td>${item.Cliente}</td>
-                                                                                                                    <td>${item.Direccion}</td>
-                                                                                                                    <td>${item.Items}</td>
-                                                                                                                    <td>${item.Peso}</td>
-                                                                                                                </tr>
-                                                                                                            `);
+                                                                                                                        <tr>
+                                                                                                                            <td>${item.NumeroGuia}</td>
+                                                                                                                            <td>${item.Cliente}</td>
+                                                                                                                            <td>${item.Direccion}</td>
+                                                                                                                            <td>${item.Items}</td>
+                                                                                                                            <td>${item.Peso}</td>
+                                                                                                                        </tr>
+                                                                                                                    `);
                 });
 
                 $('#modalPlacaDetalles').modal('show');
@@ -1867,8 +1902,8 @@
                                 return '';
                             }
                             return `<button class="btn btn-primary revisarproductofijo-btn" data-idproducto="${row.idProducto}" data-idplan="${idPlan}">
-                                                                                                                        <i class="bx bx-search"></i>
-                                                                                                                    </button>`;
+                                                                                                                                <i class="bx bx-search"></i>
+                                                                                                                            </button>`;
                         },
                         orderable: false,
                     }
@@ -1896,8 +1931,8 @@
                 });
 
                 const subtotalHTML = `
-                                                                                                    <strong>Total Peso:</strong> ${totalPeso.toFixed(2)}
-                                                                                                `;
+                                                                                                            <strong>Total Peso:</strong> ${totalPeso.toFixed(2)}
+                                                                                                        `;
                 $('#subtotalfijoproducto').html(subtotalHTML);
                 const totalRegistros = data.length;
                 $('#totalitemsfijo').html(totalRegistros);
@@ -1939,21 +1974,21 @@
                 data.forEach(item => {
                     const medidafija = item.factor === 1 ? 'UND' : 'PQTX' + item.factor;
                     tablaCuerpo.append(`
-                                                                                                        <tr>
-                                                                                                            <td>${item.numeroGuia}</td>
-                                                                                                            <td>${item.utilidad}</td>
-                                                                                                            <td>${item.peso}</td>
-                                                                                                            <td>${item.cantidadBase}</td>
-                                                                                                            <td>${medidafija}</td>
-                                                                                                            <td>${item.cantidad}</td>
-                                                                                                            <td>
-                                                                                                                <input type="number" class="form-control cantidad-base-nueva" value="${item.cantidadBase}"
-                                                                                                                       max="${item.cantidadBase}" data-idproducto="${item.idProducto}" data-idplan="${idPlan}" data-numeroguia="${item.numeroGuia}" data-idplanped="${item.idPlanPed}"
-                                                                                                                       data-peso="${item.peso}" data-factor="${item.factor}" data-cantidadbase="${item.cantidadBase}">
-                                                                                                            </td>
-                                                                                                            <td class="multiplicador">${item.peso * item.cantidadBase * item.factor}</td>
-                                                                                                        </tr>
-                                                                                                    `);
+                                                                                                                <tr>
+                                                                                                                    <td>${item.numeroGuia}</td>
+                                                                                                                    <td>${item.utilidad}</td>
+                                                                                                                    <td>${item.peso}</td>
+                                                                                                                    <td>${item.cantidadBase}</td>
+                                                                                                                    <td>${medidafija}</td>
+                                                                                                                    <td>${item.cantidad}</td>
+                                                                                                                    <td>
+                                                                                                                        <input type="number" class="form-control cantidad-base-nueva" value="${item.cantidadBase}"
+                                                                                                                               max="${item.cantidadBase}" data-idproducto="${item.idProducto}" data-idplan="${idPlan}" data-numeroguia="${item.numeroGuia}" data-idplanped="${item.idPlanPed}"
+                                                                                                                               data-peso="${item.peso}" data-factor="${item.factor}" data-cantidadbase="${item.cantidadBase}">
+                                                                                                                    </td>
+                                                                                                                    <td class="multiplicador">${item.peso * item.cantidadBase * item.factor}</td>
+                                                                                                                </tr>
+                                                                                                            `);
                 });
 
                 modal.modal('show');
@@ -2117,10 +2152,10 @@
                     Swal.fire({
                         title: 'Análisis de datos',
                         html: `
-                                                                                                    <p>Total de pedidos: ${totalPedidos}</p>
-                                                                                                    <p>Planeados: ${cantidadConCoincidencia}</p>
-                                                                                                    <p>No se planearan: ${cantidadSinCoincidencia}</p>
-                                                                                                `,
+                                                                                                            <p>Total de pedidos: ${totalPedidos}</p>
+                                                                                                            <p>Planeados: ${cantidadConCoincidencia}</p>
+                                                                                                            <p>No se planearan: ${cantidadSinCoincidencia}</p>
+                                                                                                        `,
                         icon: 'info',
                         showCancelButton: true,
                         confirmButtonText: 'Continuar',
@@ -2236,6 +2271,8 @@
         $('#guardar-jefe').click(async function () {
             const idPlanPla = $('#jefeDeGrupoModal').data('id');
             const idPickeador = $('#select-pickeador').val();
+            console.log("idPlanPla", idPlanPla);
+            console.log("idPickeador", idPickeador);
 
             // if (idPickeador === '0') {
             //     Swal.fire('Advertencia', 'Por favor elija un Jefe de grupo.', 'warning');
@@ -2330,8 +2367,10 @@
         };
 
         const cargarPersonalPicking = async (idPlan) => {
+            const identifalma = document.getElementById('identifalmacen').innerText.trim();
+
             try {
-                const response = await fetch(`/Picking/CargarPersonalPickeo?id=${idPlan}`);
+                const response = await fetch(`/Picking/CargarPersonalPickeo?id=${idPlan}&almacenubicacion=${identifalma}`);
                 const personal = await response.json();
 
                 let selectpersonalOptions = `<option value="0">Elija una opcion</option>`;
@@ -2348,7 +2387,9 @@
 
         const cargarPersonal = async () => {
             try {
-                const response = await fetch('/Picking/CargarPersonalJefes');
+                const identifalma = document.getElementById('identifalmacen').innerText.trim();
+                const response = await fetch(`/Picking/CargarPersonalJefes?almacen=${identifalma}`);
+
                 const personal = await response.json();
                 let selectpersonalOptions = `<option value="0">Elije un Pickeador</option>`;
                 personal.forEach(tipo => {
@@ -2411,7 +2452,6 @@
             filas.forEach(function (fila) {
                 const fechaFilaTexto = fila.cells[3].innerText;
                 const fechaFila = convertirFechaTabla(fechaFilaTexto);
-                console.log(fechaFila);
 
                 if ((fechaInicio && fechaFila < fechaInicioDate) || (fechaFin && fechaFila > fechaFinDate)) {
                     fila.style.display = 'none';

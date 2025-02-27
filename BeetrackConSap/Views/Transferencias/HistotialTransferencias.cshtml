@@ -1,0 +1,2413 @@
+﻿@{
+    ViewData["Title"] = "Transferencias Enviadas";
+}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,200..1000;1,200..1000&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="~/css/JefeConteo.css">
+
+<style>
+    * {
+        font-family: "Nunito", serif;
+    }
+
+
+
+    .backColor {
+        background-color: #f5f5f0 !important;
+        vertical-align: middle;
+    }
+
+    .table td, .table th {
+        padding: .75rem;
+        vertical-align: middle;
+        border-top: 1px solid #dee2e6;
+    }
+
+    .notification-badge {
+        background-color: red;
+        color: white;
+        padding: 2px 10px;
+        margin-left: 5px;
+    }
+
+
+
+    .additional-info {
+        margin-top: 10px;
+        font-size: 14px;
+        color: #000;
+        transition: all 0.3s ease;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .clickable-button {
+        background-color: #00000000;
+        border-radius: 5px;
+        border: 2px solid #fff;
+    }
+
+    .filtrofecha {
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        width: 20vw;
+        margin: 20px 40vw;
+        border-radius: 15px;
+        border: 2px solid #0000000a;
+        padding: 15px;
+    }
+
+    .table-responsive {
+        overflow-x: unset;
+    }
+
+    .line {
+        width: 100%;
+        text-align: center;
+        height: 2px;
+        background-color: black;
+    }
+
+    .gradient {
+        background-image: linear-gradient(to right top, #00ff21, #0fff1d, #19ff18, #20ff13, #26ff0c, #49ff06, #5fff02, #71ff00, #8fff00, #a9ff00, #bfff00, #d3ff00);
+        color: white;
+        border: none;
+    }
+
+    .table-success, .table-success > td, .table-success > th {
+        background-color: #d1e7dd;
+        vertical-align: middle;
+        border-color: #c5c5c5;
+    }
+
+    .table-info, .table-info > td, .table-info > th {
+        background-color: #bee5eb24;
+    }
+</style>
+<div class="tab-content">
+    <span id="identifalmacen" style="display:none;">@User.Identity.Name @User.FindFirst("Almacen")?.Value</span>
+
+    <div class="tab-pane fade show active" id="tapContado">
+        <div class="card border-0">
+            <div class="card-body">
+                <div class="tab-content" id="nav-tabContent">
+                    <div class="tab-pane fade show active" id="nav-ventasinc" role="tabpanel">
+                        <div class="row">
+                            <div class="col-12">
+                                <label for="tabla1">Planificaciones Subidas</label>
+
+                                <div class="table-responsive">
+
+                                    <table id="tabla1" class="table table-hover" style="text-align:center; font-size:14px">
+                                        <thead>
+                                            <tr>
+                                                <th>ID</th>
+                                                <th>Tipo</th>
+                                                <th>Codigo</th>
+                                                <th>Fecha</th>
+                                                <th>Pedidos</th>
+                                                <th>Libres</th>
+                                                <th>Excel</th>
+                                                <th>Jefe de Grupo</th>
+                                                <th>Accion</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                        </tbody>
+                                    </table>
+
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalExcel" tabindex="-1" role="dialog" aria-labelledby="modalExcelLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalExcelLabel">Subir Documento Excel</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <input type="file" id="inputExcel" class="form-control">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                <button type="button" class="btn btn-primary" id="analizarBtn">Analizar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalDetalles" tabindex="-1" role="dialog" aria-labelledby="modalDetallesLabel" aria-hidden="true">
+    <div class="modal-dialog" style="width:100vw !important; margin:0px" role="document">
+        <div class="modal-content" style="width:80vw;margin:50px 10vw;">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalDetallesLabel">Detalles de la Planificación</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <table id="tablaDetalles" class="table table-striped" style="text-align:center">
+                    <thead>
+                        <tr>
+                            <th>ID Pedido</th>
+                            <th>Planeado</th>
+                            <th>Cliente</th>
+                            <th>Direccion</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
+                </table>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<div class="modal fade" id="modalSinDetalles" tabindex="-1" role="dialog" aria-labelledby="modalSinDetallesLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalSinDetallesLabel">Detalles del Envio</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <table id="tablaSinDetalles" class="table table-striped" style="text-align:center">
+                    <thead>
+                        <tr>
+                            <th>ID Pedido</th>
+                            <th>Cliente</th>
+                            <th>Direccion</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
+                </table>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalPlacaDetalles" tabindex="-1" role="dialog" aria-labelledby="modalPlacaDetallesLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalPlacaDetallesLabel">Pedidos de la Placa</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <table id="tablaPlacaDetalles" class="table table-striped" style="text-align:center">
+                    <thead>
+                        <tr>
+                            <th>ID Pedido</th>
+                            <th>Cliente</th>
+                            <th>Direccion</th>
+                            <th>Items</th>
+                            <th>Peso</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
+                </table>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalProductosPlacaDetalles" tabindex="-1" role="dialog" aria-labelledby="modalProductosPlacaDetallesLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalProductosPlacaDetallesLabel">Productos de la Placa: <span id="totalitemsfijo"></span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <table id="tablaProductosPlacaDetalles" class="table table-striped" style="text-align:center">
+                    <thead>
+                        <tr>
+                            <th>Ubicacion</th>
+                            <th>ID</th>
+                            <th>Producto</th>
+                            <th>Medida</th>
+                            <th>Cantidad</th>
+                            <th>Peso Total</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td colspan="5"></td>
+                            <td id="subtotalfijoproducto"></td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="jefeDeGrupoModal" tabindex="-1" role="dialog" aria-labelledby="jefeDeGrupoModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="jefeDeGrupoModalLabel">Asignar Jefe de Grupo</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <label for="select-pickeador">Seleccione un Jefe de grupo:</label>
+                <select id="select-pickeador" class="form-control"></select>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="guardar-jefe">Guardar Jefe</button>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="modal fade" id="detallesModal" tabindex="-1" aria-labelledby="detallesModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="detallesModalLabel">Detalles del Subregistro</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="modal-body-detalles">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="manisModal" tabindex="-1" aria-labelledby="manisModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="manisModalLabel">Manifiestos</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>N°</th>
+                                <th>Fecha</th>
+                                <th>Placa</th>
+                                <th>Doc</th>
+                                <th>Conductor</th>
+                                <th>Sede</th>
+                                <th>Detalles</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="manifiestoModal" tabindex="-1" aria-labelledby="manifiestoModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="manifiestoModalLabel">Detalles del Manifiesto</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <span id="planManEnviar"></span>
+            <button id="enviarlastBtn" class="btn btn-primary"><i class="bx bx-send"></i> Enviar a Latmiles</button>
+            <div class="modal-body">
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Placa</th>
+                                <th>Doc Num</th>
+                                <th>Card Name</th>
+                                <th>Address</th>
+                                <th>Phone</th>
+                                <th>Card Code</th>
+                                <th>Email</th>
+                            </tr>
+                        </thead>
+                        <tbody id="manifiestos-body">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalRevisarProducto" tabindex="-1" role="dialog" aria-labelledby="modalRevisarProductoLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalRevisarProductoLabel">Revisar Producto</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <h3 id="productoDescripcion"></h3>
+                <table id="tablaProductoDetalles" class="table table-striped" style="text-align:center">
+                    <thead>
+                        <tr>
+                            <th>Numero Guia</th>
+                            <th>Utilidad Total</th>
+                            <th>Peso</th>
+                            <th>Cantidad Base</th>
+                            <th>Medida</th>
+                            <th>Cantidad</th>
+                            <th>Cantidad Base (nuevo)</th>
+                            <th>Multiplicador</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
+                </table>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                <button type="button" class="btn btn-primary" id="guardarProducto">Guardar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modal-asignar" tabindex="-1" role="dialog" aria-labelledby="modalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalLabel">Asignar Pickeador</h5>   <!--Que salga el nombre del actual-->
+                <label id="nombrePicker"></label>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="select-pickeadorpick">Seleccionar Pickeador</label>
+                    <select id="select-pickeadorpick" class="form-control">
+                        <option value="">Seleccione un pickeador</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" id="guardar-asignacion" class="btn btn-primary">Guardar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+
+    <script>
+        $(document).ready(() => {
+            cargarPlanificaciones();
+        });
+        function restarHoras(inicio, fin) {
+            const [h1, m1] = inicio.split(':').map(Number);
+            const [h2, m2] = fin.split(':').map(Number);
+
+            const totalMinInicio = h1 * 60 + m1;
+            const totalMinFin = h2 * 60 + m2;
+
+            let diferenciaMinutos = totalMinFin - totalMinInicio;
+
+            if (diferenciaMinutos < 0) {
+                diferenciaMinutos += 24 * 60;
+            }
+            const horas = Math.floor(diferenciaMinutos / 60);
+            const minutos = diferenciaMinutos % 60;
+
+            return `${String(horas).padStart(2, '0')}:${String(minutos).padStart(2, '0')}`;
+        }
+
+        const cargarPlanificaciones = async () => {
+            try {
+                const response = await fetch('/Transferencias/ObtenerPlanificacionesEnviadasTransferenciasHistorial');
+                const data = await response.json();
+
+                const $placasBody = $('#tabla1 tbody');
+                $placasBody.empty();
+
+                const groupedData = data.reduce((acc, cod) => {
+                    if (!acc[cod.Codigo]) {
+                        acc[cod.Codigo] = [];
+                    }
+                    acc[cod.Codigo].push(cod);
+                    return acc;
+                }, {});
+                let hayLibres = 0;
+
+                Object.entries(groupedData).forEach(([Codigo, placas], index) => {
+                    const primeraPlaca = placas[0];
+
+                    const btnexcel = primeraPlaca.ExcelSubido === true ? (primeraPlaca.Tipo === 'Transferencia' ? '' : '<button class="btn btn-success">Excel Subido</button>') : `<button class="btn btn-secondary excel-btn" data-id="${primeraPlaca.Codigo}"><i class='bx bx-search'></i> Subir Excel</button>`;
+                    const btnborrar = primeraPlaca.ExcelSubido === true ? (primeraPlaca.Tipo === 'Transferencia' && primeraPlaca.Jefe === null ? `<button class="btn btn-danger borrarpro-btn" style="margin-top:5px;" data-id="${primeraPlaca.Codigo}" data-plan="${primeraPlaca.IDPlanPla}"><i class='bx bx-trash'></i> Borrar</button>` : '') : `<button class="btn btn-danger borrar-btn responsivebtn" style="width: 100px;" data-id="${primeraPlaca.Codigo}"><i class='bx bx-trash'></i> Borrar</button>`;
+                    hayLibres = primeraPlaca.Libres;
+                    const codigoenvio = primeraPlaca.Codigo;
+                    const fecha = new Date(primeraPlaca.Fecha);
+                    function formatearFecha(fecha) {
+                        const opciones = {
+                            year: 'numeric',
+                            month: '2-digit',
+                            day: '2-digit',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            second: '2-digit',
+                            hour12: true
+                        };
+                        return fecha.toLocaleString('en-GB', opciones);
+                    }
+
+
+
+
+                    console.log("primeraPlaca.IDPlanPla", primeraPlaca.IDPlanPla);
+
+                    const $mainRow = $(`
+                                                    <tr class="table-success main-row" style="cursor: pointer; vertical-align: middle; font-weight: 600; line-height: 1.7;">
+                                                        <td>${index + 1} <br> <button class="btn btn-primary detalles-btn responsivebtn" style="border-radius:5px !important;" data-id="${primeraPlaca.Codigo}">
+                                                            <i class='bx bx-search'></i>
+                                                        </button></td>
+                                                        <td>
+                                                            ${primeraPlaca.Tipo}<br>
+                                                            <strong class="${primeraPlaca.Tipo === 'Local' ? 'hidden' : ''}">${primeraPlaca.Placa}</strong>
+                                                        </td>
+                                                        <td>Codigo:<br> <span style="font-weight:bold;">${primeraPlaca.Codigo}</span><br>
+                                                            ${primeraPlaca.Tipo !== 'Local' ? `Capacidad: ${primeraPlaca.Capacidad}<br>Items: ${primeraPlaca.Items}` : ''}
+                                                        </td>
+                                                        <td>Fecha:<br> <span style="font-weight:bold;">${formatearFecha(fecha)}</span> <br>
+                                                            ${primeraPlaca.Tipo !== 'Local' ? `Peso Carga: ${primeraPlaca.PesoCarga} <br> Diferencia: ${new Intl.NumberFormat('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(primeraPlaca.Capacidad - primeraPlaca.PesoCarga)}` : ''}
+                                                        </td>
+                                                        <td>Pedidos: ${primeraPlaca.Planeados === null ? primeraPlaca.TotalPrev : primeraPlaca.Planeados} <br>
+                                                            Planeados: ${primeraPlaca.Totales === null ? '' : primeraPlaca.Totales}
+                                                        </td>
+                                                        <td>${primeraPlaca.Libres === null ? '' : primeraPlaca.Libres}</td>
+                                                        <td>${btnexcel}</td>
+
+                                                        ${primeraPlaca.Tipo === 'Transferencia' ? (
+                            primeraPlaca.Jefe === null
+                                ? '<td style="color:red;">sin Asignar</td>'
+                                : (primeraPlaca.IDPicks === null
+                                    ? `<td style="font-weight:bold;">${primeraPlaca.Jefe}</td>`
+                                    : `<td style="font-weight:bold;">${primeraPlaca.Jefe} <br>Lista Pick: ${primeraPlaca.IDPicks}<br></td>`
+                                )
+                        ) : '<td></td>'}
+
+                                                        ${primeraPlaca.Tipo === 'Transferencia' ? (() => {
+                            let buttonHTML = '';
+                            if (primeraPlaca.Nombre === null && primeraPlaca.Jefe === null) {
+                                buttonHTML = `<td><button class="btn btn-light asignar-jefe-btn" data-id="${primeraPlaca.IDPlanPla}" style="border-radius:50px;font-weight: bold;">Asignar Jefe de Grupo</button><br>${btnborrar}</td>`;
+                            }
+
+
+
+                            else if (primeraPlaca.Enviado === true && primeraPlaca.Cargar === true && primeraPlaca.Cargado === null && primeraPlaca.Revision === null && primeraPlaca.Sap === null) {
+                                buttonHTML = `<td><button class="btn btn-success" disabled><i class="bx bx-search"></i> Carga en proceso</button></td>`;
+                                if (primeraPlaca.Acontar !== null && primeraPlaca.Contados !== null) {
+                                    buttonHTML = `<td><button class="btn btn-warning detallescarga-btn" data-id="${primeraPlaca.IDPlanPla}"> <i class="bx bx-search"></i>Pendiente Confirmacion</button></td>`
+                                        ;
+                                }
+                            }
+                            else if (primeraPlaca.Nombre === null) {
+                                buttonHTML = `<td><button class="btn btn-info planificar-btn" data-id="${primeraPlaca.IDPlanPla}" style="border-radius:50px !important;font-weight:bold;"><i class='bx bx-search'></i> Asignar Pickador</button><br><button class="btn btn-light asignar-jefe-btn" style="margin-top: 5px; --bs-btn-bg: #8d8d8d00 !important; --bs-btn-border-color: #007fff00; text-decoration: underline; font-weight: 500; color: black;" data-id="${primeraPlaca.IDPlanPla}">Editar Jefe de Grupo</button></td>`;
+                            } else if (primeraPlaca.Nombre !== null && primeraPlaca.Jefe !== null && primeraPlaca.IDPick !== 0 && primeraPlaca.Sap !== true && primeraPlaca.Pendientes !== null) {
+                                buttonHTML = `<td><button class="btn btn-warning planificar-btn" style="position: relative; font-weight: bold; padding: 3px;  display: flex ; align-items: center; justify-content: center; margin: 0px auto;" data-id="${primeraPlaca.IDPlanPla}">
+                                                                       Asignar   <span class="notification-badge">  ${primeraPlaca.Pendientes} <span style="margin-left:5px;">Pendiente</span></span>
+                                                             </button></td>`;
+                            } else if (primeraPlaca.Sap === true) {
+                                buttonHTML = `<td><button class="btn btn-primary">Finalizado <i class="bi bi-check-lg"></i></button></td>`;
+                            } else if (primeraPlaca.Nombre !== null && primeraPlaca.Jefe !== null && primeraPlaca.IDPicks === null && primeraPlaca.Enviado === true && primeraPlaca.Cargar === true && primeraPlaca.Cargado === true && primeraPlaca.Revision === true && primeraPlaca.Sap === null) {
+                                buttonHTML = `<td><button class="btn btn-primary picking-btn" data-id="${primeraPlaca.IDPlanPla}"><i class='bx bx-search'></i> Generar Picking Sap</button></td>`;
+                            }
+
+                            else if (primeraPlaca.Enviado === true) {
+                                buttonHTML = `<td><button class="btn btn-warning  detallespicking-btn" data-id="${primeraPlaca.IDPlanPla}">
+                                                                                <i class='bx bx-search'></i> Picking Finalizado
+                                                                    </button></td>`
+                                    ;
+
+                            }
+                            else if (primeraPlaca.Nombre !== null && primeraPlaca.Jefe !== null && primeraPlaca.IDPick !== 0 && primeraPlaca.Sap !== true) {
+
+                                buttonHTML = `<td><button class="btn btn-success" style="position:relative;">Picking Planificado</button></td>`;
+
+
+                            }
+
+
+
+
+                            return buttonHTML;
+                        })() : ''}
+
+                                                        ${primeraPlaca.Tipo === 'Local' ? (() => {
+                            let buttonHTML = '<td></td>';
+
+                            if (primeraPlaca.Acontar !== null) {
+                                buttonHTML = `<td></td>`;
+                            }
+
+                            return buttonHTML;
+                        })() : ''}
+
+                                                    </tr>
+                                                `);
+
+
+
+
+
+
+
+                    $placasBody.append($mainRow);
+
+                    if (placas.length > 0) {
+                        const $subTable = $(`
+                                                                                                                             <tr class="subtable" style="display: none;" >
+                                                                                                                                 <td colspan="9">
+                                                                                                                                             <table class="table table-hover" >
+                                                                                                                                         <thead></thead>
+                                                                                                                                         <tbody></tbody>
+                                                                                                                                     </table>
+                                                                                                                                 </td>
+                                                                                                                             </tr>
+                                                                                                                         `);
+
+                        $mainRow.after($subTable);
+
+                        if (primeraPlaca.Tipo === 'Local') {
+                            $subTable.show();
+                        } else if (primeraPlaca.Tipo === 'Transferencia') {
+                            $subTable.hide();
+                        }
+
+                        $mainRow.click(function () {
+                            $subTable.toggle();
+                        });
+
+
+                        const $subTableBody = $subTable.find('tbody');
+                        const groupedByPlaca = placas.reduce((acc, reg) => {
+                            if (!acc[reg.Placa]) {
+                                acc[reg.Placa] = [];
+                            }
+                            acc[reg.Placa].push(reg);
+                            return acc;
+                        }, {});
+
+                        Object.entries(groupedByPlaca).forEach(([placa, subregs]) => {
+                            const regs = subregs[0];
+                            console.log("regs", regs);
+
+                            const buttoncolor = regs.IDPick === null ?
+                                `` :
+                                (regs.Pendientes === null ?
+                                    (regs.FechaInicio !== null && regs.FechaTermino !== null ?
+                                        `<button class="btn btn-warning" style="position:relative;">Pendiente de Carga</button>` :
+                                        `<button class="btn btn-success" style="position:relative;">Picking Planificado</button>`) :
+                                    `<button class="btn btn-warning planificar-btn" style="position: relative; font-weight: bold; padding: 3px; display: flex; align-items: center; justify-content: center; margin: 0px auto;" data-id="${primeraPlaca.IDPlanPla}">
+                                                            Asignar   <span class="notification-badge"> ${primeraPlaca.Pendientes} <span style="margin-left:5px;">Pendiente</span></span>
+                                                        </button>`
+                                );
+
+
+
+                            const asignarBtn = regs.Usuario
+                                ? buttoncolor
+                                : '';
+                            const colorjefe = regs.Capacidad >= regs.PesoCarga ? 'secondary' : 'danger';
+                            const asignarJefeBoton = (!regs.Usuario || regs.Usuario.trim() === '')
+                                ? ``
+                                : (regs.IDPick === null ? `<button class="btn btn-info planificar-btn" data-id="${regs.IDPlanPla}" style="border-radius:50px !important;font-weight:bold;"><i class='bx bx-search'></i> Asignar Pickador1</button><br><button class="btn btn-light asignar-jefe-btn" style="margin-top: 5px; --bs-btn-bg: #8d8d8d00 !important; --bs-btn-border-color: #007fff00; text-decoration: underline; font-weight: 500; color: black;" data-id="${regs.IDPlanPla}">Editar Jefe de Grupo</button>` : '');
+
+                            let botonHTML = '';
+                            if (regs.Enviado === null && regs.Cargar === null && regs.Cargado === null && regs.Revision === null && regs.Sap === null) {
+                                botonHTML = `
+                                                                                                                                    <button class="btn btn-secondary" disabled>
+                                                                                                                                        <i class='bx bx-search'></i> Falta Enviar
+                                                                                                                                    </button>
+                                                                                                                                `;
+                            }
+                            else if (regs.Enviado === true && regs.Cargar === null && regs.Cargado === null && regs.Revision === null && regs.Sap === null) {
+                                const btnpicking = regs.TotalPick === regs.PickadosReal ? 'success' : 'warning';
+                                const textrevi = regs.TotalPick === regs.PickadosReal ? 'Enviar a Cargada' : 'Picking Finalizado';
+                                const colorevi = regs.TotalPick === regs.PickadosReal ? 'danger' : btnpicking;
+
+                                botonHTML = regs.TotalPick === regs.PickadosReal
+                                    ? `
+                                                                                                                                    <button class="btn btn-${colorevi} fincargada-btn" data-id="${regs.IDPlanPla}">
+                                                                                                                                        <i class='bx bx-search'></i> ${textrevi}
+                                                                                                                                    </button>
+                                                                                                                                `: `
+                                                                                                                                    <button class="btn btn-${colorevi} detallespicking-btn" data-id="${regs.IDPlanPla}">
+                                                                                                                                        <i class='bx bx-search'></i> ${textrevi}
+                                                                                                                                    </button>
+                                                                                                                                `;
+
+                            } else if (regs.Enviado === true && regs.Cargar === true && regs.Cargado === null && regs.Revision === null && regs.Sap === null) {
+                                botonHTML = regs.CargaIncompleta === true ?
+                                    (regs.Confirmado === true ? '<button class="btn btn-success" disabled><i class="bx bx-search"></i> Carga confirmada</button>' : `<button class="btn btn-warning detallescarga-btn" data-id="${regs.IDPlanPla}"> <i class="bx bx-search"></i>Pendiente Confirmacion</button>`)
+                                    : '<button class="btn btn-success" disabled><i class="bx bx-search"></i> Carga en proceso</button>';
+                            } else if (regs.Enviado === true && regs.Cargar === true && regs.Cargado === true && regs.Revision === null && regs.Sap === null) {
+                                botonHTML = `
+                                                                                                                                    <button class="btn btn-warning cargaincom-btn" data-id="${regs.IDPlanPla}">
+                                                                                                                                        <i class='bx bx-search'></i> Revisar carga
+                                                                                                                                    </button>
+                                                                                                                                `;
+                            } else if (regs.Enviado === true && regs.Cargar === true && regs.Cargado === true && regs.Revision === true && regs.Sap === null) {
+                                botonHTML = `
+                                                                                                                                    <button class="btn btn-primary picking-btn" data-id="${regs.IDPlanPla}">
+                                                                                                                                        <i class='bx bx-search'></i> Generar Picking Sap1
+                                                                                                                                    </button>
+                                                                                                                                `;
+                            }
+                            else if (regs.Enviado === true && regs.Cargar === true && regs.Cargado === true && regs.Revision === true && regs.Sap === true) {
+
+                                const btnLastMiles = regs.Manifiesto === 'SIN MANIFIESTO' ? `` : `<button class="btn btn-primary lastenvio-btn" data-id="${regs.Manifiesto}" data-plan="${regs.IDPlanPla}">
+                                                                                                                                                <i class='bx bx-send'></i> Enviar a Last Miles
+                                                                                                                                            </button>`;
+                                botonHTML = regs.LastMileCodigo === null ? `
+                                                                                                                                    <button class="btn btn-primary detectar-btn" data-id="${regs.IDPicks}" data-plan="${regs.IDPlanPla}" hidden>
+                                                                                                                                        <i class='bx bx-search'></i> Detectar Manifiesto
+                                                                                                                                    </button>${btnLastMiles}
+
+                                                                                                                                        `: `<button class="btn btn-primary">Validar LastMile: ${regs.LastMileCodigo}</button>`;
+
+                            }
+
+
+                            //MODIFICANDO
+                            if (regs.IDPicks !== null && regs.Enviado === true && regs.Cargar === true && regs.Cargado === true && regs.Revision === true && regs.Sap === true) {
+                                let btnLastMiles;
+
+
+
+                                if (regs.Tipo === 'Local') {
+                                    btnLastMiles = `<button class="btn btn-primary lastenvio-btn" data-id="${regs.Manifiesto}" data-plan="${regs.IDPlanPla}"><i class='bx bx-send'></i> Enviar a Last Mile</button>`;
+                                } else {
+                                    btnLastMiles = `<button class="btn btn-warning lastenvio-btn" data-id="${regs.Manifiesto}" data-plan="${regs.IDPlanPla}">
+                                                                            Finalizado
+                                                                        </button>`;
+                                }
+
+                                botonHTML = regs.LastMileCodigo === null ? `
+                                                                            <button class="btn btn-primary detectar-btn" data-id="${regs.IDPicks}" data-plan="${regs.IDPlanPla}" hidden>
+                                                                                <i class='bx bx-search'></i> Detectar Manifiesto
+                                                                            </button>${btnLastMiles}` : `<button class="btn btn-primary">Validar LastMile: ${regs.LastMileCodigo}</button>`;
+
+                            } else if (regs.Enviado == true && regs.Sap == null) {
+                                botonHTML = `<button class="btn btn-warning  detallespicking-btn" data-id="${regs.IDPlanPla}"> Picking Finalizado </button > `;
+                            }
+
+                            /////////////////////
+                            const numpick = (regs.IDPicks === null && regs.FechaFi !== null)
+                                ? `<button class="btn btn-primary picking-btn" data-id="${regs.IDPlanPla}">
+                                                                            <i class='bx bx-search'></i> Generar Picking Sap2
+                                                                          </button>`
+                                : (regs.IDPicks !== null ? `<strong>Lista Pick: ${regs.IDPicks}</strong><br>` : '');
+                            const nummani = regs.Manifiesto === 'SIN MANIFIESTO' ? '' : `<strong>Manifiesto : ${regs.Manifiesto}</strong>`;
+                            const enviado = regs.Enviado === null
+                                ? `<td>${asignarBtn}</td>
+                                                                                                                                   <td>${asignarJefeBoton}</td>`
+                                : `<td>${numpick} ${nummani}</td>
+                                                                                                                                   <td>${botonHTML}</td>`;
+
+                            const jefe = regs.ExcelSubido === null ? `<button class="btn btn-danger borrarpro-btn" style="margin-top:5px;" data-id="${regs.Codigo}" data-plan="${regs.IDPlanPla}"><i class='bx bx-trash'></i> Borrar</button><br>` : (regs.Jefe === null ? `<button class="btn btn-light asignar-jefe-btn" data-id="${regs.IDPlanPla}" style="border-radius:50px;font-weight: bold;" ${regs.Acontar === null ? '' : ''}>Asignar Jefe de Grupo</button><br> <button class="btn btn-danger borrarpro-btn" style="margin-top:5px;" data-id="${regs.Codigo}" data-plan="${regs.IDPlanPla}"> <i class='bx bx-trash'></i> Borrar </button>` : regs.Jefe);
+                            const plac = regs.Placa === null ? 'Ninguno' : regs.Placa;
+                            const vacio = plac === 'Ninguno' ? '' : enviado;
+
+                            const colorcarga = regs.Capacidad > regs.PesoCarga ? 'green' : 'red';
+                            function formatearFecha(fecha) {
+                                const date = new Date(fecha);
+                                const opciones = {
+                                    year: 'numeric',
+                                    month: '2-digit',
+                                    day: '2-digit',
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                    second: '2-digit',
+                                    hour12: true
+                                };
+
+                                const fechaFormateada = date.toLocaleString('es-ES', opciones);
+
+                                return fechaFormateada.replace(',', ',');
+                            }
+                            const inicioplaca = regs.FechaIni === null ? '' : regs.FechaIni.slice(11, 16);
+                            const terminoplaca = regs.FechaFi === null ? '' : regs.FechaFi.slice(11, 16);
+                            const inicioplaca1 = regs.FechaIni === null ? '' : formatearFecha(regs.FechaIni);
+                            const terminoplaca1 = regs.FechaFi === null ? '' : formatearFecha(regs.FechaFi);
+                            const diferenciatiempoplaca = regs.FechaFi === null ? '' : restarHoras(inicioplaca, terminoplaca);
+
+                            let displayStyle2 = '';
+                            if (regs.Tipo === 'Local') {
+                                displayStyle2 = 'display: ;';
+                            }
+                            else {
+                                displayStyle2 = 'display:none;';
+                            }
+
+                            const subregRow = $(`
+                                                                                                                        <tr class="backColor"  id="row-${regs.IDPlanPla}" style="${displayStyle2}">
+                                                                                                            <td colspan="2">
+                                                                                                                    <strong> ${plac}</strong>
+                                                                                                                            <div>
+                                                                                    <button class="btn btn-outline-primary border-2 pedidosplaca-btn" style="margin-bottom:3px;" data-id="${regs.IDPlanPla}">
+                                                                                        <i class="bx bx-search"></i>
+                                                                                    </button>
+                                                                                </div>
+
+                                                                                                            </td>
+                                                                                                            <td>Capacidad: ${regs.Capacidad}<br>Items: ${regs.TotalItems}</td>
+                                                                                                                            <td style="color:${colorcarga};font-weight:400">Peso Carga: ${regs.PesoCarga}</td>
+                                                                                                                    <td style="color:${colorcarga};font-weight:400">Diferencia: ${(regs.Capacidad - regs.PesoCarga).toFixed(2)}</td>
+                                                                                                            <td style="color:${colorcarga}"></td>
+                                                                                                            <td>
+                                                                                                                <button class="clickable-button" id="timeButton-${regs.IDPlanPla}" onclick="mostrarInicioFin('${regs.IDPlanPla}')">
+                                                                                                                            <strong id="tiempo-${regs.IDPlanPla}">Duracion: ${diferenciatiempoplaca}</strong> <span>🔽</span>
+                                                                                                                </button>
+                                                                                                                <div id="extraInfo-${regs.IDPlanPla}" class="additional-info" style="display: none;">
+                                                                                                                            <strong id="inicio-${regs.IDPlanPla}">Inicio: ${inicioplaca1}</strong>
+                                                                                                                            <strong id="fin-${regs.IDPlanPla}">Fin: ${terminoplaca1}</strong>
+                                                                                                                </div>
+                                                                                                            </td>
+                                                                                                            <td colspan="3">${jefe}</td>
+                                                                                                            ${vacio}
+                                                                                                        </tr>
+                                                                                                    `);
+
+                            $subTableBody.append(subregRow);
+
+                            let displayStyle = '';
+
+                            if (regs.Tipo === 'Local') {
+                                displayStyle = 'display: none;';
+                            }
+
+                            const $subsubTable = $(`
+                                                    <tr class="subsubtable" style="${displayStyle}">
+                                                        <td colspan="12">
+                                                            <table class="table table-hover">
+                                                                <tbody style="vertical-align: middle;"></tbody>
+                                                            </table>
+                                                        </td>
+                                                    </tr>
+                                                `);
+
+
+
+
+                            const $subsubTableBody = $subsubTable.find('tbody');
+
+
+
+
+                            let totalItemsPickSum = 0;
+                            let totalPesoPickSum = 0;
+                            subregs.forEach((subreg) => {
+
+                                var hiddenpick = '';
+                                if (subreg.Nombre === null) {
+                                    subreg.Nombre = "Ninguno";
+                                    hiddenpick = 'hidden';
+                                }
+                                const estadodetalle = subreg.Contados === null ? 'secondary' : (subreg.Acontar === subreg.Contados ? 'success' : 'warning');
+                                let textodetalle = estadodetalle === 'secondary' ? 'Sin Comenzar' : (estadodetalle === 'success' ? 'Finalizado' : (subreg.Items === subreg.Finalizados ? 'Finalizado' : 'Pendiente de carga')); let newestadodetalle = subreg.Recontad === 0 ? 'success' : 'warning';
+
+                                if (subreg.FechaInicio != null && subreg.FechaTermino == null) {
+                                    newestadodetalle = 'info';
+                                    textodetalle = 'En proceso';
+                                }
+                                if (textodetalle == 'Sin Comenzar') {
+                                    newestadodetalle = 'secondary';
+                                }
+                                if (textodetalle == 'Pendiente de carga') {
+                                    newestadodetalle = 'warning';
+                                }
+                                if (textodetalle == 'Finalizado' && (subreg.Acontar - subreg.Contados == 0)) {
+                                    newestadodetalle = 'success';
+                                }
+                                if (textodetalle == 'Finalizado' && (subreg.Acontar - subreg.Contados != 0)) {
+                                    newestadodetalle = 'warning';
+                                }
+
+
+                                const inicio = subreg.FechaInicio === null ? '' : subreg.FechaInicio.slice(11, 16);
+                                const termino = subreg.FechaTermino === null ? '' : subreg.FechaTermino.slice(11, 16);
+                                const diferenciatiempo = subreg.FechaTermino === null ? '' : restarHoras(inicio, termino);
+
+                                const btnborrarpickeador = subreg.FechaInicio === null
+                                    ? `<button class="btn btn-danger borrarpickador-btn" style="width: 105px;padding: 6px 0px; margin:0px 5px" data-id="${subreg.IDPick}" data-plan="${subreg.IDPlanPla}"><i class="bx bx-trash"></i> Borrar</button>
+                                                                                           <button class="btn btn-secondary cambiarpickador-btn" style="width: 105px;padding: 6px 0px; margin:0px 5px" data-id="${subreg.IDPick}" data-plan="${subreg.IDPlanPla}"><i class="bx bx-edit"></i> Cambiar</button>
+                                                                                           <button class="btn btn-primary quitarpickador-btn" style="width: 105px;padding: 6px 0px; margin:0px 5px" data-id="${subreg.IDPick}" data-plan="${subreg.IDPlanPla}"><i class="bx bx-filter"></i> Quitar</button>` : '';
+
+                                if (subreg.Nombre !== "Ninguno") {
+
+                                    $subsubTableBody.append(`
+                                                                                    <tr class="table-info">
+                                                                                        <td colspan="4">${subreg.Nombre} <br><strong>Peso:${subreg.PesoTotalPick}</strong><br><strong>Items:${subreg.TotalItemsPick}</strong></td>
+                                                                                        <td><button class="btn btn-${newestadodetalle} detalles-subregistro-btn" data-id="${subreg.IDPick}" data-plan="${subreg.IDPlanPla}" ${hiddenpick}>${textodetalle}</button></td>
+                                                                                        <td>${btnborrarpickeador}</td>
+                                                                                        <td>Inicio: ${inicio}</td>
+                                                                                        <td>Termino: ${termino}</td>
+                                                                                        <td style="color:red"><strong>Tiempo: ${diferenciatiempo}</strong></td>
+                                                                                        <td><button class="btn btn-success exportar-btn" data-id="${subreg.IDPick}" data-plan="${subreg.IDPlanPla}" ><i class="bx bx-cloud-download"></i> Exportar</button></td>
+                                                                                    </tr>`);
+                                }
+
+
+
+                            });
+
+                            const totalPendiente = regs.TotalItems - totalItemsPickSum;
+                            $('#totalPendiente').text("Pendientes");
+                            $subTableBody.append($subsubTable);
+
+                            subregRow.click(() => {
+                                $subsubTable.toggle();
+                            });
+                        });
+
+                        if (hayLibres != 0 && hayLibres != null) {
+                            const libreRow = $(`
+                                                                                                                                        <tr colspan="12">
+                                                                                                                                    <td colspan="4">Ninguno</td>
+                                                                                                                                    <td colspan="4">Pedidos Sin Planificar</td>
+                                                                                                                                    <td colspan="4"><button class="btn btn-secondary detallessin-btn" data-id="${codigoenvio}">Detalles</button></td>
+                                                                                                                                </tr>`);
+
+                            $subTableBody.append(libreRow);
+                        }
+
+                        $placasBody.append($subTable);
+                        $mainRow.click(() => {
+                            //$subTable.toggle();
+                        });
+                    }
+
+                });
+
+                $('.planificar-btn').click(function () {
+                    const idPlan = $(this).data('id');
+                    window.location.href = `/Transferencias/PlanProductosTransferencias?id=${idPlan}`;
+                });
+
+                $('.borrarpickador-btn').click(async function () {
+                    const idpick = $(this).data('id');
+                    const idplan = $(this).data('plan');
+                    await borrarPicking(idpick, idplan);
+                });
+
+                $('.cambiarpickador-btn').click(async function () {
+                    const idpick = $(this).data('id');
+                    const idplan = $(this).data('plan');
+                    cargarPersonalPicking(idplan);
+                    await cambiarPicking(idpick, idplan);
+                });
+
+                $('.quitarpickador-btn').click(async function () {
+                    const idpick = $(this).data('id');
+                    const idplan = $(this).data('plan');
+                    window.location.href = `/Picking/QuitarPlanProductos?id=${idplan}&idpick=${idpick}`;
+                });
+
+                $('.detalles-subregistro-btn').click(async function () {
+                    const idPick = $(this).data('id');
+                    const idPlan = $(this).data('plan');
+                    await mostrarDetallespick(idPick, idPlan);
+                });
+
+                $('.detallespicking-btn').click(function () {
+                    const idPlan = $(this).data('id');
+                    window.location.href = `/Coordinador/CoorProdDetalles?id=${idPlan}`;
+                });
+
+                $('.fincargada-btn').click(function () {
+                    const idPlan = $(this).data('id');
+                    Swal.fire({
+                        title: '¿Estás seguro?',
+                        text: "¿Quieres enviar a cargada?",
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonColor: '#3085d6',
+                        cancelButtonColor: '#d33',
+                        confirmButtonText: 'Sí, enviar!'
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            finalizarCargadaPlaca(idPlan);
+                        }
+                    });
+                });
+
+                $('.asignar-jefe-btn').click(async function () {
+                    const idPlanPla = $(this).data('id');
+                    await cargarPersonal();
+                    $('#jefeDeGrupoModal').data('id', idPlanPla).modal('show');
+                });
+
+                $('.detectar-btn').click(async function () {
+                    const idPick = $(this).data('id');
+                    const idPlan = $(this).data('plan');
+                    await mostrarDetallesManifiesto(idPick, idPlan);
+                    $('#manisModal').data('id', idPick).modal('show');
+                });
+
+                $('.lastenvio-btn').click(async function () {
+                    const idPick = $(this).data('id');
+                    const idPlan = $(this).data('plan');
+                    await envioFinalLast(idPick, idPlan);
+                    location.reload(); //MODIFICADO
+                });
+
+                $('.excel-btn').click(function () {
+                    const codigo = $(this).data('id');
+                    mostrarModalExcel(codigo);
+                });
+
+                $('.exportar-btn').click(function () {
+                    const id = $(this).data('id');
+                    const plan = $(this).data('plan');
+                    obtenerDataExportar(plan, id);
+                });
+
+                $('.borrar-btn').click(function () {
+                    const codigo = $(this).data('id');
+                    borrarSubida(codigo);
+                });
+
+                $('.borrarpro-btn').click(function () {
+                    const codigo = $(this).data('id');
+                    const plan = $(this).data('plan');
+                    borrarSubidaPro(codigo, plan);
+                });
+
+                $('.detalles-btn').click(function () {
+                    const codigo = $(this).data('id');
+                    mostrarModalDetalles(codigo);
+                });
+
+                $('.detallessin-btn').click(function () {
+                    const codigo = $(this).data('id');
+                    mostrarModalSinDetalles(codigo);
+                });
+
+                $('.pedidosplaca-btn').click(function () {
+                    const idPlan = $(this).data('id');
+                    mostrarPedidosPlaca(idPlan);
+                });
+
+                $('.productospedidosplaca-btn').click(function () {
+                    const idPlan = $(this).data('id');
+                    mostrarProductosPedidosPlaca(idPlan);
+                });
+
+                $('.detallescarga-btn').click(function () {
+                    const idPlan = $(this).data('id');
+                    window.location.href = `/Cargada/CargadaIncompleta?id=${idPlan}`;
+                });
+
+                $('.cargaincom-btn').click(function () {
+                    const idPlan = $(this).data('id');
+                    window.location.href = `/Coordinador/CoorCargaIncompleto?id=${idPlan}`;
+                });
+
+                $('.picking-btn').click(async function () {
+                    const idPlan = $(this).data('id');
+
+                    const validateResponse = await fetch(`/Coordinador/ValidarStockSap?IDPlan=${idPlan}`, {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+
+                    const validateResult = await validateResponse.json();
+                    if (validateResponse.status !== 200) {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error de stock',
+                            text: validateResult.message,
+                        });
+                        return;
+                    }
+
+                    let stockHtml = '';
+
+                    let hasProducts = false;
+
+                    validateResult.forEach(producto => {
+                        if (producto.CantidadSolicitada > producto.StockDisponible) {
+                            if (!hasProducts) {
+                                stockHtml +=
+                                    '<table><thead><tr><th>ID Producto</th><th>Cantidad Solicitada</th><th>Stock Disponible</th></tr></thead><tbody>';
+                            }
+                            let rowColor = '#BC7C7C';
+                            stockHtml +=
+                                `<tr style="background-color: ${rowColor};">
+                                                                <td style="padding: 8px;">${producto.idProducto}</td>
+                                                                <td style="padding: 8px;">${producto.CantidadSolicitada}</td>
+                                                                <td style="padding: 8px;">${producto.StockDisponible}</td>
+                                                            </tr>`;
+                            hasProducts = true;
+                        }
+                    });
+
+                    if (!hasProducts) {
+                        stockHtml +=
+                            '<table><tbody>' +
+                            `<tr style="background-color: #D0E8C5;">
+                                                                    <td colspan="3" style="text-align: center; padding: 8px;width: 900px;">Stock Completo</td>
+                                                        </tr>`;
+                    }
+
+                    stockHtml += '</tbody></table>';
+
+
+                    Swal.fire({
+                        icon: 'info',
+                        title: 'Estado Stock',
+                        html: stockHtml,
+                        showConfirmButton: true,
+                        showCancelButton: true,
+                        cancelButtonText: 'Cancelar',
+                    }).then(async () => {
+                        const confirmResult = await Swal.fire({
+                            title: '¿Estás seguro?',
+                            text: '¿Quieres generar el Picking SAP para este plan?',
+                            icon: 'question',
+                            showCancelButton: true,
+                            confirmButtonText: 'Sí, generar',
+                            cancelButtonText: 'Cancelar'
+                        });
+
+                        if (!confirmResult.isConfirmed) {
+                            return;
+                        }
+
+                        Swal.fire({
+                            title: 'Generando Picking SAP...',
+                            text: 'Esto puede tardar unos momentos...',
+                            showConfirmButton: false,
+                            allowOutsideClick: false,
+                            didOpen: () => {
+                                Swal.showLoading();
+                            }
+                        });
+
+                        try {
+                            const response = await fetch(`/Coordinador/ObtenerDatosYEnviar?IDPlan=${idPlan}`, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                }
+                            });
+
+                            if (!response.ok) {
+                                const errorContent = await response.text();
+                                throw new Error(`Error en la comunicación con el servidor. Código: ${response.status}, Detalles: ${errorContent}`);
+                            }
+
+                            const result = await response.json();
+
+                            if (result.success) {
+                                Swal.fire({
+                                    icon: 'success',
+                                    title: 'Picking generado',
+                                    text: result.message,
+                                }).then(() => {
+                                    cargarPlanificaciones();
+                                });
+
+                            } else {
+                                Swal.fire({
+                                    icon: 'error',
+                                    title: 'Error al generar Picking SAP',
+                                    text: result.message || 'Hubo un error desconocido al generar el Picking SAP.',
+                                });
+                            }
+
+                        } catch (error) {
+                            console.error('Error al generar Picking SAP:', error);
+
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Error al generar Picking SAP',
+                                text: error.message || 'Hubo un problema al generar el Picking SAP. Intente nuevamente.',
+                            });
+                        }
+
+                    });
+                });
+
+
+
+            } catch (error) {
+                console.error('Error al cargar las planificaciones:', error);
+            }
+        };
+
+
+
+        const finalizarCargadaPlaca = async (idPlan) => {
+            try {
+                const response = await fetch(`/Coordinador/FinalizarCargadaPlaca?idPlan=${idPlan}`, {
+                    method: 'POST'
+                });
+
+                if (response.ok) {
+                    Swal.fire('Éxito', 'Enviado exitosamente.', 'success').then(() => {
+                        cargarPlanificaciones();
+                    });
+                } else {
+                    throw new Error('Error al enviar a cargada.');
+                }
+            } catch (error) {
+                console.error('Error al enviar a cargada:', error);
+                Swal.fire('Error', 'Error al enviar a cargada.', 'error');
+            }
+        };
+
+        const obtenerDataExportar = async (idPlan, idPP) => {
+            try {
+                const response = await fetch(`/Picking/ObtenerDataExportar?idpick=${idPP}&idplan=${idPlan}`);
+
+                if (!response.ok) {
+                    throw new Error('Error al obtener los datos del servidor');
+                }
+
+                const data = await response.json();
+
+                if (Array.isArray(data) && data.length > 0) {
+                    const dataPesadoCero = data.filter(item => item.pesado === 0);
+                    const dataPesadoUno = data.filter(item => item.pesado === 1);
+
+
+
+                    const { jsPDF } = window.jspdf;
+                    const doc = new jsPDF({
+                        margin: { top: 10, left: 10, bottom: 5, right: 10 }
+                    });
+
+
+                    const primerRegistro = data[0] || {};
+
+
+                    const nombre = primerRegistro.nombre || 'Nombre no disponible';
+                    const placa = primerRegistro.placa || 'Placa no disponible';
+                    const capacidad = primerRegistro.capacidad || 'Capacidad no disponible';
+                    const totalItems = primerRegistro.totalItems || 'Total no disponible';
+                    const pesoventa = primerRegistro.pesoVenta || 'Total no disponible';
+                    const jefe = primerRegistro.jefe || 'Jefe no disponible';
+
+                    const totalPeso = data.reduce((sum, item) => sum + parseFloat(item.pesoTotal || 0), 0).toFixed(2);
+
+
+                    doc.setFontSize(18);
+                    doc.text('Lista de Picking', 20, 20);
+
+                    doc.setFontSize(12);
+
+                    doc.text(`Nombre: ${nombre}`, 20, 30);
+                    doc.text(`Peso Venta: ${pesoventa}`, 90, 30);
+                    doc.text(`Placa: ${placa} Jefe: ${jefe}`, 20, 40);
+
+                    const pageWidth = doc.internal.pageSize.width;
+                    const totalItemsWidth = doc.getTextWidth(`Total Items: ${totalItems}`);
+                    const totalPesoWidth = doc.getTextWidth(`Total Peso: ${totalPeso} kg`);
+
+                    const rightX = pageWidth - Math.max(totalItemsWidth, totalPesoWidth) - 20;
+
+                    doc.text(`Total Items: ${totalItems}`, rightX, 30);
+                    doc.text(`Capacidad: ${capacidad}`, 90, 40);
+                    doc.text(`Total Peso: ${totalPeso} kg`, 148, 40);
+
+                    let y = 50;
+
+                    const tableColumn = ["Ubicacion", "Codigo", "Cod.Fabr", "Cant.", "Unidad", "Descripcion", "Marca", "Peso"];
+                    if (dataPesadoCero.length > 0) {
+                        doc.setFontSize(14);
+                        doc.text('Liviano', 90, y);
+                        y += 2;
+
+                        doc.setFontSize(8);
+                        const tableRows = [];
+
+                        dataPesadoCero.forEach(item => {
+                            const row = [
+                                `${item.sL1Code}-${item.sL2Code}-${item.sL3Code}-${item.sL4Code}`,
+                                item.idProducto,
+                                item.codigoFabricante,
+                                item.totalCantidad,
+                                item.medidaBase,
+                                item.descripcion,
+                                item.fabricante,
+                                item.pesoTotal
+                            ];
+                            tableRows.push(row);
+                        });
+
+                        doc.autoTable({
+                            head: [tableColumn],
+                            body: tableRows,
+                            startY: y,
+                            theme: 'grid',
+                            styles: {
+                                fontSize: 8,
+                                cellPadding: 0.5,
+                                lineWidth: 0.3,
+                                cellBorder: true,
+                            },
+                            headStyles: {
+                                halign: 'center',
+                                fontSize: 8,
+                            },
+                            tableWidth: 'auto',
+                            columnStyles: {
+                                0: { cellWidth: 15 }, 1: { cellWidth: 15, halign: 'center' }, 2: { cellWidth: 15, halign: 'center' }, 3: { cellWidth: 10, halign: 'center' }, 4: { cellWidth: 15 }, 5: { cellWidth: 80 }, 6: { cellWidth: 26 }, 7: { cellWidth: 10 }
+                            },
+                        });
+
+                        y = doc.lastAutoTable.finalY + 5;
+                    }
+
+                    if (dataPesadoUno.length > 0) {
+                        doc.setFontSize(14);
+                        doc.text('Pesado', 90, y);
+                        y += 2;
+
+                        const tableRowsPesado = [];
+
+                        dataPesadoUno.forEach(item => {
+                            const row = [
+                                `${item.sL1Code}-${item.sL2Code}-${item.sL3Code}-${item.sL4Code}`,
+                                item.idProducto,
+                                item.codigoFabricante,
+                                item.totalCantidad,
+                                item.medidaBase,
+                                item.descripcion,
+                                item.fabricante,
+                                item.pesoTotal
+                            ];
+                            tableRowsPesado.push(row);
+                        });
+
+                        doc.autoTable({
+                            head: [tableColumn],
+                            body: tableRowsPesado,
+                            startY: y,
+                            theme: 'grid',
+                            styles: {
+                                fontSize: 8,
+                                cellPadding: 0.5,
+                                lineWidth: 0.3,
+                                cellBorder: true,
+                            },
+                            headStyles: {
+                                halign: 'center',
+                                fontSize: 8,
+                            },
+                            tableWidth: 'auto',
+                            columnStyles: {
+                                0: { cellWidth: 15 }, 1: { cellWidth: 15, halign: 'center' }, 2: { cellWidth: 15, halign: 'center' }, 3: { cellWidth: 10, halign: 'center' }, 4: { cellWidth: 15 }, 5: { cellWidth: 80 }, 6: { cellWidth: 26 }, 7: { cellWidth: 10 }
+                            },
+                        });
+
+                        y = doc.lastAutoTable.finalY + 5;
+                    }
+
+                    doc.save('RESUMENPLANIFICACION.pdf');
+                } else {
+                    console.error('No se recibieron datos válidos de la API');
+                }
+
+            } catch (error) {
+                console.error('Error al obtener los datos:', error);
+                Swal.fire('Error', 'Hubo un problema al obtener los datos', 'error');
+            }
+        };
+
+
+        const envioFinalLast = async (idPick, idPlan) => {
+            try {
+                console.log("n° manifiesto", idPick);
+
+                const response = await fetch(`/Coordinador/ObtenerManifiestoNumero?numeroManifiesto=${idPick}`);
+
+                if (response.ok) {
+                    const manifiestos = await response.json();
+
+                    if (manifiestos && manifiestos.length > 0) {
+                        const manifiestosData = manifiestos.map(manifiesto => ({
+                            placa: manifiesto.u_EXP_PLACA,
+                            documento: manifiesto.docNum,
+                            cliente: manifiesto.cardName,
+                            direccion: manifiesto.address,
+                            telefono: manifiesto.phone1,
+                            codigoCliente: manifiesto.cardCode,
+                            email: manifiesto.e_Mail,
+                            latitud: manifiesto.u_XM_LatitudS,
+                            longitud: manifiesto.u_XM_LongitudS,
+                            descripcion: manifiesto.dscription,
+                            codigoProducto: manifiesto.itemCode,
+                            precioUnitario: manifiesto.unitPrice,
+                            cantidad: manifiesto.quantity,
+                            cantidadxPaq: manifiesto.numPerMsr,
+                            cantidadPickada: manifiesto.pickQtty,
+                            unidad: manifiesto.unitMsr
+                        }));
+
+                        const confirm = await Swal.fire({
+                            title: '¿Estás seguro?',
+                            text: '¿Deseas enviar estos datos a LastMile?',
+                            icon: 'warning',
+                            showCancelButton: true,
+                            confirmButtonText: 'Sí, enviar',
+                            cancelButtonText: 'No, cancelar'
+                        });
+
+                        if (confirm.isConfirmed) {
+                            Swal.fire({
+                                title: 'Enviando datos...',
+                                text: 'Por favor espera mientras enviamos los datos.',
+                                icon: 'info',
+                                didOpen: () => {
+                                    Swal.showLoading();
+                                }
+                            });
+
+                            const envioResponse = await fetch(`/Coordinador/EnvioLastMile?idPlan=${idPlan}`, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify(manifiestosData)
+                            });
+
+                            const envioResult = await envioResponse.json();
+                            Swal.close();
+
+                            if (envioResult.success) {
+                                Swal.fire('Éxito', envioResult.message, 'success');
+                                cargarPlanificaciones();
+                            } else {
+                                Swal.fire('Error', envioResult.message, 'error');
+                            }
+                        }
+                    } else {
+                        Swal.fire('Error', 'No se encontró el manifiesto.', 'error');
+                    }
+                } else {
+                    Swal.fire('Error', 'Hubo un problema al obtener el manifiesto.', 'error');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                Swal.fire('Error', 'Hubo un problema en el proceso.', 'error');
+            }
+        };
+
+
+        const mostrarDetallesManifiesto = async (idPick, idPlan) => {
+            try {
+                const response = await fetch(`/Coordinador/DetectarManifiestos?idpick=${idPick}`);
+
+                if (response.ok) {
+                    const manifiestos = await response.json();
+
+                    if (manifiestos && manifiestos.length > 0) {
+                        let tableContent = '';
+
+                        manifiestos.forEach(mani => {
+                            tableContent += `
+                                                                                                                                <tr>
+                                                                                                                                    <td>${mani.docEntry}</td>
+                                                                                                                                    <td>${mani.u_EXP_FECH}</td>
+                                                                                                                                    <td>${mani.u_EXP_PLVE}</td>
+                                                                                                                                    <td>${mani.u_EXP_TRAN}</td>
+                                                                                                                                    <td>${mani.u_EXP_COND}</td>
+                                                                                                                                    <td>${mani.u_EXP_CODSEDE}</td>
+                                                                                                                                    <td>
+                                                                                                                                        <button class="btn btn-primary detallesmani-btn" data-docentry="${mani.docEntry}" data-planman="${idPlan}">
+                                                                                                                                            <i class="bx bx-search"></i>
+                                                                                                                                        </button>
+                                                                                                                                    </td>
+                                                                                                                                </tr>
+                                                                                                                            `;
+                        });
+
+                        $('#manisModal .modal-body table tbody').html(tableContent);
+
+                        $('.detallesmani-btn').click(async function () {
+                            const docEntry = $(this).data('docentry');
+                            const planMan = $(this).data('´planman');
+                            await cargarManifiesto(docEntry, planMan);
+                            $('#manifiestoModal').modal('show');
+                        });
+                    } else {
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'No se encontraron manifiestos',
+                            text: 'No se encontraron manifiestos para este ID.',
+                            confirmButtonText: 'Aceptar'
+                        });
+                    }
+                } else {
+                    console.error("Error en la solicitud");
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error en la solicitud',
+                        text: 'Hubo un problema al realizar la solicitud. Intenta de nuevo más tarde.',
+                        confirmButtonText: 'Aceptar'
+                    });
+                }
+            } catch (error) {
+                console.error("Error en la conexión:", error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error de conexión',
+                    text: 'Hubo un error de conexión al servidor. Por favor, inténtalo de nuevo.',
+                    confirmButtonText: 'Aceptar'
+                });
+            }
+        }
+
+        const cargarManifiesto = async (numeroManifiesto, planMan) => {
+            try {
+                const response = await fetch(`/Coordinador/ObtenerManifiestoNumero?numeroManifiesto=${numeroManifiesto}`);
+                const data = await response.json();
+
+                const $manifiestosBody = $('#manifiestos-body');
+                $manifiestosBody.empty();
+                $('.planManEnviar').text(planMan);
+                if (data.length === 0) {
+                    $manifiestosBody.append('<tr><td colspan="14">No se encontraron resultados.</td></tr>');
+                    $('#enviarlastBtn').hide();
+                } else {
+                    data.forEach((manifiesto) => {
+                        $manifiestosBody.append(`
+                                                                                                                            <tr>
+                                                                                                                                <td>${manifiesto.u_EXP_PLACA}</td>
+                                                                                                                                <td>${manifiesto.docNum}</td>
+                                                                                                                                <td>${manifiesto.cardName}</td>
+                                                                                                                                <td>${manifiesto.address}</td>
+                                                                                                                                <td>${manifiesto.phone1}</td>
+                                                                                                                                <td>${manifiesto.cardCode}</td>
+                                                                                                                                <td>${manifiesto.e_Mail}</td>
+                                                                                                                                <td hidden>${manifiesto.u_XM_LatitudS}</td>
+                                                                                                                                <td hidden>${manifiesto.u_XM_LongitudS}</td>
+                                                                                                                                <td hidden>${manifiesto.dscription}</td>
+                                                                                                                                <td hidden>${manifiesto.itemCode}</td>
+                                                                                                                                <td hidden>${manifiesto.unitPrice}</td>
+                                                                                                                                <td hidden>${manifiesto.quantity}</td>
+                                                                                                                                <td hidden>${manifiesto.numPerMsr}</td>
+                                                                                                                                <td hidden>${manifiesto.pickQtty}</td>
+                                                                                                                                <td hidden>${manifiesto.unitMsr}</td>
+                                                                                                                            </tr>
+                                                                                                                        `);
+                    });
+                    $('#enviarlastBtn').show();
+                }
+
+            } catch (error) {
+                console.error('Error al cargar el manifiesto:', error);
+                $('#manifiestos-body').html('<tr><td colspan="14">Error al cargar los datos del manifiesto.</td></tr>');
+                $('#enviarlastBtn').hide();
+            }
+        };
+
+        $('#enviarlastBtn').click(async function () {
+            const confirm = await Swal.fire({
+                title: '¿Estás seguro?',
+                text: '¿Deseas enviar estos datos a LastMile?',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Sí, enviar',
+                cancelButtonText: 'No, cancelar'
+            });
+
+            if (confirm.isConfirmed) {
+                const manifiestosData = [];
+
+                $('#manifiestos-body tr').each(function () {
+                    const row = $(this);
+                    if (row.find('td').length > 1) {
+                        const manifiesto = {
+                            placa: row.find('td').eq(0).text(),
+                            documento: row.find('td').eq(1).text(),
+                            cliente: row.find('td').eq(2).text(),
+                            direccion: row.find('td').eq(3).text(),
+                            telefono: row.find('td').eq(4).text(),
+                            codigoCliente: row.find('td').eq(5).text(),
+                            email: row.find('td').eq(6).text(),
+                            latitud: row.find('td').eq(7).text(),
+                            longitud: row.find('td').eq(8).text(),
+                            descripcion: row.find('td').eq(9).text(),
+                            codigoProducto: row.find('td').eq(10).text(),
+                            precioUnitario: row.find('td').eq(11).text(),
+                            cantidad: row.find('td').eq(12).text(),
+                            cantidadxPaq: row.find('td').eq(13).text(),
+                            cantidadPickada: row.find('td').eq(14).text(),
+                            unidad: row.find('td').eq(15).text()
+                        };
+                        manifiestosData.push(manifiesto);
+                    }
+                });
+
+                if (manifiestosData.length > 0) {
+                    Swal.fire({
+                        title: 'Enviando datos...',
+                        text: 'Por favor espera mientras enviamos los datos.',
+                        icon: 'info',
+                        didOpen: () => {
+                            Swal.showLoading();
+                        }
+                    });
+
+                    try {
+                        const response = await fetch('/Coordinador/EnvioLastMile', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify(manifiestosData)
+                        });
+
+                        const result = await response.json();
+                        Swal.close();
+                        Swal.fire('Éxito', result.message, 'success');
+                    } catch (error) {
+                        Swal.close();
+                        console.error('Error al enviar los datos a LastMile:', error);
+                        Swal.fire('Error', 'Hubo un problema al enviar los datos.', 'error');
+                    }
+                } else {
+                    Swal.fire('Advertencia', 'No hay datos para enviar.', 'warning');
+                }
+            }
+        });
+
+        const mostrarDetallespick = async (idPick, idPlan) => {
+            try {
+                const response = await fetch(`/Picking/ConsultarDetallePickeador?idPick=${idPick}&Plan=${idPlan}`);
+                const data = await response.json();
+
+                const $modalBody = $('#modal-body-detalles');
+                $modalBody.empty();
+
+                const $table = $('<table class="table"></table>');
+                const $thead = $('<thead><th>N°</th><th>Código</th><th>Producto</th><th>Cantidad</th><th>Cantidad Contada</th><th>Cantidad Pendiente</th></thead>');
+                const $tbody = $('<tbody></tbody>');
+
+                data.forEach((prod, index) => {
+
+                    const cantidadPendiente = prod.cantidad - (prod.cantidadContada || 0);
+                    const rowClass = (prod.cantidadContada < prod.cantidad) ? 'table-danger' :
+                        (prod.cantidadContada > prod.cantidad) ? 'table-success' : '';
+
+                    $tbody.append(`
+                                                                                                                                <tr class="${rowClass}" style="text-align:center">
+                                                                                                                                    <td>${index + 1}</td>
+                                                                                                                                    <td>${prod.idProducto}</td>
+                                                                                                                                    <td>${prod.descripcion}</td>
+                                                                                                                                    <td>${prod.cantidad}</td>
+                                                                                                                                    <td>${prod.cantidadContada || 0}</td>
+                                                                                                                                    <td>${cantidadPendiente}</td>
+                                                                                                                                </tr>
+                                                                                                                            `);
+                });
+
+                $table.append($thead).append($tbody);
+                $modalBody.append($table);
+
+                $('#detallesModal').modal('show');
+
+            } catch (error) {
+                console.error('Error al consultar los detalles del pickeador:', error);
+            }
+        };
+
+        const mostrarModalExcel = (codigo) => {
+            $('#modalExcel').modal('show');
+            $('#modalExcel').data('codigo', codigo);
+            $('#analizarBtn').click(async function () {
+                await mostrarDatos(codigo);
+            });
+        };
+
+        const borrarSubida = (codigo) => {
+            Swal.fire({
+                title: '¿Estás seguro?',
+                text: "¡Este archivo  será borrado permanentemente!",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Sí, borrar',
+                cancelButtonText: 'Cancelar',
+                reverseButtons: true
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    fetch(`/Home/BorrarSubida?codigo=${codigo}`, {
+                        method: 'DELETE',
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                Swal.fire({
+                                    icon: 'success',
+                                    title: '¡Borrado con éxito!',
+                                    text: 'El archivo Excel ha sido borrado.',
+                                    confirmButtonText: 'Aceptar'
+                                });
+                                location.reload();
+                                cargarPlanificaciones();
+                            } else {
+                                Swal.fire({
+                                    icon: 'error',
+                                    title: 'Error',
+                                    text: 'Hubo un problema al borrar el archivo. Por favor, intenta nuevamente.',
+                                    confirmButtonText: 'Aceptar'
+                                });
+                            }
+                        })
+                        .catch(error => {
+                            console.error("Error al borrar la subida:", error);
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Error',
+                                text: 'Hubo un problema al procesar la solicitud. Inténtalo nuevamente.',
+                                confirmButtonText: 'Aceptar'
+                            });
+                        });
+                    location.reload();
+
+                }
+            });
+        };
+
+        const borrarSubidaPro = (codigo, plan) => {
+            Swal.fire({
+                title: '¿Estás seguro?',
+                text: "¡Este archivo  será borrado permanentemente!",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Sí, borrar',
+                cancelButtonText: 'Cancelar',
+                reverseButtons: true
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    fetch(`/Transferencias/BorrarSubidaProvinciaTransferencia?codigo=${codigo}&plan=${plan}`, {
+                        method: 'DELETE',
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                Swal.fire({
+                                    icon: 'success',
+                                    title: '¡Borrado con éxito!',
+                                    text: 'El archivo Excel ha sido borrado.',
+                                    confirmButtonText: 'Aceptar'
+                                });
+
+                                cargarPlanificaciones();
+                            } else {
+                                Swal.fire({
+                                    icon: 'error',
+                                    title: 'Error',
+                                    text: 'Hubo un problema al borrar el archivo. Por favor, intenta nuevamente.',
+                                    confirmButtonText: 'Aceptar'
+                                });
+                            }
+                        })
+                        .catch(error => {
+                            console.error("Error al borrar la subida:", error);
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Error',
+                                text: 'Hubo un problema al procesar la solicitud. Inténtalo nuevamente.',
+                                confirmButtonText: 'Aceptar'
+                            });
+                        });
+                }
+            });
+        };
+
+
+        const mostrarModalDetalles = async (codigo) => {
+            try {
+                const response = await fetch(`/Home/ObtenerPedidosCodigo?codigo=${codigo}`);
+                const data = await response.json();
+
+                const $tablaDetalles = $('#tablaDetalles tbody');
+                $tablaDetalles.empty();
+
+                data.forEach(item => {
+                    $tablaDetalles.append(`
+                                                                                                                        <tr>
+                                                                                                                            <td>${item.Codigo}</td>
+                                                                                                                            <td>${item.Planeado === true ? 'Si' : 'No'}</td>
+                                                                                                                            <td>${item.Cliente}</td>
+                                                                                                                            <td>${item.Direccion}</td>
+                                                                                                                        </tr>
+                                                                                                                    `);
+                });
+
+                $('#modalDetalles').modal('show');
+                $('#modalDetalles').data('codigo', codigo);
+
+            } catch (error) {
+                console.error('Error al cargar los detalles de los pedidos:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: '¡Error!',
+                    text: 'No se pudo cargar los detalles.',
+                });
+            }
+        };
+
+
+        const mostrarModalSinDetalles = async (codigo) => {
+            try {
+                const response = await fetch(`/Home/ObtenerPedidosSinCodigo?codigo=${codigo}`);
+                const data = await response.json();
+
+                const $tablaDetalles = $('#tablaSinDetalles tbody');
+                $tablaDetalles.empty();
+
+                data.forEach(item => {
+                    $tablaDetalles.append(`
+                                                                                                                                <tr>
+                                                                                                                                    <td>${item.Codigo}</td>
+                                                                                                                                    <td>${item.Cliente}</td>
+                                                                                                                                    <td>${item.Direccion}</td>
+                                                                                                                                </tr>
+                                                                                                                            `);
+                });
+
+                $('#modalSinDetalles').modal('show');
+                $('#modalSinDetalles').data('codigo', codigo);
+
+            } catch (error) {
+                console.error('Error al cargar los detalles de los pedidos:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: '¡Error!',
+                    text: 'No se pudo cargar los detalles.',
+                });
+            }
+        };
+
+        const mostrarPedidosPlaca = async (idPlan) => {
+            try {
+                const response = await fetch(`/Home/ObtenerPedidosPlaca?codigo=${idPlan}`);
+                const data = await response.json();
+
+                const $tablaDetalles = $('#tablaPlacaDetalles tbody');
+                $tablaDetalles.empty();
+
+                data.forEach(item => {
+                    $tablaDetalles.append(`
+                                                                                                                                <tr>
+                                                                                                                                    <td>${item.NumeroGuia}</td>
+                                                                                                                                    <td>${item.Cliente}</td>
+                                                                                                                                    <td>${item.Direccion}</td>
+                                                                                                                                    <td>${item.Items}</td>
+                                                                                                                                    <td>${item.Peso}</td>
+                                                                                                                                </tr>
+                                                                                                                            `);
+                });
+
+                $('#modalPlacaDetalles').modal('show');
+                $('#modalPlacaDetalles').data('codigo', idPlan);
+
+            } catch (error) {
+                console.error('Error al cargar los detalles de los pedidos:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: '¡Error!',
+                    text: 'No se pudo cargar los detalles.',
+                });
+            }
+        };
+
+
+        const mostrarProductosPedidosPlaca = async (idPlan) => {
+            try {
+                const response = await fetch(`/Home/ObtenerProductosPedidosPlaca?ID=${idPlan}`);
+                const data = await response.json();
+
+                const columnas = [
+                    {
+                        data: null,
+                        render: function (data, type, row) {
+                            return `${row.sL1Code}-${row.sL2Code}-${row.sL3Code}-${row.sL4Code}`;
+                        }
+                    },
+                    { data: 'idProducto' },
+                    { data: 'descripcion' },
+                    { data: 'medidaBase' },
+                    { data: 'totalCantidad' },
+                    { data: 'pesoTotal' },
+                    {
+                        data: null,
+                        render: function (data, type, row) {
+                            if (row.iniciados !== 0) {
+                                return '';
+                            }
+                            return `<button class="btn btn-primary revisarproductofijo-btn" data-idproducto="${row.idProducto}" data-idplan="${idPlan}">
+                                                                                                                                        <i class="bx bx-search"></i>
+                                                                                                                                    </button>`;
+                        },
+                        orderable: false,
+                    }
+                ];
+
+                const tbl = '#tablaProductosPlacaDetalles';
+
+                if ($.fn.dataTable.isDataTable(tbl)) {
+                    $(tbl).DataTable().clear().destroy();
+                }
+
+                const table = new DataTable(tbl, {
+                    autoWidth: false,
+                    paging: false,
+                    columns: columnas,
+                    data: data,
+                    destroy: false,
+                    dom: 'Bfrt',
+                    buttons: [],
+                });
+
+                let totalPeso = 0;
+                data.forEach(item => {
+                    totalPeso += parseFloat(item.pesoTotal) || 0;
+                });
+
+                const subtotalHTML = `
+                                                                                                                    <strong>Total Peso:</strong> ${totalPeso.toFixed(2)}
+                                                                                                                `;
+                $('#subtotalfijoproducto').html(subtotalHTML);
+                const totalRegistros = data.length;
+                $('#totalitemsfijo').html(totalRegistros);
+
+                $(tbl).on('click', '.revisarproductofijo-btn', function () {
+                    const idProducto = $(this).data('idproducto');
+                    const idPlan = $(this).data('idplan');
+                    abrirModalRevisarProducto(idPlan, idProducto);
+                });
+
+                $('#modalProductosPlacaDetalles').modal('show');
+                $('#modalProductosPlacaDetalles').data('codigo', idPlan);
+
+            } catch (error) {
+                console.error('Error al cargar los detalles de los pedidos:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: '¡Error!',
+                    text: 'No se pudo cargar los detalles.',
+                });
+            }
+        };
+
+        const abrirModalRevisarProducto = async (idPlan, idProducto) => {
+            try {
+                const response = await fetch(`/Home/ObtenerProductosPedidosFijo?idplan=${idPlan}&idproducto=${idProducto}`);
+                const data = await response.json();
+
+                const modal = $('#modalRevisarProducto');
+                const descripcionElemento = $('#productoDescripcion');
+                const tablaCuerpo = $('#tablaProductoDetalles tbody');
+                const guardarBtn = $('#guardarProducto');
+
+                descripcionElemento.text('');
+                tablaCuerpo.empty();
+
+                descripcionElemento.text(data[0].Descripcion);
+
+                data.forEach(item => {
+                    const medidafija = item.factor === 1 ? 'UND' : 'PQTX' + item.factor;
+                    tablaCuerpo.append(`
+                                                                                                                        <tr>
+                                                                                                                            <td>${item.numeroGuia}</td>
+                                                                                                                            <td>${item.utilidad}</td>
+                                                                                                                            <td>${item.peso}</td>
+                                                                                                                            <td>${item.cantidadBase}</td>
+                                                                                                                            <td>${medidafija}</td>
+                                                                                                                            <td>${item.cantidad}</td>
+                                                                                                                            <td>
+                                                                                                                                <input type="number" class="form-control cantidad-base-nueva" value="${item.cantidadBase}"
+                                                                                                                                       max="${item.cantidadBase}" data-idproducto="${item.idProducto}" data-idplan="${idPlan}" data-numeroguia="${item.numeroGuia}" data-idplanped="${item.idPlanPed}"
+                                                                                                                                       data-peso="${item.peso}" data-factor="${item.factor}" data-cantidadbase="${item.cantidadBase}">
+                                                                                                                            </td>
+                                                                                                                            <td class="multiplicador">${item.peso * item.cantidadBase * item.factor}</td>
+                                                                                                                        </tr>
+                                                                                                                    `);
+                });
+
+                modal.modal('show');
+
+                $(document).on('input', '.cantidad-base-nueva', function () {
+                    const input = $(this);
+                    const cantidadBase = parseFloat(input.val());
+                    const maxCantidadBase = parseFloat(input.attr('max'));
+                    const peso = parseFloat(input.data('peso'));
+                    const factor = parseFloat(input.data('factor'));
+
+                    const multiplicador = (peso * cantidadBase * factor).toFixed(2);
+
+                    input.closest('tr').find('.multiplicador').text(multiplicador);
+
+                    if (cantidadBase > maxCantidadBase) {
+                        guardarBtn.hide();
+                        Swal.fire({
+                            icon: 'warning',
+                            title: '¡Alerta!',
+                            text: `El valor ingresado no puede exceder la cantidad base (${maxCantidadBase}).`
+                        });
+                    } else {
+                        guardarBtn.show();
+                    }
+                });
+
+                $('#guardarProducto').off('click').on('click', () => guardarProducto(idPlan, idProducto));
+
+            } catch (error) {
+                console.error('Error al cargar los detalles del producto:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: '¡Error!',
+                    text: 'No se pudo cargar los detalles del producto.',
+                });
+            }
+        };
+
+
+
+
+        const guardarProducto = async (idPlan, idProducto) => {
+            try {
+                const nuevaCantidadBase = $('.cantidad-base-nueva').map(function () {
+                    const nuevaCantidad = $(this).val() || "0";
+                    const cantidadBase = $(this).data('cantidadbase');
+
+                    if (parseFloat(nuevaCantidad) <= parseFloat(cantidadBase)) {
+                        return {
+                            idProducto: String($(this).data('idproducto')),
+                            idPlan: String($(this).data('idplan')),
+                            numeroGuia: String($(this).data('numeroguia')),
+                            factor: String($(this).data('factor')),
+                            planpedido: String($(this).data('idplanped')),
+                            cantidadbase: String(cantidadBase),
+                            nuevaCantidadBase: nuevaCantidad
+                        };
+                    }
+                    return null;
+                }).get().filter(item => item !== null);
+
+                const response = await fetch('/Home/GuardarProductoPedidoCodigo', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(nuevaCantidadBase)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: '¡Éxito!',
+                        text: 'Los datos se han guardado correctamente.',
+                    });
+                    $('#modalRevisarProducto').modal('hide');
+                    cargarPlanificaciones();
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: '¡Error!',
+                        text: 'No se pudo guardar los cambios.',
+                    });
+                }
+            } catch (error) {
+                console.error('Error al guardar los datos:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: '¡Error!',
+                    text: 'No se pudo guardar los cambios.',
+                });
+            }
+        };
+
+
+
+        function mostrarDatos(codigo) {
+            const input = document.getElementById("inputExcel");
+
+            const formData = new FormData();
+            formData.append("ArchivoExcel", input.files[0]);
+            formData.append("codigo", codigo);
+
+            fetch("/Home/MostrarDatos", {
+                method: "POST",
+                body: formData
+            })
+                .then((response) => response.json())
+                .then((dataJson) => {
+                    const vehiculoData = {};
+                    const vehiculoDataConEstado = {};
+
+                    const listaTotal = dataJson.listaTotal;
+                    const codigosConCoincidencia = dataJson.codigosConCoincidencia;
+                    const codigosSinCoincidencia = dataJson.codigosSinCoincidencia;
+
+
+
+                    if (codigosConCoincidencia.length === 0) {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'No hay coincidencias',
+                            text: 'No hay coincidencias encontradas en el archivo. No se puede continuar.',
+                            confirmButtonText: 'Aceptar'
+                        });
+                        return;
+                    }
+
+                    listaTotal?.forEach((item) => {
+                        if (!vehiculoData[item.vehiculo]) {
+                            vehiculoData[item.vehiculo] = [];
+                        }
+                        item.numeroManifiesto = calcularNumeroManifiesto(vehiculoData[item.vehiculo], item.cliente, item.direccion, item.vendedor);
+                        const index = vehiculoData[item.vehiculo].findIndex(element => element.numeroguia === item.numeroguia);
+                        if (index !== -1) {
+                            item.estado = 1;
+                        } else {
+                            item.estado = 0;
+                            vehiculoData[item.vehiculo].push(item);
+                        }
+                        if (!vehiculoDataConEstado[item.vehiculo]) {
+                            vehiculoDataConEstado[item.vehiculo] = {};
+                        }
+                        if (!vehiculoDataConEstado[item.vehiculo][item.numeroManifiesto]) {
+                            vehiculoDataConEstado[item.vehiculo][item.numeroManifiesto] = [];
+                        }
+                        vehiculoDataConEstado[item.vehiculo][item.numeroManifiesto].push(item);
+                    });
+
+                    for (const vehiculoman in vehiculoDataConEstado) {
+                        vehiculoDataConEstado[vehiculoman] = Object.values(vehiculoDataConEstado[vehiculoman]);
+                    }
+
+                    const totalPedidos = codigosConCoincidencia.length + codigosSinCoincidencia.length;
+                    const cantidadConCoincidencia = codigosConCoincidencia.length;
+                    const cantidadSinCoincidencia = codigosSinCoincidencia.length;
+
+                    Swal.fire({
+                        title: 'Análisis de datos',
+                        html: `
+                                                                                                                    <p>Total de pedidos: ${totalPedidos}</p>
+                                                                                                                    <p>Planeados: ${cantidadConCoincidencia}</p>
+                                                                                                                    <p>No se planearan: ${cantidadSinCoincidencia}</p>
+                                                                                                                `,
+                        icon: 'info',
+                        showCancelButton: true,
+                        confirmButtonText: 'Continuar',
+                        cancelButtonText: 'Cancelar',
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            Swal.fire({
+                                title: '¿Estás seguro?',
+                                text: "¡Este cambio se guardará permanentemente!",
+                                icon: 'warning',
+                                showCancelButton: true,
+                                confirmButtonText: 'Sí, guardar',
+                                cancelButtonText: 'Cancelar',
+                                reverseButtons: true
+                            }).then((result) => {
+                                if (result.isConfirmed) {
+                                    Swal.fire({
+                                        title: 'Guardando...',
+                                        text: 'Por favor, espera mientras procesamos la solicitud.',
+                                        allowOutsideClick: false,
+                                        didOpen: () => {
+                                            Swal.showLoading();
+                                        }
+                                    });
+
+                                    fetch(`/Home/GuardarConteo?codigobee=${codigo}`, {
+                                        method: 'POST',
+                                        headers: {
+                                            'Content-Type': 'application/json',
+                                        },
+                                        body: JSON.stringify(vehiculoDataConEstado)
+                                    })
+                                        .then(response => {
+                                            if (!response.ok) {
+                                                throw new Error('Error en la red');
+                                            }
+                                            return response.json();
+                                        })
+                                        .then(json => {
+
+                                            guardarPlaneados(codigosConCoincidencia, codigosSinCoincidencia);
+                                        })
+                                        .catch(error => {
+                                            console.error("Error al guardar el conteo:", error);
+
+                                            Swal.fire({
+                                                icon: 'error',
+                                                title: 'Error',
+                                                text: 'Hubo un problema al guardar el conteo. Por favor, intenta nuevamente.',
+                                                confirmButtonText: 'Aceptar'
+                                            });
+                                        });
+                                }
+                            });
+                        }
+                    });
+                })
+                .catch(error => {
+                    console.error("Error al obtener los datos:", error);
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: 'Hubo un problema al obtener los datos. Por favor, intenta nuevamente.',
+                        confirmButtonText: 'Aceptar'
+                    });
+                });
+        }
+        function calcularNumeroManifiesto(data, cliente, direccion, vendedor) {
+            let count = 1;
+            for (let i = 0; i < data.length; i++) {
+                if (data[i].cliente === cliente && (direccion !== data[i].direccion || vendedor !== data[i].vendedor)) {
+                    data[i].numeroManifiesto = count++;
+                    break;
+                }
+            }
+            return count;
+        }
+
+        function guardarPlaneados(codigosConCoincidencia, codigosSinCoincidencia) {
+            const codigosStr = codigosConCoincidencia.map(codigo => `${codigo}`).join(',');
+            const ccc = codigosConCoincidencia.length;
+            const csc = codigosSinCoincidencia.length;
+
+            fetch(`/Home/GuardarPlaneados?codigos=${codigosStr}&cc=${ccc}&cs=${csc}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ codigos: codigosStr })
+            })
+                .then(response => response.json())
+                .then(data => {
+
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Actualización exitosa',
+                        text: 'Los pedidos planeados han sido actualizados correctamente.',
+                        confirmButtonText: 'Aceptar'
+                    });
+                    window.location.reload();
+                })
+                .catch(error => {
+                    console.error("Error al actualizar los pedidos planeados:", error);
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: 'Hubo un problema al actualizar los pedidos planeados. Por favor, intenta nuevamente.',
+                        confirmButtonText: 'Aceptar'
+                    });
+                });
+        }
+
+        $('#guardar-jefe').click(async function () {
+            const idPlanPla = $('#jefeDeGrupoModal').data('id');
+            const idPickeador = $('#select-pickeador').val();
+            console.log("------------>", idPlanPla);
+            console.log("------------>", idPickeador);
+
+
+            try {
+                console.log("entro-------------->");
+                const response = await fetch(`/Transferencias/GuardarJefePlacaTransferencia?idPlanPla=${idPlanPla}&idPickeador=${idPickeador}`, {
+                    method: 'POST'
+                });
+
+                if (response.ok) {
+                    Swal.fire('Éxito', 'Jefe de Grupo asignado correctamente.', 'success');
+                    const idPlan = new URLSearchParams(window.location.search).get('id');
+                    cargarPlanificaciones();
+                    $('#jefeDeGrupoModal').modal('hide');
+                    location.reload();
+                } else {
+                    throw new Error('Error al guardar el jefe de placa.');
+                }
+            } catch (error) {
+                console.error('Error al guardar el jefe de placa:', error);
+                Swal.fire('Error', 'Error al guardar el jefe de placa.', 'error');
+            }
+        });
+
+        const borrarPicking = (idpick, idplan) => {
+            Swal.fire({
+                title: '¿Estás seguro?',
+                text: "¡Los productos asignados a este pickeador serán borrados permanentemente!",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Sí, borrar',
+                cancelButtonText: 'Cancelar',
+                reverseButtons: true
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    fetch(`/Picking/BorrarPicking?idpick=${idpick}&plan=${idplan}`, {
+                        method: 'DELETE',
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+
+                            Swal.fire({
+                                icon: 'success',
+                                title: '¡Borrado con éxito!',
+                                text: data.message,
+                                confirmButtonText: 'Aceptar'
+                            });
+                            location.reload();
+                        });
+                }
+            });
+        };
+
+        const cambiarPicking = (idpick, idplan) => {
+
+            $('#modal-asignar').modal('show');
+            $('#guardar-asignacion').click(() => {
+
+                const pickeadorId = $('#select-pickeadorpick').val();
+
+                if (pickeadorId === "0") {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Selecciona un pickeador',
+                        text: 'Por favor, selecciona un pickeador antes de continuar.',
+                        confirmButtonText: 'Aceptar'
+                    });
+                } else {
+                    fetch(`/Picking/CambiarPicking?idpick=${idpick}&plan=${idplan}&pick=${pickeadorId}`, {
+                        method: 'POST',
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+
+                            Swal.fire({
+                                icon: 'success',
+                                title: '¡Cambiado con éxito!',
+                                text: data.message,
+                                confirmButtonText: 'Aceptar'
+                            });
+
+                            location.reload();
+                        })
+                        .catch(error => {
+                            console.error(error);
+                            Swal.fire('Error', 'Ocurrió un error al cambiar el picking', 'error');
+                        });
+                }
+            });
+        };
+
+        const cargarPersonalPicking = async (idPlan) => {
+            const identifalma = document.getElementById('identifalmacen').innerText.trim();
+
+            try {
+                const response = await fetch(`/Picking/CargarPersonalPickeo?id=${idPlan}&almacenubicacion=${identifalma}`);
+                const personal = await response.json();
+
+                let selectpersonalOptions = `<option value="0">Elija una opcion</option>`;
+                personal.forEach(tipo => {
+                    selectpersonalOptions += `<option value="${tipo.IDPP}">${tipo.Nombre}</option>`;
+                });
+
+                $("#select-pickeadorpick").html('').append(selectpersonalOptions);
+            } catch (e) {
+                console.error(e);
+                Swal.fire('Error', 'Ocurrió un error al cargar el personal', 'info');
+            }
+        };
+
+        const cargarPersonal = async () => {
+            try {
+                const identifalma = document.getElementById('identifalmacen').innerText.trim();
+                const response = await fetch(`/Picking/CargarPersonalJefes?almacen=${identifalma}`);
+
+                const personal = await response.json();
+                let selectpersonalOptions = `<option value="0">Elije un Pickeador</option>`;
+                personal.forEach(tipo => {
+                    selectpersonalOptions += `<option value="${tipo.IDPP}">${tipo.Nombre}</option>`;
+                });
+
+                $("#select-pickeador").html('').append(selectpersonalOptions);
+            } catch (e) {
+                console.error(e);
+                Swal.fire('Error', 'Ocurrió un error al cargar el personal', 'info');
+            }
+        };
+
+
+        $(document).ready(function () {
+            $(".subtable").hide();
+
+            $(".main-row").click(function () {
+                var nextRow = $(this).next(".subtable");
+                nextRow.toggle();
+
+
+            });
+        });
+
+
+        function mostrarInicioFin(id) {
+            var extraInfo = document.getElementById("extraInfo-" + id);
+            var icon = document.querySelector("#timeButton-" + id + " span");
+
+            if (extraInfo.style.display === "flex" || extraInfo.style.display === "") {
+                extraInfo.style.display = "none";
+                icon.textContent = "🔽";
+            } else {
+                extraInfo.style.display = "flex";
+                icon.textContent = "🔼";
+            }
+        }
+
+        const fechaHoy = new Date().toISOString().split('T')[0];
+        document.getElementById('fechaInicio').value = fechaHoy;
+        document.getElementById('fechaFin').value = fechaHoy;
+
+
+
+    </script>
+}

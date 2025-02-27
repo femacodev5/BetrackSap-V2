@@ -7,6 +7,7 @@
 <link rel="stylesheet" href="~/css/JefeConteo.css">
 
 <div class="container respnm" style="margin:0px">
+    <span id="almacenubi" style="display:none;">@User.Identity.Name @User.FindFirst("Almacen")?.Value</span>
     <div class="card pdingresp" style="width: 96vw;  height: auto;">
         <div class="card-body">
             <h1 class="text-center mb-4">
@@ -50,7 +51,7 @@
             <div class="row">
                 <div class="col-md-4">
                     <label for="searchInput" class="form-label">Buscar:</label>
-                    <input type="text" id="searchInput" class="form-control"/>
+                    <input type="text" id="searchInput" class="form-control" />
                 </div>
                 <div class="col-md-4">
                 </div>
@@ -62,8 +63,8 @@
                     <thead>
                         <tr>
                             <th><input type="checkbox" id="check-visible"></th>
-                            <th>#</th> 
-                            <th>Ubi</th> 
+                            <th>#</th>
+                            <th>Ubi</th>
                             <th>Marca</th>
                             <th>ID Producto</th>
                             <th>Descripción</th>
@@ -121,7 +122,6 @@
                 $('#btn-asignar').click(() => {
                     $('#modal-asignar').modal('show');
                 });
-                console.log("------->a", cargarProductos(idPlan) );
 
                 $('#guardar-asignacion').click(() => {
                     const selectedProductos = [];
@@ -145,7 +145,7 @@
 
                 $('#exportarBtn').click(() => {
                     obtenerDataExportarPlan(idPlan);
-                    
+
                 });
             });
 
@@ -162,7 +162,7 @@
 
                     if (Array.isArray(data) && data.length > 0) {
 
-                        const dataPesadoCero = data.filter(item => item.pesado === 0); 
+                        const dataPesadoCero = data.filter(item => item.pesado === 0);
                         const dataPesadoUno = data.filter(item => item.pesado === 1);
 
 
@@ -208,7 +208,7 @@
 
                         doc.setFontSize(14);
                         doc.text('Liviano', 20, y);
-                        y += 2; 
+                        y += 2;
 
                         doc.setFontSize(8);
                         const tableColumn = ["Ubicacion", "Codigo", "Cod.Fabr", "Cant.", "Unidad", "Descripcion", "Marca", "Peso"];
@@ -247,11 +247,11 @@
                             },
                         });
 
-                        y = doc.lastAutoTable.finalY + 5; 
+                        y = doc.lastAutoTable.finalY + 5;
 
                         doc.setFontSize(14);
                         doc.text('Pesado', 20, y);
-                        y += 2; 
+                        y += 2;
 
                         const tableRowsPesado = [];
 
@@ -301,13 +301,14 @@
 
             const cargarProductos = async (idPlan) => {
                 try {
+
+                    console.log("idplan", idPlan);
                     const response = await fetch(`/Picking/ObtenerProductoPlan?ID=${idPlan}`);
 
                     if (!response.ok) {
                         throw new Error('Error en la respuesta del servidor');
                     }
                     const data = await response.json();
-                    console.log("------>ObtenerProductoPlan", data.length);
 
                     const numero = data.length > 0 && data[0]?.usuario ? data[0]?.usuario : null;
                     if (numero !== null) {
@@ -349,24 +350,24 @@
 
                         for (const [pesado, fabricantes] of Object.entries(groupedProducts)) {
                             $productosBody.append(`
-                                <tr class="table table-success celdaline" style="vertical-align: middle !important;">
-                                    <td class="celdaline" colspan="9" style="font-size:1.5em;vertical-align: middle !important;">
-                                        <strong>${pesado}</strong>
-                                        <input type="checkbox" class="check-all" data-pesado="${pesado}">
-                                    </td>
-                                </tr>
-                            `);
+                                            <tr class="table table-success celdaline" style="vertical-align: middle !important;">
+                                                <td class="celdaline" colspan="9" style="font-size:1.5em;vertical-align: middle !important;">
+                                                    <strong>${pesado}</strong>
+                                                    <input type="checkbox" class="check-all" data-pesado="${pesado}">
+                                                </td>
+                                            </tr>
+                                        `);
 
                             for (const [sL1Code, productos] of Object.entries(fabricantes)) {
                                 const cantidadProductos = productos.length;
                                 $productosBody.append(`
-                                    <tr>
-                                        <td class="celdaline" colspan="9" style="font-size:1.2em;vertical-align: middle !important;">
-                                            <strong>Sector ${sL1Code} (${cantidadProductos} productos)</strong>
-                                            <input type="checkbox" class="check-all-fabricante" data-pesado="${pesado}" data-fabricante="${sL1Code}">
-                                        </td>
-                                    </tr>
-                                `);
+                                                <tr>
+                                                    <td class="celdaline" colspan="9" style="font-size:1.2em;vertical-align: middle !important;">
+                                                        <strong>Sector ${sL1Code} (${cantidadProductos} productos)</strong>
+                                                        <input type="checkbox" class="check-all-fabricante" data-pesado="${pesado}" data-fabricante="${sL1Code}">
+                                                    </td>
+                                                </tr>
+                                            `);
 
                                 productos.forEach(producto => {
                                     productCounter++;
@@ -375,21 +376,21 @@
                                         capacidadvista = producto.capacidad;
                                     }
                                     $productosBody.append(`
-                                        <tr style="line-height: 0.5; padding: 1px 1px;">
-                                            <td class="celdaline" style="vertical-align: middle !important;">
-                                                <input type="checkbox" data-id="${producto.idProducto}" id="valuesnuevo" class="producto-checkbox" data-pesado="${pesado}" data-fabricante="${sL1Code}">
-                                            </td>
-                                            <td class="celdaline" style="vertical-align: middle !important;">${productCounter}</td>
-                                            <td class="celdaline" style="vertical-align: middle !important;">${producto.sL1Code}-${producto.sL2Code}-${producto.sL3Code}-${producto.sL4Code}</td>
-                                            <td class="celdaline" style="vertical-align: middle !important;">${producto.fabricante}</td>
-                                            <td class="celdaline hidden" style="vertical-align: middle !important;">${producto.linea}</td>
-                                            <td class="celdaline" style="vertical-align: middle !important;">${producto.idProducto}</td>
-                                            <td class="celdaline" style="text-align:left;vertical-align: middle">${producto.descripcion}</td>
-                                            <td class="celdaline" style="vertical-align: middle !important;">${producto.medidaBase}</td>
-                                            <td class="celdaline" style="vertical-align: middle !important;">${producto.totalCantidad}</td>
-                                            <td class="celdaline" style="vertical-align: middle !important;">${producto.pesoTotal}</td>
-                                        </tr>
-                                    `);
+                                                    <tr style="line-height: 0.5; padding: 1px 1px;">
+                                                        <td class="celdaline" style="vertical-align: middle !important;">
+                                                            <input type="checkbox" data-id="${producto.idProducto}" id="valuesnuevo" class="producto-checkbox" data-pesado="${pesado}" data-fabricante="${sL1Code}">
+                                                        </td>
+                                                        <td class="celdaline" style="vertical-align: middle !important;">${productCounter}</td>
+                                                        <td class="celdaline" style="vertical-align: middle !important;">${producto.sL1Code}-${producto.sL2Code}-${producto.sL3Code}-${producto.sL4Code}</td>
+                                                        <td class="celdaline" style="vertical-align: middle !important;">${producto.fabricante}</td>
+                                                        <td class="celdaline hidden" style="vertical-align: middle !important;">${producto.linea}</td>
+                                                        <td class="celdaline" style="vertical-align: middle !important;">${producto.idProducto}</td>
+                                                        <td class="celdaline" style="text-align:left;vertical-align: middle">${producto.descripcion}</td>
+                                                        <td class="celdaline" style="vertical-align: middle !important;">${producto.medidaBase}</td>
+                                                        <td class="celdaline" style="vertical-align: middle !important;">${producto.totalCantidad}</td>
+                                                        <td class="celdaline" style="vertical-align: middle !important;">${producto.pesoTotal}</td>
+                                                    </tr>
+                                                `);
 
                                     if (pesado === 'Pesado') {
                                         totalPesoPesado += producto.pesoTotal;
@@ -438,14 +439,14 @@
 
                     } else {
                         const numero = sessionStorage.getItem('numero');
-
+                        console.log("numero", numero);
                         if (numero === null) {
                             window.location.href = `/Picking/JefeConteo?idpp=${numero}`;
                         } else {
                             console.error('El número de usuario no está disponible.');
                             if (window.history.length > 1) {
-                                window.history.back(); 
-                            } 
+                                window.history.back();
+                            }
                         }
 
                     }
@@ -466,8 +467,8 @@
                         icon: 'warning',
                         confirmButtonText: 'Aceptar'
                     });
-                    return; 
-                }else{
+                    return;
+                } else {
 
                     try {
                         const response = await fetch('/Picking/GuardarProductosAsignados', {
@@ -497,7 +498,9 @@
 
             const cargarPersonal = async (idPlan) => {
                 try {
-                    const response = await fetch(`/Picking/CargarPersonalPickeo?id=${idPlan}`);
+                    const identifalma = document.getElementById('almacenubi').innerText.trim();
+                    console.log(identifalma);
+                    const response = await fetch(`/Picking/CargarPersonalPickeo?id=${idPlan}&almacenubicacion=${identifalma}`);
                     const personal = await response.json();
                     let selectpersonalOptions = `<option value="0">Elije un Pickeador</option>`;
                     personal.forEach(tipo => {

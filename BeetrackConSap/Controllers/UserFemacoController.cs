@@ -61,13 +61,12 @@ namespace MorosidadWeb.Controllers {
 
                 var puestoValue = int.TryParse(usuario, out _) ? puesto : "1";
                 await IniciarSesion(nombreUsuario, recordarme, puestoValue, clave, idpp, 0);
-
                 if (puesto == "1") {
                     return RedirectToAction("Index", "Home");
-                } else if (puesto == "2") {
-                    return RedirectToAction("JefeConteo", "Picking", new { idpp });
-                } else if (puesto == "3") {
+                } else if (puesto == "3" || puesto=="2") {
                     return RedirectToAction("PickeadorConteo", "Picking", new { idpp });
+                } else if (puesto == "2" || puesto =="3") {
+                    return RedirectToAction("JefeConteo", "Picking", new { idpp });
                 }
                 ModelState.AddModelError(string.Empty, "Puesto no válido");
                 return View();

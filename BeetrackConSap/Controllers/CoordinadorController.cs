@@ -11,6 +11,7 @@ using MySqlX.XDevAPI;
 using System.Net.Http;
 using NPOI.SS.Formula.Functions;
 using Microsoft.Win32;
+using System.Numerics;
 
 
 namespace BeetrackConSap.Controllers {
@@ -90,8 +91,87 @@ namespace BeetrackConSap.Controllers {
         }
         [HttpGet]
         public async Task<IActionResult> ObtenerProductoPlan(int ID) {
-            using (var connection = new SqlConnection(_connectionString)) {
+            var result2 = "";
+
+            using (var connection1 = new SqlConnection(_connectionString)) {
                 string query = @"
+                        SELECT T1.Tipo 
+                        FROM PlanificacionTraslado T0 
+                        INNER JOIN CodigosBeetrack T1 ON T0.IDPlanTraslado = T1.IDPlan 
+                        INNER JOIN PlanificacionPlacaTransferencia T2 ON T2.IDPlan = T1.IDPlan 
+                        WHERE T2.IDPlanPla = @ID"
+                ;
+
+                var parameters = new { ID = ID };
+
+                result2 = await connection1.QueryFirstOrDefaultAsync<string>(query, parameters);
+
+            }
+
+            if (result2 == "Transferencia") {
+                using (var connection = new SqlConnection(_connectionString)) {
+                    string query = @"
+                    
+
+SELECT 
+T3.IDProducto,
+SUM(T3.Cantidad) AS TotalCantidad,
+T3.Descripcion,
+T3.MedidaBase,
+T3.Fabricante,
+COALESCE(T4.Cantidad,0) AS Asignado,
+(SELECT COALESCE(SUM(P1.Cantidad*P1.Factor),0) FROM PickeoProductoIngresado P1 WHERE P1.IDPProducto = T4.IDPProducto) AS Pickado,
+COALESCE(T3.RevisadoCoor,0) AS Revisado,
+T4.NuevaUbicacion,
+T4.Reconteo,
+T4.Finalizado
+FROM PlanificacionTraslado T0
+INNER JOIN PlanificacionPlacaTransferencia T1 ON T0.IDPlanTraslado = T1.IDPlan
+INNER JOIN PlacaManifiestoTransferencia T2 ON T1.IDPlanPla = T2.IDPlanPla
+INNER JOIN PlacaPedidoTransferencia T3 ON T2.IDPlanMan = T3.IDPlanMan
+LEFT JOIN PickeoProducto T4 ON T4.IDProducto = T3.IDProducto AND T4.IDPlaca = T1.IDPlanPla
+LEFT JOIN PickeoProductoIngresado T5 ON T5.IDPProducto = T4.IDPProducto
+WHERE 
+T1.IDPlanPla = @IDPlan
+GROUP BY 
+T3.IDProducto,
+T4.IDPProducto,
+T3.Descripcion,
+T3.MedidaBase,
+T3.Fabricante,
+T4.Cantidad,
+T3.RevisadoCoor,
+T4.NuevaUbicacion,
+T4.Reconteo,
+T4.Finalizado
+ORDER BY Fabricante";
+
+                    var parameters = new { IDPlan = ID };
+                    var result = await connection.QueryAsync<CoordinadorProductos>(query, parameters);
+
+                    var updates = result.Where(r => r.Asignado == r.Pickado).ToList();
+
+                    foreach (var item in updates) {
+                        var updateQuery = @"
+                        UPDATE PlacaPedidoTransferencia
+                        SET CantidadCargar = Cantidad, RevisadoCoor = 1 
+                        WHERE IDProducto = @IDProducto AND IDPlanPla = @IDPlan";
+
+                        var updateParams = new {
+                            Pickado = item.Pickado,
+                            IDProducto = item.IDProducto,
+                            IDPlan = ID
+                        };
+                        await connection.ExecuteAsync(updateQuery, updateParams);
+                    }
+
+                    return Ok(result);
+                }
+
+
+            } else {
+                using (var connection = new SqlConnection(_connectionString)) {
+                    string query = @"
                     SELECT 
                     T3.IDProducto,
                     SUM(T3.Cantidad) AS TotalCantidad,
@@ -125,27 +205,33 @@ namespace BeetrackConSap.Controllers {
                     T4.Finalizado
                     ORDER BY Fabricante";
 
-                var parameters = new { IDPlan = ID };
-                var result = await connection.QueryAsync<CoordinadorProductos>(query, parameters);
+                    var parameters = new { IDPlan = ID };
+                    var result = await connection.QueryAsync<CoordinadorProductos>(query, parameters);
 
-                var updates = result.Where(r => r.Asignado == r.Pickado).ToList();
+                    var updates = result.Where(r => r.Asignado == r.Pickado).ToList();
 
-                foreach (var item in updates) {
-                    var updateQuery = @"
+                    foreach (var item in updates) {
+                        var updateQuery = @"
                         UPDATE PlacaPedido
                         SET CantidadCargar = Cantidad, RevisadoCoor = 1 
-                        WHERE IDProducto = @IDProducto AND IDPlanPla = @IDPlan"; 
+                        WHERE IDProducto = @IDProducto AND IDPlanPla = @IDPlan";
 
-                    var updateParams = new {
-                        Pickado = item.Pickado,
-                        IDProducto = item.IDProducto,
-                        IDPlan = ID 
-                    };
-                    await connection.ExecuteAsync(updateQuery, updateParams);
+                        var updateParams = new {
+                            Pickado = item.Pickado,
+                            IDProducto = item.IDProducto,
+                            IDPlan = ID
+                        };
+                        await connection.ExecuteAsync(updateQuery, updateParams);
+                    }
+
+                    return Ok(result);
                 }
-
-                return Ok(result);
             }
+
+
+
+
+            
         }
 
         [HttpGet]
@@ -251,17 +337,16 @@ namespace BeetrackConSap.Controllers {
                         ROUND(T5."Price",2) AS "UnitPrice",
                         T5."Quantity",
                         T5."NumPerMsr",
-                        T6."PickQtty",
+                         (T5."Quantity" * T5."NumPerMsr") AS"PickQtty",
                         T5."unitMsr"
                     FROM "@EXP_MANC" T0
                     INNER JOIN "@EXP_MAND" T1 ON T0."DocEntry" = T1."DocEntry"
-                    INNER JOIN ORDR T2 ON T1."U_EXP_PEDENENTRY" = T2."DocEntry"
+                    INNER JOIN ODLN T2 ON T1."U_EXP_ENDOCENTRY" = T2."DocEntry"
                     INNER JOIN OCRD T3 ON T2."CardCode" = T3."CardCode"
-                    INNER JOIN RDR12 T4 ON T2."DocEntry"=T4."DocEntry"
-                    INNER JOIN RDR1 T5 ON T2."DocEntry"=T5."DocEntry"
-                    INNER JOIN PKL1 T6 ON T5."PickIdNo" = T6."AbsEntry" AND T2."DocEntry" = T6."OrderEntry" AND T5."LineNum" = T6."OrderLine"
+                    INNER JOIN DLN12 T4 ON T2."DocEntry"=T4."DocEntry"
+                    INNER JOIN DLN1 T5 ON T2."DocEntry"=T5."DocEntry"
                     WHERE T0."DocEntry" = '
-                    """ + numeroManifiesto+"""
+                    """ + numeroManifiesto + """
                     '
                     """;
 
@@ -295,7 +380,7 @@ namespace BeetrackConSap.Controllers {
                     FROM "@EXP_MANLP" T0
                     INNER JOIN "@EXP_MANC" T1 ON T1."DocEntry" = T0."DocEntry"
                     WHERE T0."U_EXP_PKLO" = 
-                    """ + idpick 
+                    """ + idpick
                     ;
 
                 var manifiestos = await hanaConnection.QueryAsync<DetectarManifiesto>(sapQuery);
@@ -328,7 +413,7 @@ namespace BeetrackConSap.Controllers {
                     WHERE 
                     "U_EXP_ESTA" = 'O'
                     AND "U_EXP_FECH" = '
-                    """+ fecha+"""
+                    """ + fecha + """
                     '
                     """;
 
@@ -345,8 +430,52 @@ namespace BeetrackConSap.Controllers {
 
         [HttpGet]
         public async Task<IActionResult> ObtenerPedidosProducto(int IDPlan, string IDProducto) {
-            using (var connection = new SqlConnection(_connectionString)) {
+            var result2 = "";
+
+            using (var connection1 = new SqlConnection(_connectionString)) {
                 string query = @"
+                        SELECT T1.Tipo 
+                        FROM PlanificacionTraslado T0 
+                        INNER JOIN CodigosBeetrack T1 ON T0.IDPlanTraslado = T1.IDPlan 
+                        INNER JOIN PlanificacionPlacaTransferencia T2 ON T2.IDPlan = T1.IDPlan 
+                        WHERE T2.IDPlanPla = @IDPlan"
+                ;
+
+                var parameters = new { IDPlan = IDPlan };
+
+                result2 = await connection1.QueryFirstOrDefaultAsync<string>(query, parameters);
+
+            }
+            if (result2 == "Transferencia") {
+                using (var connection = new SqlConnection(_connectionString)) {
+                    string query = @"
+                    SELECT 
+                    T2.IDProducto,
+                    T2.Descripcion,
+                    T2.Cantidad,
+                    T2.NumeroGuia,
+                    T2.IDPlanPed,
+                    T2.Factor,
+                    T2.CantidadBase,
+                    T2.CantidadCargar/T2.Factor AS CantidadCargar
+                    FROM PlanificacionPlacaTransferencia T0
+                    INNER JOIN PlacaManifiestoTransferencia T1 ON T1.IDPlanPla = T0.IDPlanPla
+                    INNER JOIN PlacaPedidoTransferencia T2 ON T2.IDPlanMan = T1.IDPlanMan
+                    WHERE 
+                    T0.IDPlanPla = @IDPlan
+                    AND T2.IDProducto = @IDProducto
+                    ORDER BY T2.Factor DESC, T2.Cantidad DESC
+                    ";
+
+                    var parameters = new { IDPlan = IDPlan, IDProducto = IDProducto };
+                    var result = await connection.QueryAsync<PedidosProducto>(query, parameters);
+                    return Ok(result);
+                }
+
+
+            } else {
+                using (var connection = new SqlConnection(_connectionString)) {
+                    string query = @"
                     SELECT 
                     T2.IDProducto,
                     T2.Descripcion,
@@ -365,10 +494,14 @@ namespace BeetrackConSap.Controllers {
                     ORDER BY T2.Factor DESC, T2.Cantidad DESC
                     ";
 
-                var parameters = new { IDPlan = IDPlan, IDProducto = IDProducto };
-                var result = await connection.QueryAsync<PedidosProducto>(query, parameters);
-                return Ok(result);
+                    var parameters = new { IDPlan = IDPlan, IDProducto = IDProducto };
+                    var result = await connection.QueryAsync<PedidosProducto>(query, parameters);
+                    return Ok(result);
+                }
             }
+
+
+            
         }
 
 
@@ -395,215 +528,384 @@ namespace BeetrackConSap.Controllers {
             if (updates == null || !updates.Any()) {
                 return BadRequest("No se proporcionaron actualizaciones.");
             }
+            var result2 = "";
+            var PlanTransferencia = updates.FirstOrDefault()?.IdPlanTransferencia;
+            using (var connection1 = new SqlConnection(_connectionString)) {
+                string query = @"
+                        SELECT T1.Tipo 
+                        FROM PlanificacionTraslado T0 
+                        INNER JOIN CodigosBeetrack T1 ON T0.IDPlanTraslado = T1.IDPlan 
+                        INNER JOIN PlanificacionPlacaTransferencia T2 ON T2.IDPlan = T1.IDPlan 
+                        WHERE T2.IDPlanPla = @PlanTransferencia"
+                ;
+                var parameters = new { PlanTransferencia = PlanTransferencia };
+                result2 = await connection1.QueryFirstOrDefaultAsync<string>(query, parameters);
+            }
 
-            using (var connection = new SqlConnection(_connectionString)) {
-                await connection.OpenAsync();
-                using (var transaction = connection.BeginTransaction()) {
-                    try {
-                        foreach (var update in updates) {
-                            if (update == null || string.IsNullOrEmpty(update.IdPlanPed)) {
-                                continue; 
+            if (result2 == "Transferencia") {
+
+                using (var connection = new SqlConnection(_connectionString)) {
+                    await connection.OpenAsync();
+                    using (var transaction = connection.BeginTransaction()) {
+                        try {
+                            foreach (var update in updates) {
+                                if (update == null || string.IsNullOrEmpty(update.IdPlanPed)) {
+                                    continue;
+                                }
+
+                                string query = @"
+                                UPDATE PlacaPedidoTransferencia 
+                                SET CantidadCargar = @cantidadCargar, RevisadoCoor = 1
+                                WHERE IDPlanPed = @idPlanPed";
+
+                                var parameters = new { cantidadCargar = update.CantidadCargar, idPlanPed = update.IdPlanPed };
+                                await connection.ExecuteAsync(query, parameters, transaction);
                             }
+                            transaction.Commit();
+                            return Ok();
+                        } catch (Exception ex) {
+                            transaction.Rollback();
+                            return StatusCode(500, "Error al guardar las cantidades: " + ex.Message);
+                        }
+                    }
+                }
 
-                            string query = @"
+            } else {
+                using (var connection = new SqlConnection(_connectionString)) {
+                    await connection.OpenAsync();
+                    using (var transaction = connection.BeginTransaction()) {
+                        try {
+                            foreach (var update in updates) {
+                                if (update == null || string.IsNullOrEmpty(update.IdPlanPed)) {
+                                    continue;
+                                }
+
+                                string query = @"
                                 UPDATE PlacaPedido 
                                 SET CantidadCargar = @cantidadCargar, RevisadoCoor = 1
                                 WHERE IDPlanPed = @idPlanPed";
 
-                            var parameters = new { cantidadCargar = update.CantidadCargar, idPlanPed = update.IdPlanPed };
-                            await connection.ExecuteAsync(query, parameters, transaction);
+                                var parameters = new { cantidadCargar = update.CantidadCargar, idPlanPed = update.IdPlanPed };
+                                await connection.ExecuteAsync(query, parameters, transaction);
+                            }
+                            transaction.Commit();
+                            return Ok();
+                        } catch (Exception ex) {
+                            transaction.Rollback();
+                            return StatusCode(500, "Error al guardar las cantidades: " + ex.Message);
                         }
-                        transaction.Commit();
-                        return Ok();
-                    } catch (Exception ex) {
-                        transaction.Rollback();
-                        return StatusCode(500, "Error al guardar las cantidades: " + ex.Message);
                     }
                 }
             }
+
+            
         }
 
         [HttpGet]
-public async Task<IActionResult> ValidarStockSap(int IDPlan)
-{
-    try
-    {
-        var connection = new SqlConnection(_connectionString);
-        HanaConnection hanaConnection = new(_hanaConnectionString);
+        public async Task<IActionResult> ValidarStockSap(int IDPlan) {
 
-        // Intentando abrir las conexiones
-        await hanaConnection.OpenAsync();
-        Console.WriteLine("Conexión a SAP establecida");
-        await connection.OpenAsync();
-        Console.WriteLine("Conexión a SQL Server establecida");
+            var result2 = "";
 
-        ObtenerUsuarioYClave(); // Verifica si usuario está correctamente asignado
-        Console.WriteLine($"Usuario: {usuario}");
-        string almacen = null;
+            using (var connection1 = new SqlConnection(_connectionString)) {
+                string query = @"
+                        SELECT T1.Tipo 
+                        FROM PlanificacionTraslado T0 
+                        INNER JOIN CodigosBeetrack T1 ON T0.IDPlanTraslado = T1.IDPlan 
+                        INNER JOIN PlanificacionPlacaTransferencia T2 ON T2.IDPlan = T1.IDPlan 
+                        WHERE T2.IDPlanPla = @IDPlan"
+                ;
 
-        // Consulta SAP para obtener el almacén
-        string sappQuery = $@"
-            SELECT ""Warehouse"" FROM OUDG WHERE ""Code"" = '{usuario}'";
-        using (var hanaCommand = new HanaCommand(sappQuery, hanaConnection))
-        {
-            using (var reader = await hanaCommand.ExecuteReaderAsync())
-            {
-                if (await reader.ReadAsync())
-                {
-                    almacen = reader["Warehouse"].ToString();
-                    Console.WriteLine("Este es el almacén: " + almacen);
-                }
-                else
-                {
-                    Console.WriteLine("No se encontró el almacén para el usuario.");
-                    return StatusCode(500, new { message = "No se encontró el almacén para el usuario" });
-                }
+                var parameters = new { IDPlan = IDPlan };
+
+                result2 = await connection1.QueryFirstOrDefaultAsync<string>(query, parameters);
+
             }
-        }
+            if (result2 == "Transferencia") {
 
-        // Consulta SQL para obtener productos
-        string sqlQuery = $@"
+                try {
+                    var connection = new SqlConnection(_connectionString);
+                    HanaConnection hanaConnection = new(_hanaConnectionString);
+
+                    await hanaConnection.OpenAsync();
+                    await connection.OpenAsync();
+
+                    ObtenerUsuarioYClave();
+                    Console.WriteLine($"Usuario: {usuario}");
+                    string almacen = null;
+
+                    string sappQuery = $@"
+                        SELECT ""Warehouse"" FROM OUDG WHERE ""Code"" = '{usuario}'";
+                    using (var hanaCommand = new HanaCommand(sappQuery, hanaConnection)) {
+                        using (var reader = await hanaCommand.ExecuteReaderAsync()) {
+                            if (await reader.ReadAsync()) {
+                                almacen = reader["Warehouse"].ToString();
+                                Console.WriteLine("Este es el almacén: " + almacen);
+                            } else {
+                                Console.WriteLine("No se encontró el almacén para el usuario.");
+                                return StatusCode(500, new { message = "No se encontró el almacén para el usuario" });
+                            }
+                        }
+                    }
+
+                    string sqlQuery = $@"
+            SELECT IDProducto, Descripcion, SUM(CantidadFinal) AS Cantidad
+            FROM PlacaPedidoTransferencia 
+            WHERE IDPlanPla = {IDPlan}
+            GROUP BY IDProducto, Descripcion";
+
+                    Console.WriteLine("SQLQUERY: " + sqlQuery);
+
+                    var productos = new List<(string idProducto, int cantidad)>();
+                    using (var sqlCommand = new SqlCommand(sqlQuery, connection)) {
+                        using (var reader = await sqlCommand.ExecuteReaderAsync()) {
+                            if (!reader.HasRows) {
+                                Console.WriteLine("No se encontraron productos en la consulta SQL.");
+                                return StatusCode(500, new { message = "No se encontraron productos" });
+                            }
+
+                            while (await reader.ReadAsync()) {
+                                int cantidad = 0;
+                                if (int.TryParse(reader["Cantidad"].ToString(), out cantidad)) {
+                                    productos.Add((reader["IDProducto"].ToString(), cantidad));
+                                } else {
+                                    Console.WriteLine("Error al convertir la cantidad del producto.");
+                                }
+                            }
+                        }
+                    }
+
+                    Console.WriteLine("Productos obtenidos:");
+                    foreach (var producto in productos) {
+                        Console.WriteLine($"Producto: {producto.idProducto}, Cantidad: {producto.cantidad}");
+                    }
+
+                    var resultados = new List<object>();
+
+                    foreach (var producto in productos) {
+                        string stockQuery = $@"
+                SELECT ""OnHand""
+                FROM OITW 
+                WHERE ""ItemCode"" = '{producto.idProducto}' AND ""WhsCode"" = '{almacen}'";
+
+                        Console.WriteLine("STOCKQUERY: " + stockQuery);
+                        using (var hanaCommand = new HanaCommand(stockQuery, hanaConnection)) {
+                            using (var reader = await hanaCommand.ExecuteReaderAsync()) {
+                                if (await reader.ReadAsync()) {
+                                    string stockDisponible = reader["OnHand"].ToString();
+
+                                    Console.WriteLine("STOCKDISPONIBLE: " + stockDisponible);
+                                    string[] partes = stockDisponible.Split('.');
+
+                                    decimal stockEntero = decimal.Parse(partes[0]);
+
+                                    Console.WriteLine("STOCKENTERO: " + stockEntero);
+                                    var resultadoProducto = new {
+                                        IDProducto = producto.idProducto,
+                                        CantidadSolicitada = producto.cantidad,
+                                        StockDisponible = stockEntero
+                                    };
+
+                                    resultados.Add(resultadoProducto);
+
+                                    if (stockEntero < producto.cantidad) {
+                                        string consultaDetalles = $@"
+                                SELECT IDPlanPed, Cantidad, Factor 
+                                FROM PlacaPedidoTransferencia 
+                                WHERE IDPlanPla = {IDPlan} AND IDProducto = '{producto.idProducto}'";
+                                        Console.WriteLine("Consultando detalles de PlacaPedido...");
+                                        using (var sqlCommandDetalles = new SqlCommand(consultaDetalles, connection)) {
+                                            using (var readerDetalles = await sqlCommandDetalles.ExecuteReaderAsync()) {
+                                                while (await readerDetalles.ReadAsync()) {
+                                                    decimal cantidad = (decimal)readerDetalles["Cantidad"];
+                                                    decimal factor = (decimal)readerDetalles["Factor"];
+                                                    int idPlanPed = (int)readerDetalles["IDPlanPed"];
+
+                                                    if (cantidad < stockEntero) {
+                                                        stockEntero -= cantidad;
+                                                    } else {
+                                                        decimal cantidadNueva = Math.Floor(stockEntero / factor);
+                                                        int cantidadFinal = (int)cantidadNueva;
+
+                                                        string updateQuery = $@"
+                                                UPDATE PlacaPedidoTransferencia 
+                                                SET CantidadFinal = {cantidadFinal} 
+                                                WHERE IDPlanPed = @IDPlanPed";
+                                                        Console.WriteLine("Actualizando cantidad en PlacaPedido...");
+                                                        using (var updateCommand = new SqlCommand(updateQuery, connection)) {
+                                                            updateCommand.Parameters.AddWithValue("@IDPlanPed", idPlanPed);
+                                                            await updateCommand.ExecuteNonQueryAsync();
+                                                        }
+
+                                                        stockEntero -= cantidadFinal * (int)factor;
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    Console.WriteLine($"No se encontró el stock para el producto {producto.idProducto}");
+                                    return StatusCode(500, new { message = $"No se encontró el stock para el producto {producto.idProducto}" });
+                                }
+                            }
+                        }
+                    }
+
+                    Console.WriteLine("Stock validado correctamente para todos los productos.");
+                    return Ok(resultados);
+                } catch (Exception ex) {
+                    string errorDetails = $"Message: {ex.Message}\nStackTrace: {ex.StackTrace}\nInnerException: {ex.InnerException?.Message}";
+
+                    Console.WriteLine($"Error al validar el stock SAP: {errorDetails}");
+                    return StatusCode(500, new { message = "Error al validar el stock SAP", error = errorDetails });
+                }
+
+            } else {
+                try {
+                    var connection = new SqlConnection(_connectionString);
+                    HanaConnection hanaConnection = new(_hanaConnectionString);
+
+                    await hanaConnection.OpenAsync();
+                    Console.WriteLine("Conexión a SAP establecida");
+                    await connection.OpenAsync();
+                    Console.WriteLine("Conexión a SQL Server establecida");
+
+                    ObtenerUsuarioYClave();
+                    Console.WriteLine($"Usuario: {usuario}");
+                    string almacen = null;
+
+                    string sappQuery = $@"
+            SELECT ""Warehouse"" FROM OUDG WHERE ""Code"" = '{usuario}'";
+                    using (var hanaCommand = new HanaCommand(sappQuery, hanaConnection)) {
+                        using (var reader = await hanaCommand.ExecuteReaderAsync()) {
+                            if (await reader.ReadAsync()) {
+                                almacen = reader["Warehouse"].ToString();
+                                Console.WriteLine("Este es el almacén: " + almacen);
+                            } else {
+                                Console.WriteLine("No se encontró el almacén para el usuario.");
+                                return StatusCode(500, new { message = "No se encontró el almacén para el usuario" });
+                            }
+                        }
+                    }
+
+                    string sqlQuery = $@"
             SELECT IDProducto, Descripcion, SUM(CantidadFinal) AS Cantidad
             FROM PlacaPedido 
             WHERE IDPlanPla = {IDPlan}
             GROUP BY IDProducto, Descripcion";
 
-        Console.WriteLine("SQLQUERY: " + sqlQuery);
+                    Console.WriteLine("SQLQUERY: " + sqlQuery);
 
-        var productos = new List<(string idProducto, int cantidad)>();
-        using (var sqlCommand = new SqlCommand(sqlQuery, connection))
-        {
-            using (var reader = await sqlCommand.ExecuteReaderAsync())
-            {
-                if (!reader.HasRows)
-                {
-                    Console.WriteLine("No se encontraron productos en la consulta SQL.");
-                    return StatusCode(500, new { message = "No se encontraron productos" });
-                }
+                    var productos = new List<(string idProducto, int cantidad)>();
+                    using (var sqlCommand = new SqlCommand(sqlQuery, connection)) {
+                        using (var reader = await sqlCommand.ExecuteReaderAsync()) {
+                            if (!reader.HasRows) {
+                                Console.WriteLine("No se encontraron productos en la consulta SQL.");
+                                return StatusCode(500, new { message = "No se encontraron productos" });
+                            }
 
-                while (await reader.ReadAsync())
-                {
-                    int cantidad = 0;
-                    if (int.TryParse(reader["Cantidad"].ToString(), out cantidad))
-                    {
-                        productos.Add((reader["IDProducto"].ToString(), cantidad));
-                    }
-                    else
-                    {
-                        Console.WriteLine("Error al convertir la cantidad del producto.");
-                    }
-                }
-            }
-        }
-
-        // Mostramos los productos obtenidos
-        Console.WriteLine("Productos obtenidos:");
-        foreach (var producto in productos)
-        {
-            Console.WriteLine($"Producto: {producto.idProducto}, Cantidad: {producto.cantidad}");
-        }
-
-        var resultados = new List<object>();
-
-        // Verificación del stock para cada producto
-        foreach (var producto in productos)
-        {
-            string stockQuery = $@"
-                SELECT ""OnHand""
-                FROM OITW 
-                WHERE ""ItemCode"" = '{producto.idProducto}' AND ""WhsCode"" = '{almacen}'";
-
-            Console.WriteLine("STOCKQUERY: " + stockQuery);
-            using (var hanaCommand = new HanaCommand(stockQuery, hanaConnection))
-            {
-                using (var reader = await hanaCommand.ExecuteReaderAsync())
-                {
-                    if (await reader.ReadAsync())
-                    {
-                        string stockDisponible = reader["OnHand"].ToString();
-
-                        Console.WriteLine("STOCKDISPONIBLE: " + stockDisponible);
-                        string[] partes = stockDisponible.Split('.');
-
-                        decimal stockEntero = decimal.Parse(partes[0]);
-
-                        Console.WriteLine("STOCKENTERO: " + stockEntero);
-                        var resultadoProducto = new
-                        {
-                            IDProducto = producto.idProducto,
-                            CantidadSolicitada = producto.cantidad,
-                            StockDisponible = stockEntero
-                        };
-
-                        resultados.Add(resultadoProducto);
-
-                        if (stockEntero < producto.cantidad)
-                        {
-                            string consultaDetalles = $@"
-                                SELECT IDPlanPed, Cantidad, Factor 
-                                FROM PlacaPedido 
-                                WHERE IDPlanPla = {IDPlan} AND IDProducto = '{producto.idProducto}'";
-                            Console.WriteLine("Consultando detalles de PlacaPedido...");
-                            using (var sqlCommandDetalles = new SqlCommand(consultaDetalles, connection))
-                            {
-                                using (var readerDetalles = await sqlCommandDetalles.ExecuteReaderAsync())
-                                {
-                                    while (await readerDetalles.ReadAsync())
-                                    {
-                                        decimal cantidad = (decimal)readerDetalles["Cantidad"];
-                                        decimal factor = (decimal)readerDetalles["Factor"];
-                                        int idPlanPed = (int)readerDetalles["IDPlanPed"];
-
-                                        if (cantidad < stockEntero)
-                                        {
-                                            stockEntero -= cantidad;
-                                        }
-                                        else
-                                        {
-                                            decimal cantidadNueva = Math.Floor(stockEntero / factor);
-                                            int cantidadFinal = (int)cantidadNueva;
-
-                                            string updateQuery = $@"
-                                                UPDATE PlacaPedido 
-                                                SET CantidadFinal = {cantidadFinal} 
-                                                WHERE IDPlanPed = @IDPlanPed";
-                                            Console.WriteLine("Actualizando cantidad en PlacaPedido...");
-                                            using (var updateCommand = new SqlCommand(updateQuery, connection))
-                                            {
-                                                updateCommand.Parameters.AddWithValue("@IDPlanPed", idPlanPed);
-                                                await updateCommand.ExecuteNonQueryAsync();
-                                            }
-
-                                            stockEntero -= cantidadFinal * (int)factor;
-                                        }
-                                    }
+                            while (await reader.ReadAsync()) {
+                                int cantidad = 0;
+                                if (int.TryParse(reader["Cantidad"].ToString(), out cantidad)) {
+                                    productos.Add((reader["IDProducto"].ToString(), cantidad));
+                                } else {
+                                    Console.WriteLine("Error al convertir la cantidad del producto.");
                                 }
                             }
                         }
                     }
-                    else
-                    {
-                        Console.WriteLine($"No se encontró el stock para el producto {producto.idProducto}");
-                        return StatusCode(500, new { message = $"No se encontró el stock para el producto {producto.idProducto}" });
+
+                    Console.WriteLine("Productos obtenidos:");
+                    foreach (var producto in productos) {
+                        Console.WriteLine($"Producto: {producto.idProducto}, Cantidad: {producto.cantidad}");
                     }
+
+                    var resultados = new List<object>();
+
+                    foreach (var producto in productos) {
+                        string stockQuery = $@"
+                SELECT ""OnHand""
+                FROM OITW 
+                WHERE ""ItemCode"" = '{producto.idProducto}' AND ""WhsCode"" = '{almacen}'";
+
+                        Console.WriteLine("STOCKQUERY: " + stockQuery);
+                        using (var hanaCommand = new HanaCommand(stockQuery, hanaConnection)) {
+                            using (var reader = await hanaCommand.ExecuteReaderAsync()) {
+                                if (await reader.ReadAsync()) {
+                                    string stockDisponible = reader["OnHand"].ToString();
+
+                                    Console.WriteLine("STOCKDISPONIBLE: " + stockDisponible);
+                                    string[] partes = stockDisponible.Split('.');
+
+                                    decimal stockEntero = decimal.Parse(partes[0]);
+
+                                    Console.WriteLine("STOCKENTERO: " + stockEntero);
+                                    var resultadoProducto = new {
+                                        IDProducto = producto.idProducto,
+                                        CantidadSolicitada = producto.cantidad,
+                                        StockDisponible = stockEntero
+                                    };
+
+                                    resultados.Add(resultadoProducto);
+
+                                    if (stockEntero < producto.cantidad) {
+                                        string consultaDetalles = $@"
+                                SELECT IDPlanPed, Cantidad, Factor 
+                                FROM PlacaPedido 
+                                WHERE IDPlanPla = {IDPlan} AND IDProducto = '{producto.idProducto}'";
+                                        Console.WriteLine("Consultando detalles de PlacaPedido...");
+                                        using (var sqlCommandDetalles = new SqlCommand(consultaDetalles, connection)) {
+                                            using (var readerDetalles = await sqlCommandDetalles.ExecuteReaderAsync()) {
+                                                while (await readerDetalles.ReadAsync()) {
+                                                    decimal cantidad = (decimal)readerDetalles["Cantidad"];
+                                                    decimal factor = (decimal)readerDetalles["Factor"];
+                                                    int idPlanPed = (int)readerDetalles["IDPlanPed"];
+
+                                                    if (cantidad < stockEntero) {
+                                                        stockEntero -= cantidad;
+                                                    } else {
+                                                        decimal cantidadNueva = Math.Floor(stockEntero / factor);
+                                                        int cantidadFinal = (int)cantidadNueva;
+
+                                                        string updateQuery = $@"
+                                                UPDATE PlacaPedido 
+                                                SET CantidadFinal = {cantidadFinal} 
+                                                WHERE IDPlanPed = @IDPlanPed";
+                                                        Console.WriteLine("Actualizando cantidad en PlacaPedido...");
+                                                        using (var updateCommand = new SqlCommand(updateQuery, connection)) {
+                                                            updateCommand.Parameters.AddWithValue("@IDPlanPed", idPlanPed);
+                                                            await updateCommand.ExecuteNonQueryAsync();
+                                                        }
+
+                                                        stockEntero -= cantidadFinal * (int)factor;
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    Console.WriteLine($"No se encontró el stock para el producto {producto.idProducto}");
+                                    return StatusCode(500, new { message = $"No se encontró el stock para el producto {producto.idProducto}" });
+                                }
+                            }
+                        }
+                    }
+
+                    Console.WriteLine("Stock validado correctamente para todos los productos.");
+                    return Ok(resultados);
+                } catch (Exception ex) {
+                    string errorDetails = $"Message: {ex.Message}\nStackTrace: {ex.StackTrace}\nInnerException: {ex.InnerException?.Message}";
+
+                    Console.WriteLine($"Error al validar el stock SAP: {errorDetails}");
+                    return StatusCode(500, new { message = "Error al validar el stock SAP", error = errorDetails });
                 }
             }
+
+
+
+
+
+            
         }
-
-        // Si llegamos aquí, todo fue procesado correctamente
-        Console.WriteLine("Stock validado correctamente para todos los productos.");
-        return Ok(resultados);
-    }
-    catch (Exception ex)
-    {
-        // Captura información detallada del error
-        string errorDetails = $"Message: {ex.Message}\nStackTrace: {ex.StackTrace}\nInnerException: {ex.InnerException?.Message}";
-
-        // Devuelve el error completo en la respuesta
-        Console.WriteLine($"Error al validar el stock SAP: {errorDetails}");
-        return StatusCode(500, new { message = "Error al validar el stock SAP", error = errorDetails });
-    }
-}
 
 
 
@@ -634,7 +936,7 @@ public async Task<IActionResult> ValidarStockSap(int IDPlan)
                                 quantity = item.Cantidad,
                                 description = item.Descripcion
                             })
-                            .DistinctBy(i => i.code)  
+                            .DistinctBy(i => i.code)
                             .ToList()
                         }).ToList()
                     }).ToList();
@@ -649,8 +951,7 @@ public async Task<IActionResult> ValidarStockSap(int IDPlan)
                 var requestData = new {
                     truck_identifier = truckIdentifier,
                     date = currentDate,
-                    dispatches = groupedManifiestos.Select(g => new
-                    {
+                    dispatches = groupedManifiestos.Select(g => new {
                         identifier = g.Documento.ToString(),
                         contact_name = g.Dispatches.FirstOrDefault()?.ContactName,
                         contact_address = g.Dispatches.FirstOrDefault()?.ContactAddress,
@@ -800,20 +1101,60 @@ public async Task<IActionResult> ValidarStockSap(int IDPlan)
 
         [HttpPost]
         public async Task<IActionResult> FinalizarCargadaPlaca(int idPlan) {
-            using (var connection = new SqlConnection(_connectionString)) {
-                await connection.OpenAsync();
+            var result2 = "";
+
+            using (var connection1 = new SqlConnection(_connectionString)) {
                 string query = @"
+                        SELECT T1.Tipo 
+                        FROM PlanificacionTraslado T0 
+                        INNER JOIN CodigosBeetrack T1 ON T0.IDPlanTraslado = T1.IDPlan 
+                        INNER JOIN PlanificacionPlacaTransferencia T2 ON T2.IDPlan = T1.IDPlan 
+                        WHERE T2.IDPlanPla = @idPlan"
+                ;
+
+                var parameters = new { idPlan = idPlan };
+
+                result2 = await connection1.QueryFirstOrDefaultAsync<string>(query, parameters);
+
+            }
+            if (result2 == "Transferencia") {
+
+                using (var connection = new SqlConnection(_connectionString)) {
+                    await connection.OpenAsync();
+                    string query = @"
+                    UPDATE PlanificacionPlacaTransferencia SET Cargar = 1 WHERE IDPlanPla = @idPlan";
+                    var parameters = new { idPlan };
+
+                    var result = await connection.ExecuteAsync(query, parameters);
+
+                    if (result > 0) {
+                        return Ok(new { success = true, message = "Enviado finalizado exitosamente." });
+                    } else {
+                        return NotFound(new { success = false, message = "No se encontraron registros para actualizar." });
+                    }
+                }
+
+            } else {
+                using (var connection = new SqlConnection(_connectionString)) {
+                    await connection.OpenAsync();
+                    string query = @"
                     UPDATE PlanificacionPlaca SET Cargar = 1 WHERE IDPlanPla = @idPlan";
-                var parameters = new {idPlan };
+                    var parameters = new { idPlan };
 
-                var result = await connection.ExecuteAsync(query, parameters);
+                    var result = await connection.ExecuteAsync(query, parameters);
 
-                if (result > 0) {
-                    return Ok(new { success = true, message = "Enviado finalizado exitosamente." });
-                } else {
-                    return NotFound(new { success = false, message = "No se encontraron registros para actualizar." });
+                    if (result > 0) {
+                        return Ok(new { success = true, message = "Enviado finalizado exitosamente." });
+                    } else {
+                        return NotFound(new { success = false, message = "No se encontraron registros para actualizar." });
+                    }
                 }
             }
+
+
+
+
+            
         }
 
         [HttpPost]
@@ -845,23 +1186,277 @@ public async Task<IActionResult> ValidarStockSap(int IDPlan)
             string usuario = null;
             string clave = null;
 
-            using (var connection = new SqlConnection(_connectionString)) {
-                await connection.OpenAsync();
-                //retorna almacen y usuario
-                var infoplan = @"
+            var result2 = "";
+
+            using (var connection1 = new SqlConnection(_connectionString)) {
+                string query = @"
+                        SELECT T1.Tipo 
+                        FROM PlanificacionTraslado T0 
+                        INNER JOIN CodigosBeetrack T1 ON T0.IDPlanTraslado = T1.IDPlan 
+                        INNER JOIN PlanificacionPlacaTransferencia T2 ON T2.IDPlan = T1.IDPlan 
+                        WHERE T2.IDPlanPla = @IDPlan"
+                ;
+
+                var parameters = new { IDPlan = IDPlan };
+
+                result2 = await connection1.QueryFirstOrDefaultAsync<string>(query, parameters);
+
+            }
+
+
+            if (result2 == "Transferencia") {
+                string almacentraslado = null;
+                string usuariotraslado = null;
+                string clavetraslado = null;
+                using (var connection = new SqlConnection(_connectionString)) {
+                    await connection.OpenAsync();
+                    var infoplan = @"
+                    SELECT T0.AlmacenTraslado, T0.UsuarioTraslado, T0.ClaveTraslado FROM PlanificacionTraslado T0
+                    INNER JOIN PlanificacionPlacaTransferencia T1 ON T1.IDPlan = T0.IDPlanTraslado
+                    WHERE T1.IDPlanPla = @IDPlan";
+
+                    var infoplanQueryParam = new { IDPlan = IDPlan };
+                    var infoplanResult = await connection.QueryFirstOrDefaultAsync(infoplan, infoplanQueryParam);
+
+                    almacentraslado = infoplanResult.AlmacenTraslado;
+                    usuariotraslado = infoplanResult.UsuarioTraslado;
+                    clavetraslado = infoplanResult.ClaveTraslado;
+
+
+                    var query = @"
+                    SELECT T0.IDPlanMan, T0.DocNum, T0.LineNum, T0.CantidadFinal, T2.Placa, T0.AbsEntry, CASE WHEN T0.CantidadFinal/T0.Factor < T0.CantidadBase THEN T0.CantidadFinal/T0.Factor ELSE T0.CantidadBase END AS CantidadBase
+                    FROM PlacaPedidoTransferencia T0
+                    INNER JOIN PlacaManifiestoTransferencia T1 ON T1.IDPlanMan = T0.IDPlanMan
+                    INNER JOIN PlanificacionPlacaTransferencia T2 ON T2.IDPlanPla = T1.IDPlanPla
+                    WHERE T1.IDPlanPla = @IDPlan AND T0.CantidadFinal != 0 AND T0.EstadoFinal = 1
+                    ORDER BY T0.IDPlanMan ASC";
+
+                    var updatequery = @"
+                    UPDATE PlanificacionPlacaTransferencia SET Sap = 1 WHERE IDPlanPla = @IDPlan";
+
+                    var uptparam = new { IDPlan = IDPlan };
+                    await connection.ExecuteAsync(updatequery, uptparam);
+
+                    var command = new SqlCommand(query, connection);
+                    command.Parameters.AddWithValue("@IDPlan", IDPlan);
+                    var reader = await command.ExecuteReaderAsync();
+
+                    var groups = new Dictionary<int, List<dynamic>>();
+
+                    while (await reader.ReadAsync()) {
+                        var docNum = reader["DocNum"];
+                        var lineNumStr = reader["LineNum"].ToString();
+                        int lineNum = 0;
+
+                        if (!int.TryParse(lineNumStr, out lineNum)) {
+                            Console.WriteLine($"Advertencia: No se pudo convertir 'LineNum' en {lineNumStr}");
+                            continue;
+                        }
+
+                        var cantidadFinal = (int)reader["CantidadFinal"];
+                        //var cantidadBase = (int)reader["CantidadBase"];
+                        var cantidadBaseDecimal = (decimal)reader["CantidadBase"];
+                        int cantidadBase = (int)cantidadBaseDecimal;
+                        var placa = reader["Placa"]?.ToString();
+                        var absEntry = reader["AbsEntry"].ToString();
+                        var idPlanMan = (int)reader["IDPlanMan"];
+
+                        if (!groups.ContainsKey(idPlanMan)) {
+                            groups[idPlanMan] = new List<dynamic>();
+                        }
+
+                        groups[idPlanMan].Add(new {
+                            DocNum = docNum,
+                            LineNum = lineNum,
+                            CantidadFinal = cantidadFinal,
+                            CantidadBase = cantidadBase,
+                            Placa = placa,
+                            AbsEntry = absEntry,
+                            IDPlanMan = idPlanMan
+                        });
+                    }
+
+                    await reader.CloseAsync();
+
+                    if (groups.Count == 0) {
+                        var updatequerys = @"
+                                UPDATE PlanificacionPlacaTransferencia SET Sap = null WHERE IDPlanPla = @IDPlan";
+
+                        var uptparams = new { IDPlan = IDPlan };
+                        await connection.ExecuteAsync(updatequerys, uptparams);
+                        return BadRequest("No se encontraron registros.");
+                    }
+
+                    using (var httpClient = new HttpClient(new HttpClientHandler {
+                        ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true
+                    })) {
+                        var jsonLogin = JsonConvert.SerializeObject(new {
+                            CompanyDB = "FEMACO_PROD",
+                            Password = clavetraslado,
+                            UserName = usuariotraslado
+                        });
+                        var loginContent = new StringContent(jsonLogin, Encoding.UTF8, "application/json");
+                        var loginResponse = await httpClient.PostAsync("https://192.168.1.9:50000/b1s/v1/Login", loginContent);
+
+                        if (loginResponse.IsSuccessStatusCode) {
+                            var responseContent = await loginResponse.Content.ReadAsStringAsync();
+                            dynamic responseObject = JsonConvert.DeserializeObject(responseContent);
+                            sessionId = responseObject.SessionId;
+                            Console.WriteLine("Logueado correctamente.");
+                        } else {
+                            var updatequerys = @"
+                                UPDATE PlanificacionPlacaTransferencia SET Sap = null WHERE IDPlanPla = @IDPlan";
+
+                            var uptparams = new { IDPlan = IDPlan };
+                            await connection.ExecuteAsync(updatequerys, uptparams);
+                            return BadRequest($"Error en la solicitud de login: {loginResponse.StatusCode}");
+                        }
+
+                        foreach (var group in groups) {
+                            var groupId = group.Key;
+                            var groupData = group.Value;
+
+                            var pickListsLinesGroup = new List<object>();
+                            var absEntriesGroup = new List<string>();
+                            string placaGroup = groupData.First().Placa;
+
+                            int lineNumber = 0;
+
+                            foreach (var line in groupData) {
+                                pickListsLinesGroup.Add(new {
+                                    BaseObjectType = 1250000001,
+                                    LineNumber = lineNumber,
+                                    OrderEntry = line.DocNum,
+                                    OrderRowID = line.LineNum,
+                                    ReleasedQuantity = line.CantidadBase,
+                                });
+                                absEntriesGroup.Add(line.AbsEntry);
+
+                                lineNumber++;
+                            }
+
+                            var jsonBody = new {
+                                ObjectType = "156",
+                                PickDate = DateTime.Now.ToString("yyyy-MM-dd"),
+                                U_SEDE = almacentraslado,
+                                U_EXF_PLC = placaGroup,
+                                PickListsLines = pickListsLinesGroup
+                            };
+
+                            string jsonToSend = JsonConvert.SerializeObject(jsonBody, Formatting.Indented);
+                            Console.WriteLine("JSON a enviar para IDPlanMan " + groupId + ":");
+                            Console.WriteLine(jsonToSend);
+
+                            var jsonContent = new StringContent(jsonToSend, Encoding.UTF8, "application/json");
+
+
+                            httpClient.DefaultRequestHeaders.Add("Cookie", "B1SESSION=" + sessionId);
+                            var postResponse = await httpClient.PostAsync("https://192.168.1.9:50000/b1s/v1/PickLists", jsonContent);
+
+                            if (postResponse.IsSuccessStatusCode) {
+                                var postResponseContent = await postResponse.Content.ReadAsStringAsync();
+                                Console.WriteLine("POST subido correctamente para IDPlanMan " + groupId);
+                                dynamic postResponseJson = JsonConvert.DeserializeObject(postResponseContent);
+                                absoluteEntry = postResponseJson.Absoluteentry;
+
+                                var patchLines = new List<object>();
+                                lineNumber = 0;
+
+                                foreach (var line in groupData.Select((value, index) => new { value, index })) {
+                                    var cantidadFinal = (int)line.value.CantidadFinal;
+                                    var binAbsEntry = absEntriesGroup[line.index];
+
+                                    patchLines.Add(new {
+                                        AbsoluteEntry = absoluteEntry,
+                                        LineNumber = lineNumber,
+                                        OrderEntry = line.value.DocNum,
+                                        OrderRowID = line.value.LineNum,
+                                        DocumentLinesBinAllocations = new[] {
+                                        new {
+                                            BinAbsEntry = binAbsEntry,
+                                            Quantity = cantidadFinal,
+                                            AllowNegativeQuantity = "tNO",
+                                            SerialAndBatchNumbersBaseLine = -1,
+                                            BaseLineNumber = lineNumber
+                                        }
+                                    }
+                                    });
+
+                                    lineNumber++;
+                                }
+
+                                var patchBody = new { PickListsLines = patchLines };
+                                string patchJson = JsonConvert.SerializeObject(patchBody, Formatting.Indented);
+                                Console.WriteLine("JSON para PATCH para IDPlanMan " + groupId + ":");
+                                Console.WriteLine(patchJson);
+
+                                var patchContent = new StringContent(patchJson, Encoding.UTF8, "application/json");
+                                var patchResponse = await httpClient.PatchAsync($"https://192.168.1.9:50000/b1s/v1/PickLists({absoluteEntry})", patchContent);
+
+                                if (patchResponse.IsSuccessStatusCode) {
+                                    Console.WriteLine("PATCH subido correctamente para IDPlanMan " + groupId);
+                                    string updateQuery = @"
+                                UPDATE PlacaManifiestoTransferencia 
+                                SET IDPick = @AbsoluteEntry
+                                WHERE IDPlanMan = @IDPlanMan";
+
+                                    var updateParams = new {
+                                        AbsoluteEntry = absoluteEntry,
+                                        IDPlanMan = groupId
+                                    };
+                                    await connection.ExecuteAsync(updateQuery, updateParams);
+                                } else {
+                                    var patchResponseContent = await patchResponse.Content.ReadAsStringAsync();
+                                    success = false;
+                                    var errorMessage = $"Error al actualizar datos para IDPlanMan {groupId}: {patchResponse.StatusCode} - {patchResponseContent}";
+                                    return Json(new { success = false, message = errorMessage });
+                                }
+
+                            } else {
+
+                                var updatequerys = @"
+                                UPDATE PlanificacionPlacaTransferencia SET Sap = null WHERE IDPlanPla = @IDPlan";
+
+                                var uptparams = new { IDPlan = IDPlan };
+                                await connection.ExecuteAsync(updatequerys, uptparams);
+
+                                var postResponseContent = await postResponse.Content.ReadAsStringAsync();
+                                success = false;
+                                Console.WriteLine($"Error al enviar datos para IDPlanMan {groupId}: {postResponse.StatusCode} - {postResponseContent}");
+                                return StatusCode(500, $"Error en POST: {postResponseContent}");
+                            }
+                        }
+                        if (success) {
+                            return Ok(new { success = true, message = "Datos enviados y actualizados correctamente: " + absoluteEntry });
+                        } else {
+                            var updatequerys = @"
+                                UPDATE PlanificacionPlacaTransferencia SET Sap = null WHERE IDPlanPla = @IDPlan";
+
+                            var uptparams = new { IDPlan = IDPlan };
+                            await connection.ExecuteAsync(updatequerys, uptparams);
+                            return StatusCode(500, "Hubo un error en el proceso de POST o PATCH.");
+                        }
+                    }
+                }
+
+
+            } else {
+                using (var connection = new SqlConnection(_connectionString)) {
+                    await connection.OpenAsync();
+                    var infoplan = @"
                     SELECT T0.Almacen, T0.Usuario, T0.Clave FROM Planificacion T0
                     INNER JOIN PlanificacionPlaca T1 ON T1.IDPlan = T0.IDPlan
                     WHERE T1.IDPlanPla = @IDPlan";
 
-                var infoplanQueryParam = new { IDPlan = IDPlan };
-                var infoplanResult = await connection.QueryFirstOrDefaultAsync(infoplan, infoplanQueryParam);
+                    var infoplanQueryParam = new { IDPlan = IDPlan };
+                    var infoplanResult = await connection.QueryFirstOrDefaultAsync(infoplan, infoplanQueryParam);
 
-                almacen = infoplanResult.Almacen;
-                usuario = infoplanResult.Usuario;
-                clave = infoplanResult.Clave;
-                
+                    almacen = infoplanResult.Almacen;
+                    usuario = infoplanResult.Usuario;
+                    clave = infoplanResult.Clave;
 
-                var query = @"
+
+                    var query = @"
                     SELECT T0.IDPlanMan, T0.DocNum, T0.LineNum, T0.CantidadFinal, T2.Placa, T0.AbsEntry, CASE WHEN T0.CantidadFinal/T0.Factor < T0.CantidadBase THEN T0.CantidadFinal/T0.Factor ELSE T0.CantidadBase END AS CantidadBase
                     FROM PlacaPedido T0
                     INNER JOIN PlacaManifiesto T1 ON T1.IDPlanMan = T0.IDPlanMan
@@ -869,198 +1464,241 @@ public async Task<IActionResult> ValidarStockSap(int IDPlan)
                     WHERE T1.IDPlanPla = @IDPlan AND T0.CantidadFinal != 0 AND T0.EstadoFinal = 1
                     ORDER BY T0.IDPlanMan ASC";
 
-                var updatequery = @"
+                    var updatequery = @"
                     UPDATE PlanificacionPlaca SET Sap = 1 WHERE IDPlanPla = @IDPlan";
 
-                var uptparam = new { IDPlan = IDPlan};
-                await connection.ExecuteAsync(updatequery, uptparam);
+                    var uptparam = new { IDPlan = IDPlan };
+                    await connection.ExecuteAsync(updatequery, uptparam);
 
-                var command = new SqlCommand(query, connection);
-                command.Parameters.AddWithValue("@IDPlan", IDPlan);
-                var reader = await command.ExecuteReaderAsync();
+                    var command = new SqlCommand(query, connection);
+                    command.Parameters.AddWithValue("@IDPlan", IDPlan);
+                    var reader = await command.ExecuteReaderAsync();
 
-                var groups = new Dictionary<int, List<dynamic>>();
+                    var groups = new Dictionary<int, List<dynamic>>();
 
-                while (await reader.ReadAsync()) {
-                    var docNum = reader["DocNum"];
-                    var lineNumStr = reader["LineNum"].ToString(); 
-                    int lineNum = 0;
+                    while (await reader.ReadAsync()) {
+                        var docNum = reader["DocNum"];
+                        var lineNumStr = reader["LineNum"].ToString();
+                        int lineNum = 0;
 
-                    if (!int.TryParse(lineNumStr, out lineNum)) {
-                        Console.WriteLine($"Advertencia: No se pudo convertir 'LineNum' en {lineNumStr}");
-                        continue;  
-                    }
-
-                    var cantidadFinal = (int)reader["CantidadFinal"];
-                    //var cantidadBase = (int)reader["CantidadBase"];
-                    var cantidadBaseDecimal = (decimal)reader["CantidadBase"];
-                    int cantidadBase = (int)cantidadBaseDecimal;
-                    var placa = reader["Placa"]?.ToString();
-                    var absEntry = reader["AbsEntry"].ToString();
-                    var idPlanMan = (int)reader["IDPlanMan"]; 
-
-                    if (!groups.ContainsKey(idPlanMan)) {
-                        groups[idPlanMan] = new List<dynamic>();
-                    }
-
-                    groups[idPlanMan].Add(new {
-                        DocNum = docNum,
-                        LineNum = lineNum,
-                        CantidadFinal = cantidadFinal,
-                        CantidadBase = cantidadBase,
-                        Placa = placa,
-                        AbsEntry = absEntry,
-                        IDPlanMan = idPlanMan
-                    });
-                }
-
-                await reader.CloseAsync();
-
-                if (groups.Count == 0) {
-                    return BadRequest("No se encontraron registros.");
-                }
-
-                using (var httpClient = new HttpClient(new HttpClientHandler {
-                    ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true
-                })) {
-                    var jsonLogin = JsonConvert.SerializeObject(new {
-                        CompanyDB = "FEMACO_PROD",
-                        Password = clave,
-                        UserName = usuario
-                    });
-                    var loginContent = new StringContent(jsonLogin, Encoding.UTF8, "application/json");
-                    var loginResponse = await httpClient.PostAsync("https://192.168.1.9:50000/b1s/v1/Login", loginContent);
-
-                    if (loginResponse.IsSuccessStatusCode) {
-                        var responseContent = await loginResponse.Content.ReadAsStringAsync();
-                        dynamic responseObject = JsonConvert.DeserializeObject(responseContent);
-                        sessionId = responseObject.SessionId;
-                        Console.WriteLine("Logueado correctamente.");
-                    } else {
-                        return BadRequest($"Error en la solicitud de login: {loginResponse.StatusCode}");
-                    }
-
-                    foreach (var group in groups) {
-                        var groupId = group.Key; 
-                        var groupData = group.Value; 
-
-                        var pickListsLinesGroup = new List<object>();
-                        var absEntriesGroup = new List<string>();
-                        string placaGroup = groupData.First().Placa;
-
-                        int lineNumber = 0;
-
-                        foreach (var line in groupData) {
-                            pickListsLinesGroup.Add(new {
-                                BaseObjectType = 17,
-                                LineNumber = lineNumber,
-                                OrderEntry = line.DocNum,
-                                OrderRowID = line.LineNum,
-                                ReleasedQuantity = line.CantidadBase  
-                            });
-                            absEntriesGroup.Add(line.AbsEntry);
-
-                            lineNumber++;
+                        if (!int.TryParse(lineNumStr, out lineNum)) {
+                            Console.WriteLine($"Advertencia: No se pudo convertir 'LineNum' en {lineNumStr}");
+                            continue;
                         }
 
-                        var jsonBody = new {
-                            ObjectType = "156",
-                            PickDate = DateTime.Now.ToString("yyyy-MM-dd"),
-                            U_SEDE = almacen,
-                            U_EXF_PLC = placaGroup,
-                            PickListsLines = pickListsLinesGroup
-                        };
+                        var cantidadFinal = (int)reader["CantidadFinal"];
+                        //var cantidadBase = (int)reader["CantidadBase"];
+                        var cantidadBaseDecimal = (decimal)reader["CantidadBase"];
+                        int cantidadBase = (int)cantidadBaseDecimal;
+                        var placa = reader["Placa"]?.ToString();
+                        var absEntry = reader["AbsEntry"].ToString();
+                        var idPlanMan = (int)reader["IDPlanMan"];
 
-                        string jsonToSend = JsonConvert.SerializeObject(jsonBody, Formatting.Indented);
-                        Console.WriteLine("JSON a enviar para IDPlanMan " + groupId + ":");
-                        Console.WriteLine(jsonToSend);
+                        if (!groups.ContainsKey(idPlanMan)) {
+                            groups[idPlanMan] = new List<dynamic>();
+                        }
 
-                        var jsonContent = new StringContent(jsonToSend, Encoding.UTF8, "application/json");
+                        groups[idPlanMan].Add(new {
+                            DocNum = docNum,
+                            LineNum = lineNum,
+                            CantidadFinal = cantidadFinal,
+                            CantidadBase = cantidadBase,
+                            Placa = placa,
+                            AbsEntry = absEntry,
+                            IDPlanMan = idPlanMan
+                        });
+                    }
 
+                    await reader.CloseAsync();
 
-                        httpClient.DefaultRequestHeaders.Add("Cookie", "B1SESSION=" + sessionId);
-                        var postResponse = await httpClient.PostAsync("https://192.168.1.9:50000/b1s/v1/PickLists", jsonContent);
+                    if (groups.Count == 0) {
+                        var updatequerys = @"
+                                UPDATE PlanificacionPlaca SET Sap = null WHERE IDPlanPla = @IDPlan";
 
-                        if (postResponse.IsSuccessStatusCode) {
-                            var postResponseContent = await postResponse.Content.ReadAsStringAsync();
-                            Console.WriteLine("POST subido correctamente para IDPlanMan " + groupId);
-                            dynamic postResponseJson = JsonConvert.DeserializeObject(postResponseContent);
-                            absoluteEntry = postResponseJson.Absoluteentry;
+                        var uptparams = new { IDPlan = IDPlan };
+                        await connection.ExecuteAsync(updatequerys, uptparams);
+                        return BadRequest("No se encontraron registros.");
+                    }
 
-                            var patchLines = new List<object>();
-                            lineNumber = 0;
+                    using (var httpClient = new HttpClient(new HttpClientHandler {
+                        ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true
+                    })) {
+                        var jsonLogin = JsonConvert.SerializeObject(new {
+                            CompanyDB = "FEMACO_PROD",
+                            Password = clave,
+                            UserName = usuario
+                        });
+                        var loginContent = new StringContent(jsonLogin, Encoding.UTF8, "application/json");
+                        var loginResponse = await httpClient.PostAsync("https://192.168.1.9:50000/b1s/v1/Login", loginContent);
 
-                            foreach (var line in groupData.Select((value, index) => new { value, index })) {
-                                var cantidadFinal = (int)line.value.CantidadFinal;
-                                var binAbsEntry = absEntriesGroup[line.index];
+                        if (loginResponse.IsSuccessStatusCode) {
+                            var responseContent = await loginResponse.Content.ReadAsStringAsync();
+                            dynamic responseObject = JsonConvert.DeserializeObject(responseContent);
+                            sessionId = responseObject.SessionId;
+                            Console.WriteLine("Logueado correctamente.");
+                        } else {
+                            var updatequerys = @"
+                                UPDATE PlanificacionPlaca SET Sap = null WHERE IDPlanPla = @IDPlan";
 
-                                patchLines.Add(new {
-                                    AbsoluteEntry = absoluteEntry,
+                            var uptparams = new { IDPlan = IDPlan };
+                            await connection.ExecuteAsync(updatequerys, uptparams);
+                            return BadRequest($"Error en la solicitud de login: {loginResponse.StatusCode}");
+                        }
+
+                        foreach (var group in groups) {
+                            var groupId = group.Key;
+                            var groupData = group.Value;
+
+                            var pickListsLinesGroup = new List<object>();
+                            var absEntriesGroup = new List<string>();
+                            string placaGroup = groupData.First().Placa;
+
+                            int lineNumber = 0;
+
+                            foreach (var line in groupData) {
+                                pickListsLinesGroup.Add(new {
+                                    BaseObjectType = 17,
                                     LineNumber = lineNumber,
-                                    OrderEntry = line.value.DocNum,
-                                    OrderRowID = line.value.LineNum,
-                                    DocumentLinesBinAllocations = new[] {
+                                    OrderEntry = line.DocNum,
+                                    OrderRowID = line.LineNum,
+                                    ReleasedQuantity = line.CantidadBase
+                                });
+                                absEntriesGroup.Add(line.AbsEntry);
+
+                                lineNumber++;
+                            }
+
+                            var jsonBody = new {
+                                ObjectType = "156",
+                                PickDate = DateTime.Now.ToString("yyyy-MM-dd"),
+                                U_SEDE = almacen,
+                                U_EXF_PLC = placaGroup,
+                                PickListsLines = pickListsLinesGroup
+                            };
+
+                            string jsonToSend = JsonConvert.SerializeObject(jsonBody, Formatting.Indented);
+                            Console.WriteLine("JSON a enviar para IDPlanMan " + groupId + ":");
+                            Console.WriteLine(jsonToSend);
+
+                            var jsonContent = new StringContent(jsonToSend, Encoding.UTF8, "application/json");
+
+
+                            httpClient.DefaultRequestHeaders.Add("Cookie", "B1SESSION=" + sessionId);
+                            var postResponse = await httpClient.PostAsync("https://192.168.1.9:50000/b1s/v1/PickLists", jsonContent);
+
+                            if (postResponse.IsSuccessStatusCode) {
+                                var postResponseContent = await postResponse.Content.ReadAsStringAsync();
+                                Console.WriteLine("POST subido correctamente para IDPlanMan " + groupId);
+                                dynamic postResponseJson = JsonConvert.DeserializeObject(postResponseContent);
+                                absoluteEntry = postResponseJson.Absoluteentry;
+
+                                var patchLines = new List<object>();
+                                lineNumber = 0;
+
+                                foreach (var line in groupData.Select((value, index) => new { value, index })) {
+                                    var cantidadFinal = (int)line.value.CantidadFinal;
+                                    var binAbsEntry = absEntriesGroup[line.index];
+
+                                    patchLines.Add(new {
+                                        AbsoluteEntry = absoluteEntry,
+                                        LineNumber = lineNumber,
+                                        OrderEntry = line.value.DocNum,
+                                        OrderRowID = line.value.LineNum,
+                                        DocumentLinesBinAllocations = new[] {
                                         new {
                                             BinAbsEntry = binAbsEntry,
-                                            Quantity = cantidadFinal, 
+                                            Quantity = cantidadFinal,
                                             AllowNegativeQuantity = "tNO",
                                             SerialAndBatchNumbersBaseLine = -1,
                                             BaseLineNumber = lineNumber
                                         }
                                     }
-                                });
+                                    });
 
-                                lineNumber++;
-                            }
+                                    lineNumber++;
+                                }
 
-                            var patchBody = new { PickListsLines = patchLines };
-                            string patchJson = JsonConvert.SerializeObject(patchBody, Formatting.Indented);
-                            Console.WriteLine("JSON para PATCH para IDPlanMan " + groupId + ":");
-                            Console.WriteLine(patchJson);
+                                var patchBody = new { PickListsLines = patchLines };
+                                string patchJson = JsonConvert.SerializeObject(patchBody, Formatting.Indented);
+                                Console.WriteLine("JSON para PATCH para IDPlanMan " + groupId + ":");
+                                Console.WriteLine(patchJson);
 
-                            var patchContent = new StringContent(patchJson, Encoding.UTF8, "application/json");
-                            var patchResponse = await httpClient.PatchAsync($"https://192.168.1.9:50000/b1s/v1/PickLists({absoluteEntry})", patchContent);
+                                var patchContent = new StringContent(patchJson, Encoding.UTF8, "application/json");
+                                var patchResponse = await httpClient.PatchAsync($"https://192.168.1.9:50000/b1s/v1/PickLists({absoluteEntry})", patchContent);
 
-                            if (patchResponse.IsSuccessStatusCode) {
-                                Console.WriteLine("PATCH subido correctamente para IDPlanMan " + groupId);
-                                string updateQuery = @"
+                                if (patchResponse.IsSuccessStatusCode) {
+                                    Console.WriteLine("PATCH subido correctamente para IDPlanMan " + groupId);
+                                    string updateQuery = @"
                                 UPDATE PlacaManifiesto 
                                 SET IDPick = @AbsoluteEntry
                                 WHERE IDPlanMan = @IDPlanMan";
 
-                                var updateParams = new {
-                                    AbsoluteEntry = absoluteEntry,
-                                    IDPlanMan = groupId  
-                                };
-                                await connection.ExecuteAsync(updateQuery, updateParams);
+                                    var updateParams = new {
+                                        AbsoluteEntry = absoluteEntry,
+                                        IDPlanMan = groupId
+                                    };
+                                    await connection.ExecuteAsync(updateQuery, updateParams);
+                                } else {
+                                    var patchResponseContent = await patchResponse.Content.ReadAsStringAsync();
+                                    success = false;
+                                    var errorMessage = $"Error al actualizar datos para IDPlanMan {groupId}: {patchResponse.StatusCode} - {patchResponseContent}";
+                                    return Json(new { success = false, message = errorMessage });
+                                }
+
                             } else {
-                                var patchResponseContent = await patchResponse.Content.ReadAsStringAsync();
+
+                                var updatequerys = @"
+                                UPDATE PlanificacionPlaca SET Sap = null WHERE IDPlanPla = @IDPlan";
+
+                                var uptparams = new { IDPlan = IDPlan };
+                                await connection.ExecuteAsync(updatequerys, uptparams);
+
+                                var postResponseContent = await postResponse.Content.ReadAsStringAsync();
                                 success = false;
-                                var errorMessage = $"Error al actualizar datos para IDPlanMan {groupId}: {patchResponse.StatusCode} - {patchResponseContent}";
-                                return Json(new { success = false, message = errorMessage });
+                                Console.WriteLine($"Error al enviar datos para IDPlanMan {groupId}: {postResponse.StatusCode} - {postResponseContent}");
+                                return StatusCode(500, $"Error en POST: {postResponseContent}");
                             }
-
+                        }
+                        if (success) {
+                            return Ok(new { success = true, message = "Datos enviados y actualizados correctamente: " + absoluteEntry });
                         } else {
-
                             var updatequerys = @"
                                 UPDATE PlanificacionPlaca SET Sap = null WHERE IDPlanPla = @IDPlan";
 
                             var uptparams = new { IDPlan = IDPlan };
                             await connection.ExecuteAsync(updatequerys, uptparams);
 
-                            var postResponseContent = await postResponse.Content.ReadAsStringAsync();
-                            success = false;
-                            Console.WriteLine($"Error al enviar datos para IDPlanMan {groupId}: {postResponse.StatusCode} - {postResponseContent}");
-                            return StatusCode(500, $"Error en POST: {postResponseContent}");
+                            return StatusCode(500, "Hubo un error en el proceso de POST o PATCH.");
                         }
-                    }
-                    if (success) {
-                        return Ok(new { success = true, message = "Datos enviados y actualizados correctamente: " + absoluteEntry });
-                    } else {
-                        return StatusCode(500, "Hubo un error en el proceso de POST o PATCH.");
                     }
                 }
             }
+
+
+
+
+            
         }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     }
 }

@@ -150,6 +150,8 @@
             const idPlan = urlParams.get('id');
             $('#plan-id').text(idPlan);
             cargarPlacas(idPlan, idPP);
+            //cargarPlacas2(idPlan, idPP);
+
         });
         function restarHoras(inicio, fin) {
             const [h1, m1] = inicio.split(':').map(Number);
@@ -485,7 +487,7 @@
 
             } catch (error) {
                 console.error('Error al cargar los productos:', error);
-                $('#placas-body').html('<tr><td colspan="4">Error al cargar los productos.</td></tr>');
+                $('#placas-body').html('<tr><td colspan="4">Error al cargar los productos Provincia Local.</td></tr>');
             }
         };
 
@@ -1065,7 +1067,7 @@
             }
         }
 
-
+        
 
 
     </script>

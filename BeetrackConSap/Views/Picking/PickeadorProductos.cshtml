@@ -142,7 +142,6 @@
             const urlParams = new URLSearchParams(window.location.search);
             const idPlan = urlParams.get('id');
             const idPP = urlParams.get('idpp');
-
             $('#plan-id').text(idPlan);
             cargarProductosPickeador(idPlan, idPP);
             cargarFiltros(idPlan, idPP);
@@ -225,7 +224,7 @@
                     if (estado === 'dark') {
                         productosrestantes++;
                     }
-
+                    console.log("stock Productos", prod);
                     $productosBody.append(`
                                 <div class="m-2 p-2 product-card" data-sector="${prod.sL1Code}" data-posicion="${prod.sL2Code}" style="border: 5px solid #C4E1F6; border-radius: 10px;" ${hiddendiv}>
                                     <span class="fw-bold text-dark fs-5">${prod.descripcion}</span>
@@ -291,7 +290,7 @@
 
             } catch (error) {
                 console.error('Error al cargar los productos:', error);
-                Swal.fire('Error', 'Error al cargar los productos.', 'error');
+                Swal.fire('Error', 'Error al cargar los producsssssssssssssstos.', 'error');
             }
         };
 
@@ -815,8 +814,7 @@
 
                 let nuevocantidadAPickear = $('#paqueteriaspickear').text();
                 if ($('#calculos').length === 0) {
-                    console.log("----------->",nuevocantidadAPickear);
-                    console.log("------------->",total);
+
 
                     $('#paqueteriasModal .modal-body').append(`
                                 <div class="row mt-3">
@@ -855,17 +853,18 @@
                     }
 
                     let refac = 0;
+                    console.log("primerFactor", primerFactor);
 
                     if (primerFactor == 1) {
                         if (cantidadRestante > primerBase) {
                             resfac = cantidadRestante - primerBase;
                             Swal.fire('Error', 'No se podra asignar ' + resfac + ' unidades, el pedido es por paquete', 'error');
                         } else {
-                            //Swal.fire('Exito', 'Si.', 'success');
                             let motivoSeleccionado = $('#selectmotivo').val();
                             if(motivoSeleccionado === "0"){
                                 Swal.fire('Error', 'Seleccione el motivo por el que esta incompleto', 'error');
                             }else{
+                                console.log("se esta ejecutando este");
                                 guardarPaqueterias(idProducto, idpProducto, paqueterias, idPlan, idPP, motivoSeleccionado);
                             }
                         }
@@ -882,6 +881,7 @@
                             if (motivoSeleccionado === "0") {
                                 Swal.fire('Error', 'Seleccione el motivo por el que esta incompleto', 'error');
                             } else {
+                                console.log("entro ------->  30")
                                 guardarPaqueterias(idProducto, idpProducto, paqueterias, idPlan, idPP, motivoSeleccionado);
                             }
                         }
@@ -1338,6 +1338,7 @@
                     }
 
                     let refac = 0;
+                    console.log("entro222222222", primerFactor);
 
                     if (primerFactor == 1) {
                         if (cantidadRestante > primerBase) {
@@ -1345,6 +1346,8 @@
                             Swal.fire('Error', 'No se podra asignar ' + resfac + ' unidades, el pedido es por paquete', 'error');
                         } else {
                             //Swal.fire('Exito', 'Si.', 'success');
+                            console.log("entro222222222")
+
                             guardarPaqueterias(idProducto, idpProducto, paqueterias, idPlan, idPP,"0");
                         }
                     } else {
@@ -1356,6 +1359,8 @@
                             Swal.fire('Error', 'No se podra asignar ' + resfac + ' unidades, el pedido es por paquete', 'error');
                         } else {
                             //Swal.fire('Exito', 'Si.', 'success');
+                            console.log("entro3333333333")
+
                             guardarPaqueterias(idProducto, idpProducto, paqueterias, idPlan, idPP,"0");
                         }
                     }
@@ -1465,9 +1470,20 @@
             }
         };
 
+
         const guardarPaqueterias = async (idProducto, idpProducto, data, idPlan, idPP, motivoSeleccionado) => {
-            
+            console.log("++++++++++++++++++++++++++++++++++++++++++++++++++");
+
+            console.log("idProducto", idProducto);
+            console.log("idpProducto", idpProducto);
+            console.log("data", data);
+            console.log("idPlan", idPlan);
+            console.log("idPP", idPP);
+            console.log("motivoSeleccionado", motivoSeleccionado);
+            console.log("--------------------");
+
             const registros = [];
+
 
             const motivo = motivoSeleccionado || "0";
             $('.cantidad-input').each(function () {
@@ -1477,6 +1493,14 @@
                 const abs = $(this).data('abs');
                 const ubiabs = $(this).data('ubiabs');
                 const stock = $(this).data('stock');
+                console.log("cantidad", cantidad);
+                console.log("idMedida", idMedida);
+                console.log("factor", factor);
+                console.log("absSSSSSSSS", abs);
+                console.log("ubiabs", ubiabs);
+                console.log("stock", stock);
+                console.log("--------------------");
+
                 if (cantidad) {
                     registros.push({
                         idProducto: String(idProducto),
@@ -1492,6 +1516,7 @@
             });
 
             try {
+                console.log("idpProducto++++++++++++++++++++++++++", idpProducto);
                 const response = await fetch(`/Picking/GuardarPaqueterias?idm=${motivo}&idpp=${idpProducto}`, {
                     method: 'POST',
                     headers: {
@@ -1508,11 +1533,11 @@
                     $('#paqueteriasModal').modal('hide');
                     cargarProductosPickeador(idPlan, idPP);
                 } else {
-                    throw new Error('Error al guardar los datos.');
+                    throw new Error('Error al guardar los datos----->1.');
                 }
             } catch (error) {
                 console.error('Error al guardar las paqueterías:', error);
-                Swal.fire('Error', 'Error al guardar los datos.', 'error');
+                Swal.fire('Error', 'Error al guardar los datos------>2.', 'error');
             }
         };
 
@@ -1616,5 +1641,17 @@
                 Swal.fire('Error', 'Ocurrió un error al cargar los filtros', 'info');
             }
         };
+
+
+
+
+
+
+
+
+
+
+        
+
     </script>
 }
